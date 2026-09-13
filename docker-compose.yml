@@ -1,0 +1,28 @@
+services:
+  rexarr:
+    image: rexarr:latest
+    build: .
+    container_name: rexarr
+    ports:
+      - "7878:7878"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - UMASK=002
+      - TZ=Europe/London
+      # Uncomment for Intel QuickSync / VAAPI:
+      # - LIBVA_DRIVER_NAME=iHD
+    volumes:
+      - ./config:/config
+      # Mount media at the SAME path Radarr / Sonarr use inside their containers so no path mapping is
+      # needed (e.g. both see /data/media). Otherwise add a mapping under Settings → Path mappings.
+      - /path/to/media:/data/media
+    # devices:
+    #   - /dev/dri:/dev/dri        # VAAPI / QuickSync
+    #   - /dev/sr0:/dev/sr0        # optical drive (needs makemkvcon in the image)
+    # For NVIDIA NVENC with an ffmpeg that has CUDA support:
+    # runtime: nvidia
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=all
+    #   - NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
+    restart: unless-stopped
