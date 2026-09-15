@@ -27,6 +27,7 @@ if [ "$(id -u)" = "0" ]; then
     [ -e "$dev" ] && chmod a+rw "$dev" 2>/dev/null || true
   done
   echo "rexarr: running as $USER ($PUID:$PGID), umask $UMASK, data in $DATA_DIR"
-  exec su-exec "$PUID:$PGID" "$@"
+  # su-exec sets HOME to the user's (non-existent) home; fre:ac and GLib want a writable one
+  exec su-exec "$PUID:$PGID" env HOME="$DATA_DIR" "$@"
 fi
 exec "$@"

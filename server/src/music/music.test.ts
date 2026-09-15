@@ -5,7 +5,7 @@ import type { Release } from '../../../shared/types.js';
 import { BUILTIN_PROFILES } from '../../../shared/presets.js';
 import { discId, parseCdparanoiaToc, parseTocPlist, tocString } from './musicbrainz.js';
 import { formatLabel, musicCategory, musicFormatFromText } from './format.js';
-import { freacEncoderArgs } from './freac.js';
+import { crashedAfterDone, freacEncoderArgs } from './freac.js';
 import { detectMqaInSamples, MQA_SYNC } from '../audio/mqa.js';
 import { groupResponses, splitSoulseekPath } from '../arr/slskd.js';
 import { rankReleases } from '../search/releaseInfo.js';
@@ -165,3 +165,15 @@ function execSjis(s: string): Uint8Array {
   // Node has no Shift-JIS encoder; iconv is on macOS and Linux
   return new Uint8Array(execFileSync('iconv', ['-f', 'UTF-8', '-t', 'SHIFT_JIS'], { input: s }));
 }
+
+test('fre:ac crash on exit is only forgiven after every file finished', () => {
+  const bin = '/usr/bin/freaccmd';
+  assert.equal(crashedAfterDone(bin, null, 'SIGSEGV', 'Processing file: /tmp/img.flac...done.'), true);
+  assert.equal(crashedAfterDone(bin, 139, null, 'Processing file: a.wav...\ndone.\nProcessing file: b.wav...done.'), true);
+  assert.equal(crashedAfterDone(bin, null, 'SIGSEGV', 'Processing file: a.wav...done.\nProcessing file: b.wav...'), false);
+  assert.equal(crashedAfterDone(bin, null, 'SIGSEGV', 'File not found: nope.flac'), false);
+  assert.equal(crashedAfterDone(bin, null, 'SIGSEGV', 'Could not process file: bad.flac'), false);
+  assert.equal(crashedAfterDone(bin, null, 'SIGSEGV', 'Processing file: a.wav...done.\n\nError: Unable to create output file: a.flac\naborted.'), false);
+  assert.equal(crashedAfterDone(bin, 1, null, 'Processing file: a.wav...done.'), false);
+  assert.equal(crashedAfterDone('/usr/bin/ffmpeg', null, 'SIGSEGV', 'Processing file: a.wav...done.'), false);
+});
