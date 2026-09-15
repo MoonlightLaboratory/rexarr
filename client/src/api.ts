@@ -64,6 +64,7 @@ export const api = {
   saveSettings: (s: Settings) => req<Settings>('PUT', '/api/settings', s),
   hostRuntime: () => req<HostRuntime>('GET', '/api/settings/host'),
   regenerateApiKey: () => req<{ apiKey: string }>('POST', '/api/settings/apikey'),
+  shutdown: () => req<{ shuttingDown: boolean }>('POST', '/api/system/shutdown'),
   restart: () => req<{ restarting: boolean; port: number; urlBase: string }>('POST', '/api/system/restart'),
   authStatus: () => req<{ authentication: 'none' | 'basic' | 'forms'; username?: string }>('GET', '/api/auth/status'),
   testConnection: (app: 'radarr' | 'sonarr' | 'prowlarr' | 'lidarr' | 'slskd', conn: { url: string; apiKey: string }) => req<{ ok: boolean; version?: string; appName?: string; error?: string }>('POST', `/api/settings/test/${app}`, conn),

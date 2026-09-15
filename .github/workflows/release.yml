@@ -1,0 +1,189 @@
+name: Release
+
+# Builds the release packages (Linux, macOS, Windows, FreeBSD; tar.gz / zip / macOS app / Windows installer), tests
+# them on real runners, publishes a GitHub release and pushes the matching Docker image tag.
+#
+# Start it either way:
+#   - Actions → Release → Run workflow (creates the tag v<APP_VERSION> from shared/version.ts), or
+#   - push a tag v<APP_VERSION> (must match shared/version.ts).
+# Release notes come from docs/release-notes/<version>.md when that file exists.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: Mark as a pre-release (beta)
+        type: boolean
+        default: true
+      draft:
+        description: Create as a draft (publish it by hand)
+        type: boolean
+        default: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - id: version
+        name: Read version
+        run: |
+          version=$(node -p "require('fs').readFileSync('shared/version.ts','utf8').match(/APP_VERSION = '([^']+)'/)[1]")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match APP_VERSION $version in shared/version.ts"
+            exit 1
+          fi
+          echo "rexarr $version, Node $(node -v)"
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - name: Build packages
+        run: node scripts/package.mjs --out release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: |
+            release/rexarr.*.tar.gz
+            release/rexarr.*.zip
+          if-no-files-found: error
+          compression-level: 0
+
+  installer:
+    needs: package
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x64, x86]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: release
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $version = '${{ needs.package.outputs.version }}'
+          Expand-Archive "release/rexarr.main.$version.win-${{ matrix.arch }}.zip" -DestinationPath stage
+          $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          & $iscc "/DAppVersion=$version" "/DArch=${{ matrix.arch }}" "/DSourceDir=$PWD\stage\rexarr" "/DOutputDir=$PWD\installer" distribution\windows\rexarr.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test installer (silent install, start, uninstall)
+        if: matrix.arch == 'x64'
+        shell: bash
+        run: |
+          version='${{ needs.package.outputs.version }}'
+          ./installer/rexarr.main.$version.win-x64-installer.exe //VERYSILENT //SUPPRESSMSGBOXES //NORESTART //LOG=install.log
+          test -f "/c/Program Files/rexarr/runtime/node.exe"
+          mkdir -p installed && cp -r "/c/Program Files/rexarr" installed/rexarr
+          scripts/smoke-test.sh installed "$version"
+          "/c/Program Files/rexarr/unins000.exe" //VERYSILENT //SUPPRESSMSGBOXES //NORESTART
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.arch }}
+          path: installer/*.exe
+          if-no-files-found: error
+
+  smoke:
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: linux-x64.tar.gz }
+          - { os: ubuntu-24.04-arm, target: linux-arm64.tar.gz }
+          - { os: macos-latest, target: osx-arm64.tar.gz }
+          - { os: macos-latest, target: osx-arm64-app.zip }
+          - { os: windows-latest, target: win-x64.zip }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: release
+      - name: Start the package
+        shell: bash
+        run: |
+          version='${{ needs.package.outputs.version }}'
+          file="release/rexarr.main.$version.${{ matrix.target }}"
+          mkdir -p extracted
+          case "$file" in
+            *.tar.gz) tar -xzf "$file" -C extracted ;;
+            *.zip) unzip -q "$file" -d extracted ;;
+          esac
+          scripts/smoke-test.sh extracted "$version"
+
+  smoke-musl:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: release
+      - name: Start the musl package on Alpine
+        run: |
+          version='${{ needs.package.outputs.version }}'
+          mkdir -p extracted && tar -xzf "release/rexarr.main.$version.linux-musl-x64.tar.gz" -C extracted
+          docker run --rm -v "$PWD:/w" -w /w alpine:3.22 sh -c "apk add --no-cache bash curl libstdc++ >/dev/null && scripts/smoke-test.sh extracted $version"
+
+  release:
+    needs: [package, installer, smoke, smoke-musl]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Release notes
+        run: |
+          version='${{ needs.package.outputs.version }}'
+          notes="docs/release-notes/$version.md"
+          if [ -f "$notes" ]; then cp "$notes" notes.md; else echo "rexarr $version" > notes.md; fi
+          ls -la assets
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.package.outputs.version }}
+          name: ${{ needs.package.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          body_path: notes.md
+          generate_release_notes: true
+          prerelease: ${{ github.event_name == 'push' || inputs.prerelease }}
+          draft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft }}
+          files: assets/*
+          fail_on_unmatched_files: true
+
+  docker:
+    needs: [package, release]
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker.yml
+    with:
+      version: ${{ needs.package.outputs.version }}

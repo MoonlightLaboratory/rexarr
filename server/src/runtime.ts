@@ -7,6 +7,15 @@ import { effectiveHost, envHost, IN_DOCKER } from './general.js';
 export const running = { bindAddress: '*', port: 0, urlBase: '', sslPort: undefined as number | undefined, sslKey: '' };
 
 let restartHandler: (() => Promise<void>) | null = null;
+let shutdownHandler: (() => void) | null = null;
+export function onShutdown(fn: () => void) {
+  shutdownHandler = fn;
+}
+/** Stop rexarr (System → Shutdown); the reply goes out first. */
+export function shutdown() {
+  if (!shutdownHandler) throw new Error('shutdown is not available');
+  setTimeout(shutdownHandler, 300).unref();
+}
 let logLevelHandler: ((level: string) => void) | null = null;
 export function onLogLevel(fn: (level: string) => void) {
   logLevelHandler = fn;

@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import http from 'node:http';
+import net from 'node:net';
 import https from 'node:https';
 import fastifyStatic from '@fastify/static';
 import fs from 'node:fs';
@@ -7,7 +8,8 @@ import path from 'node:path';
 import { APP_VERSION, CLIENT_DIST, CONFIG_DIR, MIGRATED, PATHS } from './config.js';
 import { registerAuth } from './auth.js';
 import { effectiveHost, listenHost } from './general.js';
-import { onLogLevel, onRestart, running, sslFingerprint } from './runtime.js';
+import { onLogLevel, onRestart, onShutdown, running, sslFingerprint } from './runtime.js';
+import { openBrowser } from './browser.js';
 import { store } from './store.js';
 import { queue } from './jobs/queue.js';
 import settingsRoutes from './routes/settings.js';
@@ -183,6 +185,24 @@ onRestart(async () => {
   }, 300).unref();
 });
 
+/** --browser (the macOS app and Windows shortcuts): open the web UI once listening. Launched again while rexarr is
+ *  already running, it opens the running instance and exits before touching the queue. */
+const launchBrowser = process.argv.includes('--browser') && !process.env.REXARR_NO_BROWSER;
+if (launchBrowser) {
+  const want = effectiveHost(store.settings.general);
+  const taken = await new Promise<boolean>((resolve) => {
+    const probe = net.createServer();
+    probe.once('error', (e: NodeJS.ErrnoException) => resolve(e.code === 'EADDRINUSE'));
+    probe.listen(want.port, listenHost(want.bindAddress), () => probe.close(() => resolve(false)));
+  });
+  if (taken) {
+    console.log(`[rexarr] port ${want.port} is in use, probably by rexarr itself: opening it`);
+    openBrowser(`http://localhost:${want.port}${want.urlBase}/`);
+    await new Promise((r) => setTimeout(r, 1500));
+    process.exit(0);
+  }
+}
+
 queue.start();
 discs.start();
 startLocalMedia();
@@ -240,5 +260,12 @@ const shutdown = async () => {
 };
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+onShutdown(() => void shutdown());
 
-await start();
+try {
+  await start();
+} catch (err) {
+  if ((err as NodeJS.ErrnoException).code === 'EADDRINUSE') console.error(`[rexarr] port ${effectiveHost(store.settings.general).port} is already in use (is rexarr already running?)`);
+  throw err;
+}
+if (launchBrowser) openBrowser(`http://localhost:${running.port}${running.urlBase}/`);
