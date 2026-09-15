@@ -1,0 +1,31 @@
+services:
+  rexarr:
+    image: ghcr.io/moonlightlaboratory/rexarr:latest
+    # or build locally:
+    # build: .
+    # build: { context: ., dockerfile: docker/Dockerfile.makemkv, args: { MAKEMKV_VERSION: "1.18.1" } }   # with MakeMKV for ripping
+    container_name: rexarr
+    ports:
+      - "7878:7878"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - UMASK=002
+      - TZ=Europe/London
+    volumes:
+      - ./config:/config
+      # Mount media at the SAME path Radarr / Sonarr use inside their containers (e.g. /data/media in all three)
+      # so no path mapping is needed; otherwise add one under Settings → Path mappings.
+      - /path/to/media:/data/media
+      # Somewhere roomy for raw disc rips (set Settings → Disc ripping → Rip directory to /data/rips):
+      # - /path/to/rips:/data/rips
+    # devices:
+    #   - /dev/dri:/dev/dri        # Intel QuickSync / VAAPI
+    #   - /dev/sr0:/dev/sr0        # optical drive (needs the makemkv image)
+    #   - /dev/sg0:/dev/sg0
+    # NVIDIA NVENC needs an ffmpeg build with CUDA (point Settings → FFmpeg at one) and:
+    # runtime: nvidia
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=all
+    #   - NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
+    restart: unless-stopped

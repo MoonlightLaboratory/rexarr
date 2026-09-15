@@ -1,0 +1,60 @@
+# syntax=docker/dockerfile:1.7
+# rexarr with MakeMKV compiled in, for disc ripping inside the container.
+#
+#   docker build -f docker/Dockerfile.makemkv --build-arg MAKEMKV_VERSION=1.18.1 -t rexarr:makemkv .
+#   docker run -d -p 7878:7878 --device /dev/sr0 --device /dev/sg0 -v ./config:/config -v /path/to/media:/data/media rexarr:makemkv
+#
+# MakeMKV is proprietary; by building this image you accept its EULA (https://www.makemkv.com/eula/).
+# Blu-ray decryption needs a registered key or the current free beta key entered under Settings once
+# (it is stored in /config/.MakeMKV/settings.conf). Check https://www.makemkv.com/download/ for the
+# latest MAKEMKV_VERSION. NOT built in CI – MakeMKV cannot be redistributed.
+
+# ---------- rexarr build (same as the main image) ----------
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY server/package.json server/
+COPY client/package.json client/
+RUN --mount=type=cache,target=/root/.npm npm ci
+COPY shared ./shared
+COPY server ./server
+COPY client ./client
+RUN npm run build && npm prune --omit=dev && rm -rf server/src client/src client/node_modules server/node_modules
+
+# ---------- makemkv build ----------
+FROM debian:bookworm-slim AS makemkv
+ARG MAKEMKV_VERSION=1.18.1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential pkg-config ca-certificates curl \
+      libc6-dev libssl-dev libexpat1-dev zlib1g-dev libavcodec-dev libavutil-dev \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+RUN curl -fsSL "https://www.makemkv.com/download/makemkv-oss-${MAKEMKV_VERSION}.tar.gz" | tar xz \
+ && curl -fsSL "https://www.makemkv.com/download/makemkv-bin-${MAKEMKV_VERSION}.tar.gz" | tar xz \
+ && cd "makemkv-oss-${MAKEMKV_VERSION}" && ./configure --disable-gui --prefix=/usr && make -j"$(nproc)" && make install \
+ && cd "../makemkv-bin-${MAKEMKV_VERSION}" && mkdir -p tmp && echo accepted > tmp/eula_accepted && make && make install
+
+# ---------- runtime ----------
+FROM node:22-bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ffmpeg tini gosu ca-certificates libssl3 libexpat1 zlib1g libavcodec59 libavutil57 \
+      eject util-linux curl \
+ && rm -rf /var/lib/apt/lists/* \
+ && userdel -r node 2>/dev/null || true
+COPY --from=makemkv /usr/bin/makemkvcon /usr/bin/mmccextr /usr/bin/mmgplsrv /usr/bin/
+COPY --from=makemkv /usr/lib/libdriveio.so.0 /usr/lib/libmakemkv.so.1 /usr/lib/libmmbd.so.0 /usr/lib/
+ENV NODE_ENV=production REXARR_PORT=7878 REXARR_HOST=0.0.0.0 REXARR_DATA_DIR=/config PUID=1000 PGID=1000 UMASK=002 HOME=/config
+WORKDIR /app
+COPY --from=build /app/package.json ./
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/server/package.json ./server/
+COPY --from=build /app/server/dist ./server/dist
+COPY --from=build /app/client/dist ./client/dist
+COPY --from=build /app/shared ./shared
+COPY docker/entrypoint-debian.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && mkdir -p /config
+VOLUME ["/config"]
+EXPOSE 7878
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD curl -fsS "http://127.0.0.1:${REXARR_PORT}/api/health" >/dev/null || exit 1
+ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
+CMD ["node", "server/dist/server/src/index.js"]

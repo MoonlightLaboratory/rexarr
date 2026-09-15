@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+client/dist
+server/dist
+data
+.git
+.claude
+*.log
+.DS_Store
+test-media
+docker-compose*.yml
+README.md
