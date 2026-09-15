@@ -19,7 +19,7 @@ export default async function autoRoutes(app: FastifyInstance) {
   });
 
   /**
-   * Radarr / Sonarr → Settings → Connect → Webhook, URL http://rexarr:7878/api/webhook/radarr (or /sonarr),
+   * Radarr / Sonarr → Settings → Connect → Webhook, URL http://rexarr:3939/api/webhook/radarr (or /sonarr),
    * triggers: On Import / On Upgrade. The payload is only used as a signal; the library is re-read.
    */
   app.post<{ Params: { source: string } }>('/api/webhook/:source', async (req) => {

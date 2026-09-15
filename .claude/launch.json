@@ -5,7 +5,7 @@
       "name": "rexarr",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["start"],
-      "port": 7878
+      "port": 3939
     }
   ]
 }

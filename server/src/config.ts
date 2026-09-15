@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 export { APP_VERSION, REPO_URL } from '../../shared/version.js';
-export const PORT = Number(process.env.REXARR_PORT ?? process.env.PORT ?? 7878);
+export const PORT = Number(process.env.REXARR_PORT ?? process.env.PORT ?? 3939);
 export const HOST = process.env.REXARR_HOST ?? '0.0.0.0';
 /** Root of everything rexarr stores (the Docker /config volume). REXARR_DATA_DIR is accepted for compatibility. */
 export const CONFIG_DIR = path.resolve(process.env.REXARR_CONFIG_DIR ?? process.env.REXARR_DATA_DIR ?? path.join(process.cwd(), 'data'));

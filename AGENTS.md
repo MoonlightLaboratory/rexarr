@@ -27,11 +27,11 @@ docs/README.md     full documentation
 
 ```bash
 npm install
-npm run dev         # API :7878 + Vite :7979
+npm run dev         # API :3939 + Vite :7979
 npm run typecheck   # both packages
 npm test            # server tests: node --test with tsx, files src/**/*.test.ts
 npm run build       # client then server
-npm start           # serve the production build on :7878
+npm start           # serve the production build on :3939
 ```
 
 Run `npm run typecheck` and `npm test` after changes; run `npm run build` before finishing.

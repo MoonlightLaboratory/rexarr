@@ -314,7 +314,7 @@ export const LANGUAGES: { code: string; label: string }[] = [
 
 export const DEFAULT_SETTINGS = {
   general: {
-    host: { bindAddress: '*', port: 7878, urlBase: '', instanceName: 'Rexarr', applicationUrl: '', enableSsl: false, sslPort: 9898, sslCertPath: '', sslKeyPath: '', sslCertPassword: '' },
+    host: { bindAddress: '*', port: 3939, urlBase: '', instanceName: 'Rexarr', applicationUrl: '', enableSsl: false, sslPort: 9898, sslCertPath: '', sslKeyPath: '', sslCertPassword: '' },
     security: {
       authentication: 'none' as 'none' | 'basic' | 'forms',
       authenticationRequired: 'disabledForLocalAddresses' as 'enabled' | 'disabledForLocalAddresses',
