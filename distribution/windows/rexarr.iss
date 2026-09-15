@@ -1,6 +1,6 @@
 ; rexarr Windows installer (Inno Setup 6), built by .github/workflows/release.yml from the win-x64 / win-x86 zip:
 ;
-;   iscc /DAppVersion=0.1.4.1 /DArch=x64 /DSourceDir=C:\stage\rexarr /DOutputDir=C:\out distribution\windows\rexarr.iss
+;   iscc /DAppVersion=0.1.4.2 /DArch=x64 /DSourceDir=C:\stage\rexarr /DOutputDir=C:\out distribution\windows\rexarr.iss
 ;
 ; Installs to Program Files\rexarr; data stays in C:\ProgramData\rexarr (kept on uninstall and upgrade).
 
