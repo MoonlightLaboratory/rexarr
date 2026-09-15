@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { PATHS, APP_VERSION } from './config.js';
+import { PATHS, APP_VERSION, REPO_URL } from './config.js';
 import { httpFetch } from './net.js';
 
 const TITLES_URL = 'https://anidb.net/api/anime-titles.xml.gz';
@@ -176,7 +176,7 @@ class AniDb {
   private async fetchToFile(url: string, file: string, force: boolean) {
     const fresh = fs.existsSync(file) && Date.now() - fs.statSync(file).mtimeMs < MAX_AGE_MS;
     if (fresh && !force) return;
-    const res = await httpFetch(url, { headers: { 'User-Agent': `rexarr/${APP_VERSION} (+https://github.com/MoonlightLaboratory)`, 'Accept-Encoding': 'identity' }, signal: AbortSignal.timeout(120_000) });
+    const res = await httpFetch(url, { headers: { 'User-Agent': `rexarr/${APP_VERSION} (+${REPO_URL})`, 'Accept-Encoding': 'identity' }, signal: AbortSignal.timeout(120_000) });
     if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
     const buf = Buffer.from(await res.arrayBuffer());
     fs.mkdirSync(path.dirname(file), { recursive: true });

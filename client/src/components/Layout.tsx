@@ -1,5 +1,5 @@
 import { INSTANCE_NAME, URL_BASE } from '../base';
-import { APP_VERSION } from '@shared/version';
+import { APP_VERSION, REPO_URL } from '@shared/version';
 import { api } from '../api';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -244,8 +244,11 @@ export function Layout({ children, jobs, rips, drives, health, connected, toasts
           <button className="headerLink" title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? <Icon.Sun /> : <Icon.Moon />}
           </button>
-          <a className="headerLink" href="https://github.com/Sonarr/Sonarr/wiki" target="_blank" rel="noreferrer" title="Wiki">
+          <a className="headerLink" href={`${REPO_URL}#readme`} target="_blank" rel="noreferrer" title="Documentation">
             <Icon.Question />
+          </a>
+          <a className="headerLink hideOnPhone" href={REPO_URL} target="_blank" rel="noreferrer" title="rexarr on GitHub">
+            <Icon.GitHub />
           </a>
           <Link className="headerLink" to="/system" title="System">
             <Icon.Cpu />
@@ -309,7 +312,9 @@ export function Layout({ children, jobs, rips, drives, health, connected, toasts
             <span className={`dot${connected ? '' : ' off'}`} />
             <span className="statusText">{connected ? 'Connected' : 'Reconnecting…'}</span>
             <span className="spacer" />
-            <span className="muted statusText">v{APP_VERSION}</span>
+            <a className="muted statusText versionLink" href={`${REPO_URL}/releases`} target="_blank" rel="noreferrer" title="Release notes on GitHub">
+              v{APP_VERSION}
+            </a>
           </div>
           <div
             className="sidebarResizer"

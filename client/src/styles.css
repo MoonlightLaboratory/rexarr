@@ -996,3 +996,8 @@ table.metaTags td.mono { word-break: break-word; }
 .stat .v, .storageMeta, .sizeEstimateValue { font-variant-numeric: tabular-nums; }
 /* narrow phones: toolbar buttons with long labels share the row instead of running off the edge */
 @media (max-width: 420px) { .toolbarButton.wide { padding: 4px 5px 0; } .toolbarButton .label { padding: 0 1px; } }
+/* GitHub links */
+.versionLink { color: inherit; }
+.versionLink:hover { color: var(--themeBlue); text-decoration: none; }
+@media (max-width: 768px) { .headerLink.hideOnPhone { display: none; } }
+.field.row a svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 3px; }

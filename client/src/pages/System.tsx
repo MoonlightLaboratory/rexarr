@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { REPO_URL } from '@shared/version';
 import type { StoragePath } from '@shared/types';
 import type { SystemInfo } from '@shared/types';
 import { VIDEO_ENCODER_INFO, AUDIO_ENCODER_INFO } from '@shared/presets';
@@ -165,6 +166,20 @@ export function SystemPage() {
               <div className="card-h">About</div>
               <div className="card-b">
                 <div className="field row"><label>rexarr</label><span>v{info.version}</span></div>
+                <div className="field row">
+                  <label>GitHub</label>
+                  <span className="inline" style={{ gap: 12 }}>
+                    <a href={REPO_URL} target="_blank" rel="noreferrer">
+                      <Icon.GitHub /> Source
+                    </a>
+                    <a href={`${REPO_URL}/releases`} target="_blank" rel="noreferrer">
+                      Releases
+                    </a>
+                    <a href={`${REPO_URL}/issues/new?${new URLSearchParams({ title: '', body: `\n\n---\nrexarr ${info.version} · ${info.platform} · Node ${info.node}` })}`} target="_blank" rel="noreferrer">
+                      Report an issue
+                    </a>
+                  </span>
+                </div>
                 <div className="field row"><label>Node</label><span>{info.node}</span></div>
                 <div className="field row"><label>Platform</label><span>{info.platform}</span></div>
                 <div className="field row"><label>Uptime</label><span>{fmtDuration(info.uptimeSeconds)}</span></div>

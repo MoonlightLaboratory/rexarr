@@ -1,5 +1,7 @@
 # rexarr
 
+[GitHub](https://github.com/MoonlightLaboratory/rexarr) · [Releases](https://github.com/MoonlightLaboratory/rexarr/releases) · [Issues](https://github.com/MoonlightLaboratory/rexarr/issues)
+
 **Remux-first transcoding for the \*arr stack.** rexarr sits next to Radarr and Sonarr, finds
 Blu-ray remux releases for the titles you pick, and re-encodes them with FFmpeg using profiles you
 control – container, video encoder, quality, audio encoder, subtitles – with built-in presets for

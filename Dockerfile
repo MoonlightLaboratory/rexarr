@@ -27,7 +27,7 @@ FROM node:22-alpine
 ARG REXARR_VERSION=0.1.4.1
 LABEL org.opencontainers.image.title="rexarr" \
       org.opencontainers.image.description="Remux-first transcoding and disc ripping companion for Radarr / Sonarr" \
-      org.opencontainers.image.source="https://github.com/MoonlightLaboratory/moonlightlab.co.uk" \
+      org.opencontainers.image.source="https://github.com/MoonlightLaboratory/rexarr" \
       org.opencontainers.image.version="${REXARR_VERSION}"
 # Core runtime deps. Intel VAAPI / QuickSync drivers only exist for x86_64. AMD VAAPI needs mesa, which drags
 # in ~200 MB of LLVM, so it is opt-in: --build-arg WITH_AMD_VAAPI=1

@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import type { MusicBrainzRelease } from '../../../shared/types.js';
-import { APP_VERSION } from '../config.js';
+import { APP_VERSION, REPO_URL } from '../config.js';
 import { httpFetch } from '../net.js';
 
 const run = promisify(execFile);
@@ -94,7 +94,7 @@ export async function readCdToc(device: string, ripperPath = ''): Promise<CdToc 
 
 // ---------- web service ----------
 
-const UA = `rexarr/${APP_VERSION} ( https://github.com/MoonlightLaboratory )`;
+const UA = `rexarr/${APP_VERSION} ( ${REPO_URL} )`;
 let lastCall = 0;
 
 let chain: Promise<unknown> = Promise.resolve();
