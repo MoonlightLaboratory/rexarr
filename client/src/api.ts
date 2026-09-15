@@ -192,6 +192,12 @@ export function fmtBytes(n?: number) {
   return `${v.toFixed(i >= 3 ? 2 : i >= 2 ? 1 : 0)} ${u[i]}`;
 }
 
+/** Whole-disc rip progress: MakeMKV reports each title (or CD track) from 0 to 100 in turn. */
+export function ripOverallPercent(p: { percent: number; titleIndex: number; titleCount: number }) {
+  if (p.titleCount <= 1 || p.titleIndex < 1) return p.percent;
+  return Math.min(100, ((p.titleIndex - 1 + p.percent / 100) / p.titleCount) * 100);
+}
+
 export function fmtDuration(s?: number | null) {
   if (s === null || s === undefined || !Number.isFinite(s)) return '—';
   const d = Math.floor(s / 86400);

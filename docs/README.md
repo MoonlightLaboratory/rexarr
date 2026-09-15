@@ -62,6 +62,8 @@ rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  opt
 
 ## Transcoding and hardware acceleration
 
+![Activity with a running encode](screenshots/activity.jpg)
+
 **Software (CPU) encoding is highly recommended for the best quality.** x265 and SVT-AV1 give noticeably smaller files
 at the same visual quality than any hardware encoder, which is what you want when archiving Blu-ray remuxes. Hardware
 encoding is many times faster but typically needs 20–40% more bitrate for the same quality; use it for speed or bulk
@@ -93,6 +95,10 @@ conversions.
   ffmpeg with CUDA and the NVIDIA container runtime. RKMPP / V4L2 need an ffmpeg built for the board.
 
 ## Encode preview
+
+| | |
+| :---: | :---: |
+| ![Live preview while encoding](screenshots/live-preview.jpg)<br>Live preview while encoding | ![Before / after comparison](screenshots/compare.jpg)<br>Before / after comparison of a finished encode |
 
 In **Activity**, an encoding job's thumbnail becomes a live frame (refreshing every few seconds) and the eye button opens
 the preview:
@@ -139,6 +145,10 @@ cached for a week, no API key. With it:
 - `GET /api/anidb/search?q=` exposes the title search; AniDB links appear in the detail headers.
 
 ## Disc ripping (automatic ripping machine)
+
+| | |
+| :---: | :---: |
+| ![Disc scanned and ready to rip](screenshots/disc-ready.jpg)<br>DVD scanned by MakeMKV, titles and tracks | ![Disc ripping in progress](screenshots/disc-ripping.jpg)<br>Ripping in progress |
 
 Enable **Settings → Disc ripping** and rexarr behaves like ARM:
 

@@ -28,6 +28,7 @@ split album images, and find media on your disks that none of the \*arr apps man
 | :---: | :---: |
 | <img src="docs/screenshots/series.jpg" alt="Series library" width="420"><br>Series library | <img src="docs/screenshots/movie.jpg" alt="Movie details" width="420"><br>Movie details |
 | <img src="docs/screenshots/transcode.jpg" alt="Transcode dialog with estimated size" width="420"><br>Transcode with estimated size | <img src="docs/screenshots/header-search.jpg" alt="Smart search" width="420"><br>Smart search |
+| <img src="docs/screenshots/live-preview.jpg" alt="Live preview of a running encode" width="420"><br>Live preview while encoding | <img src="docs/screenshots/disc-ready.jpg" alt="Disc ripping" width="420"><br>Disc ripping with MakeMKV |
 
 More in the [documentation](docs/README.md).
 

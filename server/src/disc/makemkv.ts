@@ -350,6 +350,8 @@ export function labelToTitle(label: string): { title: string; year?: number; sea
     year = Number(ym[0]);
     s = s.replace(ym[0], '');
   }
+  // separators left behind by the removed parts ("Peach Girl – Disc 1", "Show - Season 2")
+  s = s.replace(/(\s[-–—:,|]+)+(?=\s|$)/g, ' ').replace(/^[\s\-–—:,|]+|[\s\-–—:,|]+$/g, '');
   s = s.replace(/\s+/g, ' ').trim();
   const title = s
     .toLowerCase()

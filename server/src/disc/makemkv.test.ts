@@ -93,6 +93,8 @@ test('parseDurationSeconds', () => {
 
 test('labelToTitle cleans disc labels', () => {
   assert.deepEqual(labelToTitle('BLADE_RUNNER_2049'), { title: 'Blade Runner 2049', year: undefined, season: undefined, disc: undefined });
+  assert.deepEqual(labelToTitle('Peach Girl – Disc 1'), { title: 'Peach Girl', year: undefined, season: undefined, disc: 1 });
+  assert.equal(labelToTitle('SPIDER-MAN - DISC 2').title, 'Spider-man');
   assert.deepEqual(labelToTitle('THE_OFFICE_S2_D1'), { title: 'The Office', year: undefined, season: 2, disc: 1 });
   assert.deepEqual(labelToTitle('SPIRITED.AWAY.2001.BLURAY'), { title: 'Spirited Away', year: 2001, season: undefined, disc: undefined });
   assert.equal(labelToTitle('COWBOY_BEBOP_SEASON_1_DISC_3').season, 1);

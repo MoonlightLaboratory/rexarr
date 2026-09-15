@@ -207,7 +207,7 @@ export function ActivityPage() {
       toolbarRight={
         <ToolbarText>
           {encoding ? `${encoding} encoding · ` : ''}
-          {queue.length} queued · {history.length} finished{saved > 0 ? ` · ${fmtBytes(saved)} saved` : ''}
+          {queue.length - encoding} queued · {history.length} finished{saved > 0 ? ` · ${fmtBytes(saved)} saved` : ''}
         </ToolbarText>
       }
     >
