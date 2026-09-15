@@ -2,7 +2,11 @@
   "name": "rexarr",
   "version": "0.1.4",
   "private": true,
-  "description": "Remux-first transcoding companion for the *arr stack. Finds Blu-ray remuxes via Radarr/Sonarr/Prowlarr and re-encodes them with FFmpeg using your own profiles.",
+  "license": "GPL-3.0-or-later",
+  "description": "Remux-first transcoding companion for the *arr stack (beta): finds Blu-ray remuxes via Radarr/Sonarr/Lidarr/Prowlarr and re-encodes them with FFmpeg or fre:ac using your own profiles.",
+  "homepage": "https://github.com/MoonlightLaboratory/rexarr#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/MoonlightLaboratory/rexarr.git" },
+  "bugs": { "url": "https://github.com/MoonlightLaboratory/rexarr/issues" },
   "type": "module",
   "workspaces": [
     "server",

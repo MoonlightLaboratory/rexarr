@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and help
+    url: https://github.com/MoonlightLaboratory/rexarr/discussions
+    about: Ask setup and usage questions in Discussions.
+  - name: Security vulnerability
+    url: https://github.com/MoonlightLaboratory/rexarr/security/advisories/new
+    about: Please report security problems privately.
+  - name: Documentation
+    url: https://github.com/MoonlightLaboratory/rexarr/blob/main/docs/README.md
+    about: Setup, Docker, profiles, music, disc ripping and more.
