@@ -1,5 +1,5 @@
 import { withBase } from './base';
-import type { AnidbInfo, AutoScanResult, AutoStatus, AppEvent, StoragePath, HwDevices, HwTestResult, TranscodingSettings, BackupInfo, DiscDrive, DiscRip, LogFileInfo, ScheduledTask, VirtualDrive, Episode, FfmpegCapabilities, HealthCheck, Job, LookupResult, MakemkvInfo, Movie, Profile, Release, RipMedia, RipOptions, Series, Settings, SystemInfo, SmartSearchResult, HostRuntime, DriveCandidate, PhysicalDrive, Artist, Album, Track, MqaInfo, MusicBrainzRelease, LocalItem, LocalFile, LocalScanStatus, LocalMeta, LocalMetaCandidate, SizeEstimateResult } from '@shared/types';
+import type { AnidbInfo, AutoScanResult, AutoStatus, AppEvent, StoragePath, HwDevices, HwTestResult, TranscodingSettings, BackupInfo, DiscDrive, DiscRip, LogFileInfo, ScheduledTask, VirtualDrive, Episode, FfmpegCapabilities, HealthCheck, Job, LookupResult, MakemkvInfo, Movie, Profile, Release, RipMedia, RipOptions, Series, Settings, SystemInfo, SmartSearchResult, HostRuntime, DriveCandidate, PhysicalDrive, Artist, Album, Track, MqaInfo, MusicBrainzRelease, LocalItem, LocalFile, LocalScanStatus, LocalMeta, LocalMetaCandidate, SizeEstimateResult, SetupTools } from '@shared/types';
 
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(withBase(url), {
@@ -176,6 +176,8 @@ export const api = {
   anidbStatus: () => req<AnidbInfo>('GET', '/api/anidb/status'),
   anidbRefresh: () => req<AnidbInfo>('POST', '/api/anidb/refresh'),
   anidbSearch: (q: string) => req<{ aid: number; title: string; romaji?: string; kanji?: string; english?: string; score: number; tvdbId?: number; tmdbId?: number; imdbId?: string; isMovie: boolean }[]>('GET', `/api/anidb/search?q=${encodeURIComponent(q)}`),
+  setupTools: (refresh = false) => req<SetupTools>('GET', `/api/setup/tools${refresh ? '?refresh=1' : ''}`),
+  setupDismiss: (dismissed: boolean) => req<{ dismissed: boolean }>('POST', '/api/setup/dismiss', { dismissed }),
   system: (refresh = false) => req<SystemInfo>('GET', `/api/system${refresh ? '?refresh=1' : ''}`),
   ffmpeg: (refresh = false) => req<FfmpegCapabilities>('GET', `/api/system/ffmpeg${refresh ? '?refresh=1' : ''}`),
   fsList: (path: string) => req<{ path: string; parent: string | null; entries: { name: string; dir: boolean; path: string }[] }>('GET', `/api/fs/list?path=${encodeURIComponent(path)}`),

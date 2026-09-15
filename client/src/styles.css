@@ -1001,3 +1001,27 @@ table.metaTags td.mono { word-break: break-word; }
 .versionLink:hover { color: var(--themeBlue); text-decoration: none; }
 @media (max-width: 768px) { .headerLink.hideOnPhone { display: none; } }
 .field.row a svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 3px; }
+
+/* ---- System → Recommended tools */
+.toolsWelcome { margin: 0 0 8px; font-size: 22px; font-weight: 400; }
+.toolsIntro { margin: 0 0 10px; line-height: 1.5; }
+.toolCard .toolHead { cursor: pointer; user-select: none; }
+.toolCard .toolIcon { display: inline-flex; color: var(--helpTextColor); }
+.toolCard .toolIcon svg { width: 18px; height: 18px; }
+.toolCard .toolName { font-weight: 600; }
+.toolCard .badge svg { width: 11px; height: 11px; vertical-align: -1px; }
+.toolCard .toolChevron { display: inline-flex; color: var(--helpTextColor); transition: transform 0.15s; transform: rotate(-90deg); }
+.toolCard .toolChevron.open { transform: none; }
+.toolCard .toolChevron svg { width: 16px; height: 16px; }
+.toolCard.found .toolPurpose { margin-bottom: 0; }
+.toolPurpose { margin: 0 0 12px; color: var(--helpTextColor); line-height: 1.5; }
+.toolSteps { margin: 0; padding-left: 20px; display: grid; gap: 12px; }
+.toolStepLabel { margin-bottom: 6px; }
+.toolCommand { display: flex; align-items: stretch; gap: 6px; max-width: 100%; }
+.toolCommand code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; padding: 6px 10px; border-radius: 3px; background: var(--inputBackgroundColor, rgba(0, 0, 0, 0.25)); border: 1px solid var(--defaultBorderColor); }
+.toolCommand .btn { flex-shrink: 0; }
+.toolLink { text-decoration: none; }
+.toolCard .help { margin-top: 12px; color: var(--helpTextColor); font-size: 13px; line-height: 20px; }
+.toolCard .toolError { word-break: break-word; }
+.toolsFooter { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 5px 0 20px; }
+.toolsFooter .check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }

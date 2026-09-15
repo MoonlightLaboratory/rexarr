@@ -21,6 +21,7 @@ const DiscsPage = lazy(() => import('./pages/Discs').then((m) => ({ default: m.D
 const TasksPage = lazy(() => import('./pages/SystemPages').then((m) => ({ default: m.TasksPage })));
 const BackupPage = lazy(() => import('./pages/SystemPages').then((m) => ({ default: m.BackupPage })));
 const EventsPage = lazy(() => import('./pages/SystemPages').then((m) => ({ default: m.EventsPage })));
+const ToolsPage = lazy(() => import('./pages/Tools').then((m) => ({ default: m.ToolsPage })));
 const LogsPage = lazy(() => import('./pages/SystemPages').then((m) => ({ default: m.LogsPage })));
 
 export interface AppState {
@@ -73,7 +74,7 @@ export default function App() {
         <Layout jobs={jobs} rips={rips} drives={drives} health={health} connected={connected} toasts={toasts} toastControls={toastControls}>
           <Suspense fallback={<div className="pageToolbar" />}>
           <Routes>
-            <Route path="/" element={<Navigate to="/movies" replace />} />
+            <Route path="/" element={<Home />} />
             <Route path="/movies" element={<MoviesPage />} />
             <Route path="/movies/:id" element={<MovieDetailPage />} />
             <Route path="/series" element={<SeriesPage />} />
@@ -93,6 +94,7 @@ export default function App() {
             <Route path="/system/backup" element={<BackupPage />} />
             <Route path="/system/events" element={<EventsPage />} />
             <Route path="/system/logs" element={<LogsPage />} />
+            <Route path="/system/tools" element={<ToolsPage />} />
             <Route path="*" element={<Navigate to="/movies" replace />} />
           </Routes>
           </Suspense>
@@ -100,4 +102,16 @@ export default function App() {
       </BrowserRouter>
     </Ctx.Provider>
   );
+}
+
+/** Landing page: the recommended tools page on first launch while something is missing, Movies otherwise. */
+function Home() {
+  const [to, setTo] = useState<string | null>(null);
+  useEffect(() => {
+    api
+      .setupTools()
+      .then((t) => setTo(!t.dismissed && t.tools.some((x) => !x.available) ? '/system/tools?welcome=1' : '/movies'))
+      .catch(() => setTo('/movies'));
+  }, []);
+  return to ? <Navigate to={to} replace /> : <div className="pageToolbar" />;
 }

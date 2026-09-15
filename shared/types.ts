@@ -972,6 +972,33 @@ export interface FfmpegCapabilities {
   error?: string;
 }
 
+/** Recommended external programs (System → Tools, shown on first launch). */
+export type SetupPlatform = 'windows' | 'macos' | 'linux' | 'freebsd' | 'docker';
+export interface SetupStep {
+  label: string;
+  /** Download or documentation page. */
+  url?: string;
+  /** Shell command to copy. */
+  command?: string;
+}
+export interface SetupTool {
+  id: 'ffmpeg' | 'freac' | 'makemkv' | 'slskd';
+  name: string;
+  purpose: string;
+  required: boolean;
+  available: boolean;
+  /** Version when found, the error otherwise. */
+  detail?: string;
+  steps: SetupStep[];
+  note?: string;
+}
+export interface SetupTools {
+  platform: SetupPlatform;
+  /** The first-launch page was closed; it is not opened automatically again. */
+  dismissed: boolean;
+  tools: SetupTool[];
+}
+
 export interface ArrStatus {
   name: 'radarr' | 'sonarr' | 'prowlarr' | 'lidarr' | 'slskd';
   configured: boolean;
