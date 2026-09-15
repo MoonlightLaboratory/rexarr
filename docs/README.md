@@ -280,9 +280,9 @@ stream. Detection is a best-effort signal check, not a licensed decoder – rexa
 **Metadata**: Music → album → a track's 👁 *Tags and file details* button shows every tag, stream and format detail rexarr reads from the
 file (the same view is available for any media file through `GET /api/media/metadata?path=`).
 
-fre:ac is not bundled in the Docker image (it is not packaged for Alpine). Install it on the host and set its path
-in Settings → Connections → fre:ac, or build your own image on a distribution that packages it. System → Status
-warns when it is missing.
+The Docker image includes Alpine's fre:ac 1.1.7, which has FLAC, LAME MP3, Opus and Vorbis but **no WavPack or
+Monkey's Audio encoder** (profiles using them show a warning and their jobs fail). Outside Docker, install fre:ac and
+set its path in Settings → Connections → fre:ac if it is not found; System → Status warns when it is missing.
 
 ## Local media (outside the \*arr apps)
 
@@ -377,9 +377,20 @@ docker compose up -d          # uses the published image
 docker compose up -d --build  # or build locally from ./Dockerfile
 ```
 
-- **Image**: Node 22 on Alpine with the distro ffmpeg (x264, x265, SVT-AV1, libaom, VP9, Opus) and VAAPI drivers.
-  Multi-stage build; the runtime layer only carries the compiled server, the client bundle and production
-  dependencies (about 40 MB of node modules).
+- **Image**: Node 22 on Alpine with the distro ffmpeg (x264, x265, SVT-AV1, libaom, VP9, Opus), VAAPI drivers and
+  fre:ac for music (about 530 MB). Multi-stage build; the runtime layer only carries the compiled server, the client
+  bundle and production dependencies (about 45 MB of node modules). `--build-arg WITH_FREAC=0` leaves fre:ac out
+  (about 90 MB smaller) if you do not use music.
+- **Build it yourself**:
+
+  ```bash
+  docker build -t rexarr .
+  docker run -d --name rexarr -p 7878:7878 -e PUID=1000 -e PGID=1000 \
+    -v ./config:/config -v /path/to/media:/data/media rexarr
+  ```
+
+  For another architecture use `docker buildx build --platform linux/amd64,linux/arm64 …`; the JavaScript is built
+  once on the host platform, only the runtime layer is per-architecture.
 - **`PUID` / `PGID` / `UMASK`** work like the LinuxServer images: the entrypoint reuses or creates a user with
   those ids, chowns `/config`, opens passed-through `/dev/sr*` / `/dev/dri/*` nodes, then drops privileges.
 - **`/config`** holds everything (see *Storage layout*: `cache/`, `data/`, `log/`). Mount it. To keep large

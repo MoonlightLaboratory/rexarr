@@ -145,6 +145,16 @@ export interface RunHooks {
   signal?: { cancelled: boolean; kill?: () => void };
 }
 
+/** A fre:ac run that reported every file as done and then died from a segfault on exit. */
+export function crashedAfterDone(bin: string, code: number | null, signal: NodeJS.Signals | null, output: string): boolean {
+  if (!/freac/i.test(path.basename(bin))) return false;
+  if (signal !== 'SIGSEGV' && code !== 139) return false;
+  // output arrives in chunks, so "...done." may have landed on its own line
+  const started = output.match(/Processing file: /g)?.length ?? 0;
+  const done = output.match(/\.\.\.\s*done\./g)?.length ?? 0;
+  return started > 0 && done >= started && !/\.\.\.\s*failed|^\s*(error\b|could not|file not found|aborted\.)/im.test(output);
+}
+
 export function runTool(bin: string, args: string[], hooks: RunHooks, estimate?: { file: string; expectedBytes: number; step: string; from: number; to: number }): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -178,11 +188,16 @@ export function runTool(bin: string, args: string[], hooks: RunHooks, estimate?:
       if (timer) clearInterval(timer);
       reject(e);
     });
-    child.on('close', (code) => {
+    child.on('close', (code, signal) => {
       if (timer) clearInterval(timer);
       if (hooks.signal?.cancelled) return reject(new Error('cancelled'));
       if (code === 0) resolve();
-      else reject(new Error(`${path.basename(bin)} exited with ${code}${tail ? `: ${tail.trim().split('\n').slice(-2).join(' ')}` : ''}`));
+      // fre:ac on musl (the Alpine Docker image) segfaults in a component destructor after finishing its work
+      else if (crashedAfterDone(bin, code, signal, tail)) {
+        hooks.onLog(`${path.basename(bin)} crashed on exit after finishing (${signal ?? code}); output kept`);
+        resolve();
+      }
+      else reject(new Error(`${path.basename(bin)} ${code === null ? `was killed (${signal})` : `exited with ${code}`}${tail ? `: ${tail.trim().split('\n').slice(-2).join(' ')}` : ''}`));
     });
   });
 }
@@ -207,10 +222,13 @@ export async function encodeMusic(opts: { freac: string; ffmpeg: string; ffprobe
   let source = input;
   try {
     // 1. DSP (FFmpeg): only when the profile needs a lower rate / depth and the source is not to be kept bit-perfect
-    const wantRate = a.maxSampleRate && info.sampleRate > a.maxSampleRate ? a.maxSampleRate : 0;
+    // Opus only takes 8–48 kHz rates: resample here with soxr rather than rely on fre:ac's resampler component,
+    // which some builds (Alpine, so the Docker image) do not include
+    const opusRate = a.encoder === 'libopus' && ![8000, 12000, 16000, 24000, 48000].includes(info.sampleRate) ? 48000 : 0;
+    const wantRate = opusRate || (a.maxSampleRate && info.sampleRate > a.maxSampleRate ? a.maxSampleRate : 0);
     const wantDepth = a.bitDepth && info.bitDepth > a.bitDepth ? a.bitDepth : 0;
     const lossyTarget = !['flac', 'wavpack', 'ape'].includes(a.encoder);
-    const needsDsp = !opts.preserveBitPerfect && (wantRate || (wantDepth && !lossyTarget));
+    const needsDsp = Boolean(opusRate) || (!opts.preserveBitPerfect && (wantRate || (wantDepth && !lossyTarget)));
     if (needsDsp) {
       const soxr = await hasSoxr(opts.ffmpeg);
       const filters: string[] = [];
