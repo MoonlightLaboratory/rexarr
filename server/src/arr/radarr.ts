@@ -1,7 +1,8 @@
 import type { ArrConnection, LookupResult, MediaFile, Movie, Release } from '../../../shared/types.js';
-import { ArrHttp } from './client.js';
-import { isRemux, isRemuxQuality, resolutionFromQuality } from './remux.js';
+import { ArrHttp, type ArrQueueRecord } from './client.js';
+import { detectDisc, isRemux, isRemuxQuality, resolutionFromQuality } from './remux.js';
 import { toLocalPath } from '../paths.js';
+import { proxiedImage } from '../routes/images.js';
 
 // Minimal Radarr v3 API shapes used by rexarr.
 interface RQuality { quality: { id: number; name: string; resolution?: number } }
@@ -16,6 +17,7 @@ interface RMovieFile {
   mediaInfo?: { videoCodec?: string; audioCodec?: string; audioChannels?: number; resolution?: string; audioLanguages?: string; subtitles?: string };
 }
 interface RMovie {
+  alternateTitles?: { title: string }[];
   id: number;
   tmdbId: number;
   title: string;
@@ -55,18 +57,16 @@ interface RRelease {
   movieId?: number;
 }
 
-function poster(images?: RMovie['images'], type = 'poster') {
-  const img = images?.find((i) => i.coverType === type);
-  const url = img?.remoteUrl ?? img?.url;
-  // TMDB serves sized variants; "original" backdrops are several MB and slow the UI down.
-  return url?.replace('image.tmdb.org/t/p/original/', type === 'poster' ? 'image.tmdb.org/t/p/w500/' : 'image.tmdb.org/t/p/w1280/');
+/** Cover art goes through rexarr's own image cache (Radarr's resized copy first, TMDB as fallback). */
+function poster(images?: RMovie['images'], type: 'poster' | 'fanart' = 'poster') {
+  return proxiedImage('radarr', images?.find((i) => i.coverType === type), type);
 }
 
 function mapFile(f: RMovieFile): MediaFile {
   return {
     id: f.id,
     path: f.path,
-    localPath: toLocalPath(f.path),
+    localPath: toLocalPath(f.path, 'radarr'),
     size: f.size,
     quality: f.quality?.quality?.name ?? 'Unknown',
     isRemux: isRemuxQuality(f.quality?.quality?.name) || isRemux(f.relativePath),
@@ -85,6 +85,7 @@ export function mapMovie(m: RMovie, profiles?: Map<number, string>): Movie {
     id: m.id,
     tmdbId: m.tmdbId,
     title: m.title,
+    alternateTitles: m.alternateTitles?.length ? [...new Set(m.alternateTitles.map((a) => a.title))].slice(0, 20) : undefined,
     year: m.year,
     overview: m.overview ?? '',
     poster: poster(m.images),
@@ -107,7 +108,11 @@ export function mapMovie(m: RMovie, profiles?: Map<number, string>): Movie {
 
 export function mapRadarrRelease(r: RRelease): Release {
   const q = r.quality?.quality?.name ?? '';
+  const res = r.quality?.quality?.resolution ?? resolutionFromQuality(q);
+  const disc = detectDisc(r.title, q, res);
   return {
+    isDisc: disc.isDisc,
+    discFormat: disc.format,
     guid: r.guid,
     indexerId: r.indexerId,
     indexer: r.indexer,
@@ -216,7 +221,12 @@ export class Radarr {
   }
 
   queue() {
-    return this.http.get<{ records: { id: number; movieId?: number; title: string; status: string; sizeleft: number; size: number; trackedDownloadState?: string; trackedDownloadStatus?: string; downloadId?: string }[] }>('/queue', { includeMovie: false, pageSize: 500 });
+    return this.http.get<{ records: ArrQueueRecord[] }>('/queue', { includeMovie: false, pageSize: 500 });
+  }
+
+  /** Drop a finished download from the queue (the download client keeps the files / keeps seeding). */
+  removeFromQueue(id: number) {
+    return this.http.delete<void>(`/queue/${id}`, { removeFromClient: false, blocklist: false });
   }
 
   rescan(movieId: number) {

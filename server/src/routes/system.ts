@@ -2,12 +2,13 @@ import type { FastifyInstance } from 'fastify';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { SystemInfo } from '../../../shared/types.js';
-import { APP_VERSION, DATA_DIR } from '../config.js';
+import { APP_VERSION, CONFIG_DIR } from '../config.js';
 import { store } from '../store.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 import { testConnection } from './settings.js';
 import { queue } from '../jobs/queue.js';
 import { runHealthChecks } from '../health.js';
+import { freacInfo } from '../music/freac.js';
 
 const startedAt = Date.now();
 
@@ -19,15 +20,19 @@ export default async function systemRoutes(app: FastifyInstance) {
       testConnection('radarr', s.radarr).then((r) => ({ ...r, configured: s.radarr.enabled && r.configured })),
       testConnection('sonarr', s.sonarr).then((r) => ({ ...r, configured: s.sonarr.enabled && r.configured })),
       testConnection('prowlarr', s.prowlarr).then((r) => ({ ...r, configured: s.prowlarr.enabled && r.configured })),
+      testConnection('lidarr', s.lidarr).then((r) => ({ ...r, configured: s.lidarr.enabled && r.configured })),
+      testConnection('slskd', s.slskd).then((r) => ({ ...r, configured: s.slskd.enabled && r.configured })),
     ]);
+    const freac = await freacInfo(s.freacPath, req.query.refresh === '1');
     const jobs = queue.list();
     const info: SystemInfo = {
       version: APP_VERSION,
       node: process.version,
       platform: `${process.platform} ${process.arch}`,
-      dataDir: DATA_DIR,
+      dataDir: CONFIG_DIR,
       uptimeSeconds: Math.round((Date.now() - startedAt) / 1000),
       ffmpeg,
+      freac,
       arr,
       jobs: {
         active: jobs.filter((j) => ['probing', 'encoding', 'finalizing'].includes(j.status)).length,

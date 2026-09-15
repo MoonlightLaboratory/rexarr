@@ -1,6 +1,7 @@
 import type { ArrConnection, Release } from '../../../shared/types.js';
 import { ArrHttp } from './client.js';
-import { isRemux } from './remux.js';
+import { detectDisc, isRemux } from './remux.js';
+import { httpFetch } from '../net.js';
 
 interface PRelease {
   guid: string;
@@ -45,16 +46,20 @@ export class Prowlarr {
     u.searchParams.set('query', query);
     u.searchParams.set('type', 'search');
     for (const c of cats) u.searchParams.append('categories', String(c));
-    const res = await fetch(u, { headers: { 'X-Api-Key': base.apiKey, Accept: 'application/json' }, signal: AbortSignal.timeout(180_000) });
+    const res = await httpFetch(u, { headers: { 'X-Api-Key': base.apiKey, Accept: 'application/json' }, signal: AbortSignal.timeout(180_000) });
     if (!res.ok) throw new Error(`Prowlarr: HTTP ${res.status}`);
     const list = (await res.json()) as PRelease[];
     return list.map((r) => ({
+      ...(() => {
+        const d = detectDisc(r.title, '', resolutionFromTitle(r.title));
+        return { isDisc: d.isDisc, discFormat: d.format };
+      })(),
       guid: r.guid,
       indexerId: r.indexerId,
       indexer: r.indexer,
       title: r.title,
       size: r.size,
-      quality: isRemux(r.title) ? `Remux-${resolutionFromTitle(r.title) || '?'}p` : 'Unknown',
+      quality: isRemux(r.title) ? `Remux-${resolutionFromTitle(r.title) || '?'}p` : detectDisc(r.title).isDisc ? `Disc-${resolutionFromTitle(r.title) || (detectDisc(r.title).format === 'dvd' ? 'DVD' : '?')}${resolutionFromTitle(r.title) ? 'p' : ''}` : 'Unknown',
       resolution: resolutionFromTitle(r.title),
       isRemux: isRemux(r.title),
       seeders: r.seeders ?? null,

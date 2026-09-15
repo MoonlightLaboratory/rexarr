@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { Episode, Series } from '@shared/types';
 import { api, fmtBytes } from '../api';
@@ -8,15 +8,18 @@ import { Icon } from '../components/Icons';
 import { LoadingIndicator, QualityLabel } from '../components/Labels';
 import { DetailHeader } from '../components/DetailHeader';
 import { TranscodeModal, type TranscodeItem } from '../components/TranscodeModal';
+import { Cover, PosterSkeleton, cover3dEnabled, setCover3dEnabled } from '../components/Cover';
 
-type SortKey = 'title' | 'remux' | 'remuxPct' | 'year' | 'size';
+type SortKey = 'title' | 'romaji' | 'remux' | 'remuxPct' | 'year' | 'size';
 type TypeFilter = 'all' | 'anime' | 'standard';
 type PosterSize = 'small' | 'medium' | 'large';
 const POSTER_WIDTH: Record<PosterSize, number> = { small: 130, medium: 170, large: 220 };
-const SORT_LABEL: Record<SortKey, string> = { title: 'Title', remux: 'Remux count', remuxPct: 'Remux %', year: 'Year', size: 'Size on disk' };
+const SORT_LABEL: Record<SortKey, string> = { title: 'Title', romaji: 'Romaji title (AniDB)', remux: 'Remux count', remuxPct: 'Remux %', year: 'Year', size: 'Size on disk' };
 const byTitle = (a: Series, b: Series) => a.title.localeCompare(b.title);
+const romaji = (s: Series) => s.titleRomaji ?? s.title;
 const SORTERS: Record<SortKey, (a: Series, b: Series) => number> = {
   title: byTitle,
+  romaji: (a, b) => Number(Boolean(b.anidbIds?.length)) - Number(Boolean(a.anidbIds?.length)) || romaji(a).localeCompare(romaji(b)),
   remux: (a, b) => b.statistics.remuxFileCount - a.statistics.remuxFileCount || byTitle(a, b),
   remuxPct: (a, b) => pct(b) - pct(a) || b.statistics.remuxFileCount - a.statistics.remuxFileCount || byTitle(a, b),
   year: (a, b) => b.year - a.year || byTitle(a, b),
@@ -25,6 +28,33 @@ const SORTERS: Record<SortKey, (a: Series, b: Series) => number> = {
 function pct(s: Series) {
   return s.statistics.episodeFileCount ? s.statistics.remuxFileCount / s.statistics.episodeFileCount : 0;
 }
+const SeriesCard = memo(function SeriesCard({ s, onOpen }: { s: Series; onOpen: (id: number) => void }) {
+  const complete = s.statistics.episodeCount > 0 && s.statistics.episodeFileCount >= s.statistics.episodeCount;
+  return (
+    <div className="poster" onClick={() => onOpen(s.id)}>
+      {s.statistics.remuxFileCount > 0 && <span className="corner" title={`${s.statistics.remuxFileCount} remux episode(s)`} />}
+      <Cover className="img" src={s.poster}>
+        {s.title}
+      </Cover>
+      <div className="meta">
+        <div className="title" title={s.title}>
+          {s.title}
+        </div>
+        <div className="sub">
+          <span>{s.year}</span>
+          {s.statistics.remuxFileCount > 0 && <span className="badge remux sm">{s.statistics.remuxFileCount} remux</span>}
+        </div>
+        <div className={`progress md ${complete ? 'green' : ''}`} title="Episodes on disk">
+          <div style={{ width: `${s.statistics.episodeCount ? (s.statistics.episodeFileCount / s.statistics.episodeCount) * 100 : 0}%` }} />
+          <span className="text">
+            {s.statistics.episodeFileCount} / {s.statistics.episodeCount}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 function pref<T extends string>(key: string, fallback: T): T {
   try {
     return (localStorage.getItem(key) as T) || fallback;
@@ -39,10 +69,12 @@ function SeriesList() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState('');
+  const dq = useDeferredValue(q);
   const [type, setType] = useState<TypeFilter>(() => pref('rexarr.series.type', 'all'));
   const [sort, setSort] = useState<SortKey>(() => pref('rexarr.seriesSort', 'title'));
   const [remuxOnly, setRemuxOnly] = useState(() => localStorage.getItem('rexarr.seriesRemuxOnly') === '1');
   const [posterSize, setPosterSize] = useState<PosterSize>(() => pref('rexarr.posterSize', 'medium'));
+  const [cover3d, setCover3d] = useState(cover3dEnabled);
   useEffect(() => localStorage.setItem('rexarr.posterSize', posterSize), [posterSize]);
   const nav = useNavigate();
   useEffect(() => localStorage.setItem('rexarr.seriesSort', sort), [sort]);
@@ -61,11 +93,13 @@ function SeriesList() {
 
   const list = useMemo(() => {
     if (!series) return [];
-    const needle = q.trim().toLowerCase();
-    const filtered = series.filter((s) => (!needle || s.title.toLowerCase().includes(needle)) && (type === 'all' || s.seriesType === type) && (!remuxOnly || s.statistics.remuxFileCount > 0));
+    const needle = dq.trim().toLowerCase();
+    const isAnime = (s: Series) => s.seriesType === 'anime' || Boolean(s.anidbIds?.length);
+    const filtered = series.filter((s) => (!needle || s.title.toLowerCase().includes(needle) || (s.titleRomaji ?? '').toLowerCase().includes(needle)) && (type === 'all' || (type === 'anime' ? isAnime(s) : !isAnime(s))) && (!remuxOnly || s.statistics.remuxFileCount > 0));
     return [...filtered].sort(SORTERS[sort]);
-  }, [series, q, type, sort, remuxOnly]);
+  }, [series, dq, type, sort, remuxOnly]);
   const remuxSeries = series?.filter((s) => s.statistics.remuxFileCount > 0).length ?? 0;
+  const openSeries = useCallback((id: number) => nav(`/series/${id}`), [nav]);
 
   if (settings && !settings.sonarr.enabled) {
     return (
@@ -99,7 +133,16 @@ function SeriesList() {
             <input type="search" placeholder="Filter…" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 180, height: 30, padding: '4px 10px' }} />
           </ToolbarText>
           <ToolbarSeparator />
-          <ToolbarMenu icon={<Icon.Sliders />} label="Options" items={(['small', 'medium', 'large'] as PosterSize[]).map((k) => ({ key: k, label: `${k[0].toUpperCase()}${k.slice(1)} posters`, selected: posterSize === k, onSelect: () => setPosterSize(k) }))} />
+          <ToolbarMenu
+            icon={<Icon.Sliders />}
+            label="Options"
+            items={[
+              { key: 'h', header: true, label: 'Poster size' },
+              ...(['small', 'medium', 'large'] as PosterSize[]).map((k) => ({ key: k, label: `${k[0].toUpperCase()}${k.slice(1)}`, selected: posterSize === k, onSelect: () => setPosterSize(k) })),
+              { key: 's', separator: true, label: '' },
+              { key: '3d', label: '3D cover effect', selected: cover3d, onSelect: () => { setCover3dEnabled(!cover3d); setCover3d(!cover3d); } },
+            ]}
+          />
           <ToolbarMenu icon={<Icon.Sort />} label="Sort" items={(Object.keys(SORT_LABEL) as SortKey[]).map((k) => ({ key: k, label: SORT_LABEL[k], selected: sort === k, onSelect: () => setSort(k) }))} />
           <ToolbarMenu
             icon={<Icon.Filter />}
@@ -123,35 +166,11 @@ function SeriesList() {
           {error}. Check the Sonarr connection in <Link to="/settings">Settings</Link>.
         </div>
       )}
-      {!series && !error && <LoadingIndicator>Loading library…</LoadingIndicator>}
+      {!series && !error && <PosterSkeleton />}
       <div className="poster-grid" style={{ ['--posterWidth' as string]: `${POSTER_WIDTH[posterSize]}px` }}>
-        {list.map((s) => {
-          const complete = s.statistics.episodeCount > 0 && s.statistics.episodeFileCount >= s.statistics.episodeCount;
-          return (
-            <div key={s.id} className="poster" onClick={() => nav(`/series/${s.id}`)}>
-              {s.statistics.remuxFileCount > 0 && <span className="corner" title={`${s.statistics.remuxFileCount} remux episode(s)`} />}
-              {s.seriesType === 'anime' && <span className="badge purple sm flag">Anime</span>}
-              <div className="img" style={{ backgroundImage: s.poster ? `url(${s.poster})` : undefined }}>
-                {!s.poster && s.title}
-              </div>
-              <div className="meta">
-                <div className="title" title={s.title}>
-                  {s.title}
-                </div>
-                <div className="sub">
-                  <span>{s.year}</span>
-                  {s.statistics.remuxFileCount > 0 && <span className="badge remux sm">{s.statistics.remuxFileCount} remux</span>}
-                </div>
-                <div className={`progress md ${complete ? 'green' : ''}`} title="Episodes on disk">
-                  <div style={{ width: `${s.statistics.episodeCount ? (s.statistics.episodeFileCount / s.statistics.episodeCount) * 100 : 0}%` }} />
-                  <span className="text">
-                    {s.statistics.episodeFileCount} / {s.statistics.episodeCount}
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {list.map((s) => (
+          <SeriesCard key={s.id} s={s} onOpen={openSeries} />
+        ))}
       </div>
     </Page>
   );
@@ -279,7 +298,7 @@ function SeriesDetail({ id }: { id: number }) {
           attribution="Metadata is provided by TheTVDB"
           badges={
             <>
-              {series.seriesType === 'anime' && <span className="badge purple">Anime</span>}
+              {(series.seriesType === 'anime' || series.anidbIds?.length) && <span className="badge purple" title={series.titleKanji ?? ''}>Anime{series.titleRomaji && series.titleRomaji !== series.title ? ` · ${series.titleRomaji}` : ''}</span>}
               {remuxTotal > 0 && <span className="badge remux">{remuxTotal} remux</span>}
             </>
           }
@@ -294,6 +313,7 @@ function SeriesDetail({ id }: { id: number }) {
             ...(series.network ? [{ icon: <Icon.Tv />, text: series.network, title: 'Network' }] : []),
             { icon: <Icon.ExternalLink />, text: 'TheTVDB', href: `https://thetvdb.com/?tab=series&id=${series.tvdbId}`, title: 'Open on TheTVDB' },
             ...(series.imdbId ? [{ icon: <Icon.ExternalLink />, text: 'IMDb', href: `https://www.imdb.com/title/${series.imdbId}/`, title: 'Open on IMDb' }] : []),
+            ...(series.anidbIds?.length ? [{ icon: <Icon.ExternalLink />, text: `AniDB${series.anidbIds.length > 1 ? ` (${series.anidbIds.length})` : ''}`, href: `https://anidb.net/anime/${series.anidbIds[0]}`, title: 'Open on AniDB' }] : []),
           ]}
         />
       )}

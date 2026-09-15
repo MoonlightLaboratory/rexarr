@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { Movie } from '@shared/types';
 import { api, fmtBytes } from '../api';
@@ -7,13 +7,46 @@ import { Page, ToolbarButton, ToolbarMenu, ToolbarSeparator, ToolbarText } from 
 import { Icon } from '../components/Icons';
 import { LoadingIndicator, QualityLabel } from '../components/Labels';
 import { TranscodeModal, type TranscodeItem } from '../components/TranscodeModal';
+import { Cover, PosterSkeleton, cover3dEnabled, setCover3dEnabled } from '../components/Cover';
 
-type Filter = 'all' | 'remux' | 'files' | 'missing';
+type Filter = 'all' | 'remux' | 'files' | 'missing' | 'anime';
 type PosterSize = 'small' | 'medium' | 'large';
 const POSTER_WIDTH: Record<PosterSize, number> = { small: 130, medium: 170, large: 220 };
-type Sort = 'title' | 'year' | 'size' | 'quality';
-const FILTER_LABEL: Record<Filter, string> = { remux: 'Remux only', files: 'Has file', missing: 'Missing', all: 'All' };
-const SORT_LABEL: Record<Sort, string> = { title: 'Title', year: 'Year', size: 'Size on disk', quality: 'Quality' };
+type Sort = 'title' | 'romaji' | 'year' | 'size' | 'quality';
+const FILTER_LABEL: Record<Filter, string> = { remux: 'Remux only', files: 'Has file', missing: 'Missing', anime: 'Anime (AniDB)', all: 'All' };
+const SORT_LABEL: Record<Sort, string> = { title: 'Title', romaji: 'Romaji title (AniDB)', year: 'Year', size: 'Size on disk', quality: 'Quality' };
+
+/** One poster card; memoised so live job updates do not re-render the whole grid. */
+const MovieCard = memo(function MovieCard({ m, selected, busy, onOpen, onToggle, onTranscode }: { m: Movie; selected: boolean; busy: boolean; onOpen: (id: number) => void; onToggle: (id: number) => void; onTranscode: (m: Movie) => void }) {
+  return (
+    <div className={`poster${selected ? ' selected' : ''}`} onClick={() => onOpen(m.id)}>
+      {m.file?.isRemux && <span className="corner" title="Blu-ray remux on disk" />}
+      {busy && <span className="badge blue sm flag">In queue</span>}
+      {m.file && (
+        <div className="posterControls" onClick={(e) => e.stopPropagation()}>
+          <label className="check" title="Select">
+            <input type="checkbox" checked={selected} onChange={() => onToggle(m.id)} />
+          </label>
+          <button className="iconButton" style={{ color: 'var(--white)' }} title={busy ? 'Already in the queue' : 'Transcode'} disabled={busy} onClick={() => onTranscode(m)}>
+            <Icon.Play />
+          </button>
+        </div>
+      )}
+      <Cover className="img" src={m.poster}>
+        {m.title}
+      </Cover>
+      <div className="meta">
+        <div className="title" title={m.title}>
+          {m.title}
+        </div>
+        <div className="sub">
+          <span>{m.year}</span>
+          {m.file ? <QualityLabel quality={m.file.quality} isRemux={m.file.isRemux} size="sm" /> : <span className="badge sm red">Missing</span>}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 function pref<T extends string>(key: string, fallback: T): T {
   try {
@@ -28,10 +61,12 @@ export function MoviesPage() {
   const [movies, setMovies] = useState<Movie[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  const dq = useDeferredValue(q);
   const [filter, setFilter] = useState<Filter>(() => pref('rexarr.movies.filter', 'remux'));
   const [sort, setSort] = useState<Sort>(() => pref('rexarr.movies.sort', 'title'));
   const [view, setView] = useState<'posters' | 'table'>(() => pref('rexarr.movies.view', 'posters'));
   const [posterSize, setPosterSize] = useState<PosterSize>(() => pref('rexarr.posterSize', 'medium'));
+  const [cover3d, setCover3d] = useState(cover3dEnabled);
   const nav = useNavigate();
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [modal, setModal] = useState<TranscodeItem[] | null>(null);
@@ -55,19 +90,21 @@ export function MoviesPage() {
 
   const list = useMemo(() => {
     if (!movies) return [];
-    const needle = q.trim().toLowerCase();
+    const needle = dq.trim().toLowerCase();
     const filtered = movies.filter((m) => {
       if (needle && !m.title.toLowerCase().includes(needle) && !String(m.year).includes(needle)) return false;
       if (filter === 'remux') return m.file?.isRemux;
       if (filter === 'files') return m.hasFile;
       if (filter === 'missing') return !m.hasFile;
+      if (filter === 'anime') return m.anime;
       return true;
     });
     const byTitle = (a: Movie, b: Movie) => a.title.localeCompare(b.title);
+    const romaji = (m: Movie) => m.titleRomaji ?? m.title;
     return [...filtered].sort(
-      sort === 'year' ? (a, b) => b.year - a.year || byTitle(a, b) : sort === 'size' ? (a, b) => (b.file?.size ?? 0) - (a.file?.size ?? 0) || byTitle(a, b) : sort === 'quality' ? (a, b) => Number(b.file?.isRemux ?? false) - Number(a.file?.isRemux ?? false) || (b.file?.quality ?? '').localeCompare(a.file?.quality ?? '') || byTitle(a, b) : byTitle,
+      sort === 'romaji' ? (a, b) => Number(Boolean(b.anime)) - Number(Boolean(a.anime)) || romaji(a).localeCompare(romaji(b)) : sort === 'year' ? (a, b) => b.year - a.year || byTitle(a, b) : sort === 'size' ? (a, b) => (b.file?.size ?? 0) - (a.file?.size ?? 0) || byTitle(a, b) : sort === 'quality' ? (a, b) => Number(b.file?.isRemux ?? false) - Number(a.file?.isRemux ?? false) || (b.file?.quality ?? '').localeCompare(a.file?.quality ?? '') || byTitle(a, b) : byTitle,
     );
-  }, [movies, q, filter, sort]);
+  }, [movies, dq, filter, sort]);
 
   const toItem = (m: Movie): TranscodeItem => ({
     title: `${m.title} (${m.year})`,
@@ -75,18 +112,24 @@ export function MoviesPage() {
     size: m.file?.size,
     quality: m.file?.quality,
     isRemux: m.file?.isRemux,
+    anime: m.anime,
     source: { kind: 'movie', arr: 'radarr', arrId: m.id, fileId: m.file?.id, arrPath: m.file?.path, localPath: m.file?.localPath },
   });
 
-  const toggle = (id: number) =>
-    setSelected((s) => {
+  const toggle = useCallback(
+    (id: number) =>
+      setSelected((s) => {
       const n = new Set(s);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
+        if (n.has(id)) n.delete(id);
+        else n.add(id);
+        return n;
+      }),
+    [],
+  );
 
   const remuxCount = movies?.filter((m) => m.file?.isRemux).length ?? 0;
+  const openMovie = useCallback((id: number) => nav(`/movies/${id}`), [nav]);
+  const transcodeOne = useCallback((m: Movie) => setModal([toItem(m)]), []);
 
   if (settings && !settings.radarr.enabled) {
     return (
@@ -126,7 +169,18 @@ export function MoviesPage() {
           <ToolbarButton icon={<Icon.Grid />} label="Posters" selected={view === 'posters'} onClick={() => setView('posters')} />
           <ToolbarButton icon={<Icon.List />} label="Table" selected={view === 'table'} onClick={() => setView('table')} />
           <ToolbarSeparator />
-          {view === 'posters' && <ToolbarMenu icon={<Icon.Sliders />} label="Options" items={(['small', 'medium', 'large'] as PosterSize[]).map((k) => ({ key: k, label: `${k[0].toUpperCase()}${k.slice(1)} posters`, selected: posterSize === k, onSelect: () => setPosterSize(k) }))} />}
+          {view === 'posters' && (
+            <ToolbarMenu
+              icon={<Icon.Sliders />}
+              label="Options"
+              items={[
+                { key: 'h', header: true, label: 'Poster size' },
+                ...(['small', 'medium', 'large'] as PosterSize[]).map((k) => ({ key: k, label: `${k[0].toUpperCase()}${k.slice(1)}`, selected: posterSize === k, onSelect: () => setPosterSize(k) })),
+                { key: 's', separator: true, label: '' },
+                { key: '3d', label: '3D cover effect', selected: cover3d, onSelect: () => { setCover3dEnabled(!cover3d); setCover3d(!cover3d); } },
+              ]}
+            />
+          )}
           <ToolbarMenu icon={<Icon.Sort />} label="Sort" items={(Object.keys(SORT_LABEL) as Sort[]).map((k) => ({ key: k, label: SORT_LABEL[k], selected: sort === k, onSelect: () => setSort(k) }))} />
           <ToolbarMenu icon={<Icon.Filter />} label="Filter" selected={filter !== 'all'} items={(Object.keys(FILTER_LABEL) as Filter[]).map((k) => ({ key: k, label: FILTER_LABEL[k], selected: filter === k, onSelect: () => setFilter(k) }))} />
         </>
@@ -137,7 +191,7 @@ export function MoviesPage() {
           {error}. Check the Radarr connection in <Link to="/settings">Settings</Link>.
         </div>
       )}
-      {!movies && !error && <LoadingIndicator>Loading library…</LoadingIndicator>}
+      {!movies && !error && (view === 'posters' ? <PosterSkeleton /> : <LoadingIndicator>Loading library…</LoadingIndicator>)}
       {movies && list.length === 0 && (
         <div className="empty">
           <h3>Nothing here</h3>
@@ -148,32 +202,7 @@ export function MoviesPage() {
       {view === 'posters' && (
         <div className="poster-grid" style={{ ['--posterWidth' as string]: `${POSTER_WIDTH[posterSize]}px` }}>
           {list.map((m) => (
-            <div key={m.id} className={`poster${selected.has(m.id) ? ' selected' : ''}`} onClick={() => nav(`/movies/${m.id}`)}>
-              {m.file?.isRemux && <span className="corner" title="Blu-ray remux on disk" />}
-              {busyMovieIds.has(m.id) && <span className="badge blue sm flag">In queue</span>}
-              {m.file && (
-                <div className="posterControls" onClick={(e) => e.stopPropagation()}>
-                  <label className="check" title="Select">
-                    <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggle(m.id)} />
-                  </label>
-                  <button className="iconButton" style={{ color: 'var(--white)' }} title="Transcode" onClick={() => (busyMovieIds.has(m.id) ? toast('warn', 'Already in the queue') : setModal([toItem(m)]))}>
-                    <Icon.Play />
-                  </button>
-                </div>
-              )}
-              <div className="img" style={{ backgroundImage: m.poster ? `url(${m.poster})` : undefined }}>
-                {!m.poster && m.title}
-              </div>
-              <div className="meta">
-                <div className="title" title={m.title}>
-                  {m.title}
-                </div>
-                <div className="sub">
-                  <span>{m.year}</span>
-                  {m.file ? <QualityLabel quality={m.file.quality} isRemux={m.file.isRemux} size="sm" /> : <span className="badge sm red">Missing</span>}
-                </div>
-              </div>
-            </div>
+            <MovieCard key={m.id} m={m} selected={selected.has(m.id)} busy={busyMovieIds.has(m.id)} onOpen={openMovie} onToggle={toggle} onTranscode={transcodeOne} />
           ))}
         </div>
       )}
@@ -228,7 +257,7 @@ export function MoviesPage() {
         </div>
       )}
 
-      {modal && <TranscodeModal items={modal} mediaType="movie" onClose={() => setModal(null)} onQueued={() => setSelected(new Set())} />}
+      {modal && <TranscodeModal items={modal} mediaType={modal.length && modal.every((i) => i.anime) ? 'anime' : 'movie'} onClose={() => setModal(null)} onQueued={() => setSelected(new Set())} />}
     </Page>
   );
 }

@@ -34,6 +34,8 @@ const baseSubs: SubtitleSettings = {
 const baseOutput: OutputSettings = {
   directory: '',
   suffix: '',
+  renameTokens: true,
+  cleanMetadata: true,
   replaceOriginal: false,
   notifyArr: true,
 };
@@ -148,9 +150,79 @@ export const BUILTIN_PROFILES: Profile[] = [
     audio: { ...baseAudio, encoder: 'libopus', bitrate: 256 },
     subtitles: { ...baseSubs, mode: 'copy' },
   }),
+
+  // ---------------- Music (encoded by fre:ac; open-source encoders only) ----------------
+  music({
+    id: 'builtin-music-keep',
+    name: 'Music · Keep as downloaded',
+    description: 'No encode: grabbed and downloaded albums are only imported into Lidarr, files stay exactly as they are.',
+    container: 'flac',
+    audio: { encoder: 'copy', replayGain: false },
+  }),
+  music({
+    id: 'builtin-music-flac',
+    name: 'Music · FLAC (lossless, keeps MQA)',
+    description: 'Re-encodes any lossless source as FLAC level 8 (libFLAC) with tags and cover art. Bit-perfect: no resampling or dithering, so MQA and hi-res stay intact.',
+    container: 'flac',
+    audio: { encoder: 'flac', compressionLevel: 8, preserveMqa: true },
+  }),
+  music({
+    id: 'builtin-music-flac-cd',
+    name: 'Music · FLAC 16/44.1 (CD quality)',
+    description: 'Hi-res (24-bit / 96 kHz …) down to CD quality: soxr resampling and triangular dither, then libFLAC. MQA sources are left untouched instead.',
+    container: 'flac',
+    audio: { encoder: 'flac', compressionLevel: 8, maxSampleRate: 44100, bitDepth: 16, preserveMqa: true },
+  }),
+  music({
+    id: 'builtin-music-wavpack',
+    name: 'Music · WavPack (lossless)',
+    description: 'WavPack high mode: lossless with APEv2 tags and artwork, a little smaller than FLAC.',
+    container: 'wv',
+    audio: { encoder: 'wavpack', preserveMqa: true },
+  }),
+  music({
+    id: 'builtin-music-mp3-v0',
+    name: 'Music · MP3 V0 (LAME)',
+    description: 'LAME 3.100 VBR V0 (~245 kbps) with ID3v2 tags and cover art: plays everywhere.',
+    container: 'mp3',
+    audio: { encoder: 'libmp3lame', vbrQuality: 0, maxSampleRate: 48000, preserveMqa: true },
+  }),
+  music({
+    id: 'builtin-music-mp3-320',
+    name: 'Music · MP3 320 (LAME)',
+    description: 'LAME 3.100 CBR 320 kbps with ID3v2 tags and cover art.',
+    container: 'mp3',
+    audio: { encoder: 'libmp3lame', bitrate: 320, maxSampleRate: 48000, preserveMqa: true },
+  }),
+  music({
+    id: 'builtin-music-opus',
+    name: 'Music · Opus 160k',
+    description: 'libopus at 160 kbps: transparent for most listeners at a fraction of the size; ideal for phones. Opus files carry tags but not embedded artwork.',
+    container: 'opus',
+    audio: { encoder: 'libopus', bitrate: 160, opusComplexity: 10, embedCover: false, preserveMqa: true },
+  }),
+  music({
+    id: 'builtin-music-vorbis',
+    name: 'Music · Ogg Vorbis q6',
+    description: 'libvorbis quality 6 (~192 kbps) with tags and artwork.',
+    container: 'ogg',
+    audio: { encoder: 'libvorbis', vbrQuality: 6, preserveMqa: true },
+  }),
 ];
 
-export const VIDEO_ENCODER_INFO: Record<string, { label: string; family: 'copy' | 'x264' | 'x265' | 'svtav1' | 'aom' | 'vpx' | 'videotoolbox' | 'nvenc' | 'qsv' | 'vaapi' | 'amf'; codec: string; qualityLabel: string; qualityRange: [number, number]; presets: string[] }> = {
+/** Music presets: audio only; video settings are unused (cover art is copied, not encoded). */
+function music(p: Omit<Partial<Profile>, 'audio'> & { id: string; name: string; audio: Partial<AudioSettings> }): Profile {
+  return make({
+    ...p,
+    mediaType: 'music',
+    video: { ...baseVideo, encoder: 'copy' },
+    audio: { ...baseAudio, languages: [], dropCommentary: false, replayGain: true, embedCover: true, bitrate: 0, ...p.audio } as AudioSettings,
+    subtitles: { ...baseSubs, mode: 'none' },
+    output: { ...baseOutput, renameTokens: false },
+  });
+}
+
+export const VIDEO_ENCODER_INFO: Record<string, { label: string; family: 'copy' | 'x264' | 'x265' | 'svtav1' | 'aom' | 'vpx' | 'videotoolbox' | 'nvenc' | 'qsv' | 'vaapi' | 'amf' | 'rkmpp' | 'v4l2'; codec: string; qualityLabel: string; qualityRange: [number, number]; presets: string[] }> = {
   copy: { label: 'Copy (no re-encode)', family: 'copy', codec: 'source', qualityLabel: '—', qualityRange: [0, 0], presets: [] },
   libx264: { label: 'H.264 (libx264)', family: 'x264', codec: 'h264', qualityLabel: 'CRF', qualityRange: [0, 51], presets: ['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow', 'placebo'] },
   libx265: { label: 'HEVC (libx265)', family: 'x265', codec: 'hevc', qualityLabel: 'CRF', qualityRange: [0, 51], presets: ['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow', 'placebo'] },
@@ -171,24 +243,50 @@ export const VIDEO_ENCODER_INFO: Record<string, { label: string; family: 'copy' 
   h264_amf: { label: 'H.264 AMF (AMD)', family: 'amf', codec: 'h264', qualityLabel: 'QP', qualityRange: [0, 51], presets: ['speed', 'balanced', 'quality'] },
   hevc_amf: { label: 'HEVC AMF (AMD)', family: 'amf', codec: 'hevc', qualityLabel: 'QP', qualityRange: [0, 51], presets: ['speed', 'balanced', 'quality'] },
   av1_amf: { label: 'AV1 AMF (AMD)', family: 'amf', codec: 'av1', qualityLabel: 'QP', qualityRange: [0, 255], presets: ['speed', 'balanced', 'quality'] },
+  h264_rkmpp: { label: 'H.264 Rockchip MPP', family: 'rkmpp', codec: 'h264', qualityLabel: 'QP', qualityRange: [0, 51], presets: [] },
+  hevc_rkmpp: { label: 'HEVC Rockchip MPP', family: 'rkmpp', codec: 'hevc', qualityLabel: 'QP', qualityRange: [0, 51], presets: [] },
+  h264_v4l2m2m: { label: 'H.264 V4L2 M2M', family: 'v4l2', codec: 'h264', qualityLabel: 'Bitrate only', qualityRange: [0, 51], presets: [] },
+  hevc_v4l2m2m: { label: 'HEVC V4L2 M2M', family: 'v4l2', codec: 'hevc', qualityLabel: 'Bitrate only', qualityRange: [0, 51], presets: [] },
+};
+
+/** Hardware acceleration methods, Jellyfin-style. `device` says what the device field means. */
+export const HW_ACCEL_INFO: Record<string, { label: string; family: string; encoders: Partial<Record<'h264' | 'hevc' | 'av1', string>>; device: 'render' | 'gpu' | 'none'; platforms: string; hint: string }> = {
+  none: { label: 'None (software / CPU)', family: '', encoders: {}, device: 'none', platforms: 'all', hint: 'x264 / x265 / SVT-AV1 on the CPU. Best quality per megabyte.' },
+  amf: { label: 'AMD AMF', family: 'amf', encoders: { h264: 'h264_amf', hevc: 'hevc_amf', av1: 'av1_amf' }, device: 'none', platforms: 'Windows (Linux with AMF drivers)', hint: 'Radeon GPUs. On Linux, VAAPI is usually the better choice for AMD.' },
+  nvenc: { label: 'Nvidia NVENC', family: 'nvenc', encoders: { h264: 'h264_nvenc', hevc: 'hevc_nvenc', av1: 'av1_nvenc' }, device: 'gpu', platforms: 'Windows, Linux', hint: 'GeForce / Quadro. AV1 needs an RTX 40-series or newer. Docker: NVIDIA container runtime.' },
+  qsv: { label: 'Intel Quicksync (QSV)', family: 'qsv', encoders: { h264: 'h264_qsv', hevc: 'hevc_qsv', av1: 'av1_qsv' }, device: 'render', platforms: 'Windows, Linux', hint: 'Intel iGPU / Arc. AV1 needs Arc or 11th-gen+ iGPU. Docker: pass /dev/dri.' },
+  vaapi: { label: 'Video Acceleration API (VAAPI)', family: 'vaapi', encoders: { h264: 'h264_vaapi', hevc: 'hevc_vaapi', av1: 'av1_vaapi' }, device: 'render', platforms: 'Linux', hint: 'Intel and AMD GPUs on Linux. Docker: pass /dev/dri.' },
+  rkmpp: { label: 'Rockchip MPP (RKMPP)', family: 'rkmpp', encoders: { h264: 'h264_rkmpp', hevc: 'hevc_rkmpp' }, device: 'none', platforms: 'Linux on Rockchip SoCs', hint: 'RK3588 and similar boards. Needs an ffmpeg built with rkmpp (e.g. jellyfin-ffmpeg).' },
+  videotoolbox: { label: 'Apple VideoToolBox', family: 'videotoolbox', encoders: { h264: 'h264_videotoolbox', hevc: 'hevc_videotoolbox' }, device: 'none', platforms: 'macOS', hint: 'Apple Silicon and Intel Macs. Not available inside Docker.' },
+  v4l2: { label: 'Video4Linux2 (V4L2)', family: 'v4l2', encoders: { h264: 'h264_v4l2m2m', hevc: 'hevc_v4l2m2m' }, device: 'none', platforms: 'Linux (Raspberry Pi and other SoCs)', hint: 'Bitrate mode only; quality settings are converted to a bitrate.' },
 };
 
 export const AUDIO_ENCODER_INFO: Record<string, { label: string; defaultBitrate: number; lossless: boolean }> = {
   copy: { label: 'Copy (no re-encode)', defaultBitrate: 0, lossless: true },
   aac: { label: 'AAC (ffmpeg native)', defaultBitrate: 192, lossless: false },
-  libfdk_aac: { label: 'AAC (libfdk_aac)', defaultBitrate: 192, lossless: false },
   libopus: { label: 'Opus', defaultBitrate: 192, lossless: false },
   eac3: { label: 'E-AC-3 (Dolby Digital Plus)', defaultBitrate: 640, lossless: false },
   ac3: { label: 'AC-3 (Dolby Digital)', defaultBitrate: 448, lossless: false },
   flac: { label: 'FLAC (lossless)', defaultBitrate: 0, lossless: true },
+  libmp3lame: { label: 'MP3 (LAME)', defaultBitrate: 320, lossless: false },
+  libvorbis: { label: 'Vorbis (libvorbis)', defaultBitrate: 192, lossless: false },
+  wavpack: { label: 'WavPack (lossless)', defaultBitrate: 0, lossless: true },
+  ape: { label: "Monkey's Audio (lossless)", defaultBitrate: 0, lossless: true },
   truehd: { label: 'TrueHD (lossless)', defaultBitrate: 0, lossless: true },
 };
 
-export const CONTAINER_INFO: Record<string, { label: string; ext: string; videoCodecs: string[]; audioCodecs: string[]; textSubs: string; bitmapSubs: boolean; attachments: boolean }> = {
+export const CONTAINER_INFO: Record<string, { label: string; ext: string; videoCodecs: string[]; audioCodecs: string[]; textSubs: string; bitmapSubs: boolean; attachments: boolean; music?: boolean }> = {
   mkv: { label: 'Matroska (.mkv)', ext: 'mkv', videoCodecs: ['*'], audioCodecs: ['*'], textSubs: 'copy', bitmapSubs: true, attachments: true },
   mp4: { label: 'MP4 (.mp4)', ext: 'mp4', videoCodecs: ['h264', 'hevc', 'av1', 'mpeg4'], audioCodecs: ['aac', 'ac3', 'eac3', 'opus', 'flac', 'alac', 'mp3'], textSubs: 'mov_text', bitmapSubs: false, attachments: false },
   webm: { label: 'WebM (.webm)', ext: 'webm', videoCodecs: ['vp9', 'av1', 'vp8'], audioCodecs: ['opus', 'vorbis'], textSubs: 'webvtt', bitmapSubs: false, attachments: false },
   mov: { label: 'QuickTime (.mov)', ext: 'mov', videoCodecs: ['h264', 'hevc', 'prores', 'av1'], audioCodecs: ['aac', 'ac3', 'eac3', 'alac', 'pcm_s16le', 'pcm_s24le'], textSubs: 'mov_text', bitmapSubs: false, attachments: false },
+  // music (audio only; "videoCodecs" is the embedded cover art)
+  flac: { label: 'FLAC (.flac)', ext: 'flac', videoCodecs: ['mjpeg', 'png'], audioCodecs: ['flac'], textSubs: '', bitmapSubs: false, attachments: false, music: true },
+  mp3: { label: 'MP3 (.mp3)', ext: 'mp3', videoCodecs: ['mjpeg', 'png'], audioCodecs: ['mp3'], textSubs: '', bitmapSubs: false, attachments: false, music: true },
+  opus: { label: 'Ogg Opus (.opus)', ext: 'opus', videoCodecs: [], audioCodecs: ['opus'], textSubs: '', bitmapSubs: false, attachments: false, music: true },
+  ogg: { label: 'Ogg Vorbis (.ogg)', ext: 'ogg', videoCodecs: ['mjpeg', 'png'], audioCodecs: ['vorbis'], textSubs: '', bitmapSubs: false, attachments: false, music: true },
+  wv: { label: 'WavPack (.wv)', ext: 'wv', videoCodecs: ['mjpeg', 'png'], audioCodecs: ['wavpack'], textSubs: '', bitmapSubs: false, attachments: false, music: true },
+  ape: { label: "Monkey's Audio (.ape)", ext: 'ape', videoCodecs: ['mjpeg', 'png'], audioCodecs: ['ape'], textSubs: '', bitmapSubs: false, attachments: false, music: true },
 };
 
 export const LANGUAGES: { code: string; label: string }[] = [
@@ -215,6 +313,32 @@ export const LANGUAGES: { code: string; label: string }[] = [
 ];
 
 export const DEFAULT_SETTINGS = {
+  general: {
+    host: { bindAddress: '*', port: 7878, urlBase: '', instanceName: 'Rexarr', applicationUrl: '', enableSsl: false, sslPort: 9898, sslCertPath: '', sslKeyPath: '', sslCertPassword: '' },
+    security: {
+      authentication: 'none' as 'none' | 'basic' | 'forms',
+      authenticationRequired: 'disabledForLocalAddresses' as 'enabled' | 'disabledForLocalAddresses',
+      username: '',
+      passwordHash: '',
+      apiKey: '',
+      certificateValidation: 'enabled' as 'enabled' | 'disabledForLocalAddresses' | 'disabled',
+    },
+    proxy: { enabled: false, type: 'http' as const, hostname: '', port: 8080, username: '', password: '', bypassFilter: '', bypassLocalAddresses: true },
+    logging: { level: 'info' as 'info' | 'debug' | 'trace', sizeLimitMb: 2 },
+    updates: { branch: 'main', automatic: false, mechanism: 'docker' as 'builtIn' | 'script' | 'docker' | 'external', scriptPath: '' },
+    backups: { folder: '', intervalDays: 7, retentionDays: 28 },
+  },
+  transcoding: { hardwareAcceleration: 'none' as 'none' | 'amf' | 'nvenc' | 'qsv' | 'vaapi' | 'rkmpp' | 'videotoolbox' | 'v4l2', device: '', hardwareDecoding: true, fallbackToSoftware: true },
+  transcodeTemp: 'transcodes' as 'transcodes' | 'output',
+  auto: {
+    enabled: false,
+    includeExisting: false,
+    sources: { radarr: true, sonarr: true },
+    scanIntervalMinutes: 15,
+    maxPerScan: 10,
+    profiles: { movie: '', tv: '', anime: '' },
+  },
+  anidb: { enabled: false },
   disc: {
     enabled: false,
     makemkvPath: 'makemkvcon',
@@ -226,15 +350,26 @@ export const DEFAULT_SETTINGS = {
     autoDeliver: true,
     autoEject: true,
     keepRaw: false,
+    virtualDriveDirectory: '',
+    virtualDrives: [],
+    physicalDrives: [],
+    cd: { enabled: true, ripperPath: '', readOffset: 0, musicbrainz: true, detectMqa: true, compressionLevel: 8, deliverToLidarr: true },
   },
   radarr: { enabled: false, url: 'http://localhost:7878', apiKey: '' },
   sonarr: { enabled: false, url: 'http://localhost:8989', apiKey: '' },
   prowlarr: { enabled: false, url: 'http://localhost:9696', apiKey: '' },
+  lidarr: { enabled: false, url: 'http://localhost:8686', apiKey: '', splitCueImages: true },
+  stallTimeoutMinutes: 10,
+  localMedia: { enabled: true, usePathMappings: true, folders: [], exclude: ['@eaDir', '#recycle', '$RECYCLE.BIN', 'System Volume Information', 'lost+found', 'SteamLibrary', 'steamapps', 'node_modules', 'rexarr-split', 'Sample', 'Samples', 'Extras', 'Featurettes', 'Trailers', 'Behind The Scenes', 'Deleted Scenes', 'Interviews'], hideArrManaged: true, rescanHours: 12, metadata: true, tmdbApiKey: '', metadataLanguage: 'en-US' },
+  slskd: { enabled: false, url: 'http://localhost:5030', apiKey: '', downloadsPath: '', maxQueueLength: 50, searchTimeoutSeconds: 15 },
+  musicbrainz: { enabled: true },
   ffmpegPath: 'ffmpeg',
   ffprobePath: 'ffprobe',
+  freacPath: '',
   concurrency: 1,
   pollIntervalSeconds: 60,
   pathMappings: [],
-  defaultProfiles: { movie: 'builtin-movie-1080p', tv: 'builtin-tv-1080p', anime: 'builtin-anime-x265' },
+  defaultProfiles: { movie: 'builtin-movie-1080p', tv: 'builtin-tv-1080p', anime: 'builtin-anime-x265', music: 'builtin-music-flac' },
   remuxOnly: true,
+  searchDiscReleases: true,
 };

@@ -1,3 +1,4 @@
+import { withBase } from '../base';
 import { useEffect, useRef, useState } from 'react';
 import type { DiscDrive, DiscRip, Job, ServerEvent } from '@shared/types';
 import { api } from '../api';
@@ -6,7 +7,13 @@ export interface Toast {
   id: number;
   level: 'info' | 'warn' | 'error';
   message: string;
+  /** How many times this message arrived while visible. */
+  count: number;
 }
+
+const MAX_TOASTS = 4;
+/** Errors stay longer; hovering a toast pauses its timer. */
+const TOAST_MS: Record<Toast['level'], number> = { info: 5000, warn: 9000, error: 15000 };
 
 /** Keeps a live list of jobs via SSE (falls back to polling if the stream drops). */
 export function useJobs() {
@@ -14,23 +21,59 @@ export function useJobs() {
   const [rips, setRips] = useState<DiscRip[]>([]);
   const [drives, setDrives] = useState<DiscDrive[]>([]);
   const [connected, setConnected] = useState(false);
+  const [queuePaused, setQueuePaused] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
+  const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+
+  const dismissToast = (id: number) => {
+    clearTimeout(timers.current.get(id));
+    timers.current.delete(id);
+    setToasts((t) => t.filter((x) => x.id !== id));
+  };
+  const schedule = (id: number, level: Toast['level']) => {
+    clearTimeout(timers.current.get(id));
+    timers.current.set(id, setTimeout(() => dismissToast(id), TOAST_MS[level]));
+  };
+  const pauseToast = (id: number) => clearTimeout(timers.current.get(id));
+  const resumeToast = (id: number) => {
+    const t = toastsRef.current.find((x) => x.id === id);
+    if (t) schedule(id, t.level);
+  };
+  const toastsRef = useRef<Toast[]>([]);
+  toastsRef.current = toasts;
+
+  const pushToast = (level: Toast['level'], message: string) => {
+    const existing = toastsRef.current.find((t) => t.level === level && t.message === message);
+    if (existing) {
+      // same message again: bump the counter and restart its timer instead of stacking duplicates
+      setToasts((list) => list.map((t) => (t.id === existing.id ? { ...t, count: t.count + 1 } : t)));
+      schedule(existing.id, level);
+      return;
+    }
+    const id = ++toastId.current;
+    setToasts((list) => {
+      const next = [...list, { id, level, message, count: 1 }];
+      // keep the newest few; errors are dropped last
+      while (next.length > MAX_TOASTS) {
+        const drop = next.findIndex((t) => t.level !== 'error');
+        const [gone] = next.splice(drop >= 0 ? drop : 0, 1);
+        clearTimeout(timers.current.get(gone.id));
+        timers.current.delete(gone.id);
+      }
+      return next;
+    });
+    schedule(id, level);
+  };
 
   useEffect(() => {
     let es: EventSource | null = null;
     let poll: ReturnType<typeof setInterval> | null = null;
     let stopped = false;
 
-    const pushToast = (level: Toast['level'], message: string) => {
-      const id = ++toastId.current;
-      setToasts((t) => [...t, { id, level, message }]);
-      setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 6000);
-    };
-
     const connect = () => {
       if (stopped) return;
-      es = new EventSource('/api/events');
+      es = new EventSource(withBase('/api/events'));
       es.onopen = () => {
         setConnected(true);
         if (poll) {
@@ -83,9 +126,12 @@ export function useJobs() {
           case 'drives':
             setDrives(ev.drives);
             break;
+          case 'queue':
+            setQueuePaused(ev.paused);
+            break;
         }
       };
-      for (const t of ['jobs', 'job', 'job-removed', 'notice', 'rips', 'rip', 'rip-removed', 'drives']) es.addEventListener(t, handle as EventListener);
+      for (const t of ['jobs', 'job', 'job-removed', 'notice', 'rips', 'rip', 'rip-removed', 'drives', 'queue']) es.addEventListener(t, handle as EventListener);
     };
     connect();
     return () => {
@@ -95,11 +141,7 @@ export function useJobs() {
     };
   }, []);
 
-  const toast = (level: Toast['level'], message: string) => {
-    const id = ++toastId.current;
-    setToasts((t) => [...t, { id, level, message }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 6000);
-  };
+  const toast = pushToast;
 
-  return { jobs, rips, drives, connected, toasts, toast };
+  return { jobs, rips, drives, connected, queuePaused, toasts, toast, toastControls: { dismiss: dismissToast, pause: pauseToast, resume: resumeToast } };
 }

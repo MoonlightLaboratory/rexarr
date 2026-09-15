@@ -1,3 +1,4 @@
+import { withGeneralDefaults } from './general.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DATA_DIR } from './config.js';
@@ -28,7 +29,8 @@ function save<T>(p: Persisted<T>) {
   if (p.timer) return;
   p.timer = setTimeout(() => {
     p.timer = null;
-    const tmp = `${p.file}.tmp`;
+    // unique temp name: parallel processes (tests, a second instance) must not rename each other's file
+    const tmp = `${p.file}.${process.pid}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(p.value, null, 2));
     fs.renameSync(tmp, p.file);
   }, 150);
@@ -39,7 +41,7 @@ function flush<T>(p: Persisted<T>) {
     clearTimeout(p.timer);
     p.timer = null;
   }
-  const tmp = `${p.file}.tmp`;
+  const tmp = `${p.file}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(p.value, null, 2));
   fs.renameSync(tmp, p.file);
 }
@@ -56,9 +58,31 @@ settingsP.value = {
   radarr: { ...DEFAULT_SETTINGS.radarr, ...(settingsP.value.radarr ?? {}) },
   sonarr: { ...DEFAULT_SETTINGS.sonarr, ...(settingsP.value.sonarr ?? {}) },
   prowlarr: { ...DEFAULT_SETTINGS.prowlarr, ...(settingsP.value.prowlarr ?? {}) },
-  disc: { ...DEFAULT_SETTINGS.disc, ...(settingsP.value.disc ?? {}) },
+  lidarr: { ...DEFAULT_SETTINGS.lidarr, ...(settingsP.value.lidarr ?? {}) },
+  slskd: { ...DEFAULT_SETTINGS.slskd, ...(settingsP.value.slskd ?? {}) },
+  localMedia: { ...DEFAULT_SETTINGS.localMedia, ...(settingsP.value.localMedia ?? {}) },
+  musicbrainz: { ...DEFAULT_SETTINGS.musicbrainz, ...(settingsP.value.musicbrainz ?? {}) },
+  disc: { ...DEFAULT_SETTINGS.disc, ...(settingsP.value.disc ?? {}), cd: { ...DEFAULT_SETTINGS.disc.cd, ...(settingsP.value.disc?.cd ?? {}) } },
+  anidb: { ...DEFAULT_SETTINGS.anidb, ...(settingsP.value.anidb ?? {}) },
+  transcoding: { ...DEFAULT_SETTINGS.transcoding, ...(settingsP.value.transcoding ?? {}) },
+  auto: {
+    ...DEFAULT_SETTINGS.auto,
+    ...(settingsP.value.auto ?? {}),
+    sources: { ...DEFAULT_SETTINGS.auto.sources, ...(settingsP.value.auto?.sources ?? {}) },
+    profiles: { ...DEFAULT_SETTINGS.auto.profiles, ...(settingsP.value.auto?.profiles ?? {}) },
+  },
   defaultProfiles: { ...DEFAULT_SETTINGS.defaultProfiles, ...(settingsP.value.defaultProfiles ?? {}) },
 } as Settings;
+const hadApiKey = Boolean(settingsP.value.general?.security?.apiKey);
+settingsP.value.general = withGeneralDefaults(settingsP.value);
+let settingsChanged = !hadApiKey; // a new API key must be persisted
+if (process.env.REXARR_RESET_AUTH === '1' || process.env.REXARR_RESET_AUTH === 'true') {
+  // Locked out: turn authentication off (the password is kept, so it can be switched back on).
+  settingsP.value.general.security.authentication = 'none';
+  settingsChanged = true;
+  console.warn('[auth] REXARR_RESET_AUTH set: authentication disabled');
+}
+if (settingsChanged) save(settingsP);
 
 export const store = {
   get settings(): Settings {

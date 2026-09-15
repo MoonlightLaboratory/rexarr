@@ -1,7 +1,8 @@
 import type { ArrConnection, Episode, LookupResult, MediaFile, Release, Series } from '../../../shared/types.js';
-import { ArrHttp } from './client.js';
-import { isRemux, isRemuxQuality, resolutionFromQuality } from './remux.js';
+import { ArrHttp, type ArrQueueRecord } from './client.js';
+import { detectDisc, isRemux, isRemuxQuality, resolutionFromQuality } from './remux.js';
 import { toLocalPath } from '../paths.js';
+import { proxiedImage } from '../routes/images.js';
 
 interface SQuality { quality: { id: number; name: string; resolution?: number } }
 interface SEpisodeFile {
@@ -28,6 +29,7 @@ interface SEpisode {
   episodeFile?: SEpisodeFile;
 }
 interface SSeries {
+  alternateTitles?: { title: string; seasonNumber?: number }[];
   id: number;
   tvdbId: number;
   title: string;
@@ -76,16 +78,16 @@ const REMUX_CACHE_MS = 60_000;
 /** url -> seriesId -> per-season remux counts (Sonarr has no bulk episode-file endpoint). */
 const remuxCache = new Map<string, Map<number, { at: number; bySeason: Map<number, number> }>>();
 
-function poster(images?: SSeries['images'], type = 'poster') {
-  const img = images?.find((i) => i.coverType === type);
-  return img?.remoteUrl ?? img?.url;
+/** Cover art goes through rexarr's own image cache (Sonarr's resized copy first, TheTVDB as fallback). */
+function poster(images?: SSeries['images'], type: 'poster' | 'fanart' = 'poster') {
+  return proxiedImage('sonarr', images?.find((i) => i.coverType === type), type);
 }
 
 function mapFile(f: SEpisodeFile): MediaFile {
   return {
     id: f.id,
     path: f.path,
-    localPath: toLocalPath(f.path),
+    localPath: toLocalPath(f.path, 'sonarr'),
     size: f.size,
     quality: f.quality?.quality?.name ?? 'Unknown',
     isRemux: isRemuxQuality(f.quality?.quality?.name) || isRemux(f.relativePath),
@@ -99,7 +101,10 @@ function mapFile(f: SEpisodeFile): MediaFile {
 
 export function mapSonarrRelease(r: SRelease): Release {
   const q = r.quality?.quality?.name ?? '';
+  const disc = detectDisc(r.title, q, r.quality?.quality?.resolution ?? resolutionFromQuality(q));
   return {
+    isDisc: disc.isDisc,
+    discFormat: disc.format,
     guid: r.guid,
     indexerId: r.indexerId,
     indexer: r.indexer,
@@ -140,6 +145,7 @@ export class Sonarr {
       id: s.id,
       tvdbId: s.tvdbId,
       title: s.title,
+      alternateTitles: s.alternateTitles?.length ? [...new Set(s.alternateTitles.map((a) => a.title))].slice(0, 20) : undefined,
       year: s.year,
       overview: s.overview ?? '',
       poster: poster(s.images),
@@ -320,7 +326,12 @@ export class Sonarr {
   }
 
   queue() {
-    return this.http.get<{ records: { id: number; seriesId?: number; episodeId?: number; title: string; status: string; sizeleft: number; size: number; trackedDownloadState?: string; downloadId?: string }[] }>('/queue', { includeSeries: false, includeEpisode: false, pageSize: 500 });
+    return this.http.get<{ records: ArrQueueRecord[] }>('/queue', { includeSeries: false, includeEpisode: false, pageSize: 500 });
+  }
+
+  /** Drop a finished download from the queue (the download client keeps the files / keeps seeding). */
+  removeFromQueue(id: number) {
+    return this.http.delete<void>(`/queue/${id}`, { removeFromClient: false, blocklist: false });
   }
 
   rescan(seriesId: number) {

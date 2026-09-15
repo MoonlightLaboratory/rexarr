@@ -5,14 +5,17 @@ import { z } from 'zod';
 import type { Profile } from '../../../shared/types.js';
 import { store } from '../store.js';
 import { buildFfmpegArgs, outputPathFor } from '../ffmpeg/args.js';
+import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 import { probe, type ProbeResult } from '../ffmpeg/probe.js';
+import { CONTAINER_INFO } from '../../../shared/presets.js';
+import { freacEncoderArgs, freacInfo } from '../music/freac.js';
 
 const profileSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1).max(80),
   description: z.string().max(500).default(''),
-  mediaType: z.enum(['any', 'movie', 'tv', 'anime']).default('any'),
-  container: z.enum(['mkv', 'mp4', 'webm', 'mov']),
+  mediaType: z.enum(['any', 'movie', 'tv', 'anime', 'music']).default('any'),
+  container: z.enum(['mkv', 'mp4', 'webm', 'mov', 'flac', 'mp3', 'opus', 'ogg', 'wv', 'ape']),
   video: z.object({
     encoder: z.string(),
     quality: z.number(),
@@ -23,6 +26,7 @@ const profileSchema = z.object({
     hdrPassthrough: z.boolean().default(true),
     bitrate: z.number().int().min(0).default(0),
     extraArgs: z.string().default(''),
+    hwMode: z.enum(['auto', 'software']).default('auto'),
   }),
   audio: z.object({
     encoder: z.string(),
@@ -31,6 +35,14 @@ const profileSchema = z.object({
     languages: z.array(z.string()).default([]),
     firstMatchOnly: z.boolean().default(false),
     dropCommentary: z.boolean().default(true),
+    vbrQuality: z.number().min(0).max(10).optional(),
+    maxSampleRate: z.number().int().min(0).max(768000).optional(),
+    bitDepth: z.union([z.literal(0), z.literal(16), z.literal(24)]).optional(),
+    compressionLevel: z.number().int().min(0).max(12).optional(),
+    preserveMqa: z.boolean().optional(),
+    replayGain: z.boolean().optional(),
+    embedCover: z.boolean().optional(),
+    opusComplexity: z.number().int().min(0).max(10).optional(),
   }),
   subtitles: z.object({
     mode: z.enum(['copy', 'none', 'burn', 'copy-text']),
@@ -44,6 +56,8 @@ const profileSchema = z.object({
     suffix: z.string().default(''),
     replaceOriginal: z.boolean().default(false),
     notifyArr: z.boolean().default(true),
+    renameTokens: z.boolean().default(true),
+    cleanMetadata: z.boolean().default(true),
   }),
 });
 
@@ -60,7 +74,7 @@ function sampleProbe(): ProbeResult {
     { index: 7, codec_type: 'attachment', codec_name: 'ttf', tags: { filename: 'font.ttf' } },
   ] as ProbeResult['streams'];
   return {
-    path: '/media/Movies/Example (2024)/Example.2024.2160p.BluRay.REMUX.mkv',
+    path: '/media/Movies/Example (2024)/Example.2024.2160p.UHD.BluRay.REMUX.HDR.HEVC.TrueHD.Atmos.7.1-GROUP.mkv',
     durationSeconds: 7200,
     sizeBytes: 60e9,
     bitRate: 66e6,
@@ -128,6 +142,29 @@ export default async function profileRoutes(app: FastifyInstance) {
     if (body.data.profile) profile = { ...body.data.profile, id: body.data.profile.id ?? 'preview', builtin: false, createdAt: '', updatedAt: '' } as Profile;
     else if (body.data.profileId) profile = store.getProfile(body.data.profileId);
     if (!profile) return reply.code(400).send({ error: 'profile required' });
+    if (profile.mediaType === 'music' || CONTAINER_INFO[profile.container]?.music) {
+      // Music profiles run through fre:ac: describe that pipeline instead of an ffmpeg command
+      const input = body.data.path || '/music/Artist/Album (2024)/01 - Track.flac';
+      if (profile.audio.encoder === 'copy') return { command: '(no encode – files are kept as downloaded)', args: [], warnings: [], summary: ['Import only'], output: input, sample: !body.data.path, streams: [] };
+      let enc;
+      try {
+        enc = freacEncoderArgs(profile);
+      } catch (err) {
+        return reply.code(400).send({ error: (err as Error).message });
+      }
+      const fa = await freacInfo(store.settings.freacPath);
+      const output = outputPathFor(profile, input, undefined, { replacingInput: profile.output.replaceOriginal });
+      const summary: string[] = [];
+      const warnings: string[] = [];
+      if (!fa.available) warnings.push(`fre:ac not found (${fa.error ?? 'freaccmd'}): install fre:ac or set its path in Settings`);
+      else if (!fa.encoders.includes(enc.encoder)) warnings.push(`This fre:ac build has no "${enc.encoder}" encoder`);
+      if (profile.audio.maxSampleRate || profile.audio.bitDepth) summary.push(`FFmpeg soxr: ${profile.audio.maxSampleRate ? `resample above ${profile.audio.maxSampleRate / 1000} kHz` : ''}${profile.audio.maxSampleRate && profile.audio.bitDepth ? ', ' : ''}${profile.audio.bitDepth ? `reduce to ${profile.audio.bitDepth}-bit with triangular dither` : ''} (only when the source is higher)`);
+      summary.push(`fre:ac ${fa.version ?? ''} encoder ${enc.encoder}${enc.options.length ? ` ${enc.options.join(' ')}` : ''}; tags and cover art copied from the source`);
+      if (profile.audio.replayGain) summary.push(['flac', 'mp3', 'opus'].includes(enc.ext) ? 'ReplayGain track gain / peak written with a stream-copy remux' : `ReplayGain tags are not written to .${enc.ext}`);
+      if (profile.audio.preserveMqa) summary.push(['flac', 'wv', 'ape'].includes(enc.ext) ? 'MQA sources: encoded bit-perfect (no resampling / dither)' : 'MQA sources are skipped (a lossy encode would destroy MQA)');
+      const q = (a: string) => (/[\s"'$`\\]/.test(a) ? `'${a.replace(/'/g, `'\\''`)}'` : a);
+      return { command: [fa.path, '-e', enc.encoder, '-o', output, '--', ...enc.options, input].map(q).join(' '), args: [], warnings, summary, output, sample: !body.data.path, streams: [] };
+    }
     let info: ProbeResult;
     let input: string;
     if (body.data.path) {
@@ -139,8 +176,11 @@ export default async function profileRoutes(app: FastifyInstance) {
       input = info.path;
     }
     try {
-      const output = outputPathFor(profile, input);
-      const built = buildFfmpegArgs(profile, info, input, output);
+      const caps = await ffmpegCapabilities(store.settings.ffmpegPath).catch(() => undefined);
+      const draft = buildFfmpegArgs(profile, info, input, outputPathFor(profile, input), { hardware: store.settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, metadata: { title: body.data.path ? undefined : 'Example (2024)' } });
+      // the real name depends on what the encode produces (codec after hardware mapping, resolution, audio)
+      const output = outputPathFor(profile, input, draft.description, { replacingInput: profile.output.replaceOriginal });
+      const built = buildFfmpegArgs(profile, info, input, output, { hardware: store.settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, metadata: { title: body.data.path ? undefined : 'Example (2024)' } });
       return {
         command: [store.settings.ffmpegPath, ...built.args].map(quote).join(' '),
         args: built.args,

@@ -1,20 +1,53 @@
 import { useEffect, useState } from 'react';
+import type { StoragePath } from '@shared/types';
 import type { SystemInfo } from '@shared/types';
 import { VIDEO_ENCODER_INFO, AUDIO_ENCODER_INFO } from '@shared/presets';
-import { api, fmtDuration } from '../api';
+import { api, fmtBytes, fmtDuration } from '../api';
 import { useApp } from '../App';
 import { Link } from 'react-router-dom';
 import { Page, ToolbarButton } from '../components/Layout';
 import { Icon } from '../components/Icons';
 
+function PathRow({ p }: { p: StoragePath }) {
+  const pct = p.disk && p.disk.totalBytes ? (p.disk.usedBytes / p.disk.totalBytes) * 100 : 0;
+  const low = p.disk ? p.disk.freeBytes < 20 * 1024 ** 3 || pct > 92 : false;
+  const title = p.disk ? `${fmtBytes(p.disk.usedBytes)} used of ${fmtBytes(p.disk.totalBytes)} · ${fmtBytes(p.disk.freeBytes)} free on this disk` : 'Folder does not exist';
+  return (
+    <div className="storagePath" title={p.description}>
+      <span className="storageIcon">
+        <Icon.Server />
+      </span>
+      <div className="storageInfo">
+        <div className="storageLabel">
+          {p.label}
+          {p.overridden && <span className="badge sm blue" title={`Set by ${p.env}`}>env</span>}
+          {!p.exists && <span className="badge sm red">missing</span>}
+          {p.exists && !p.writable && <span className="badge sm red">read-only</span>}
+        </div>
+        <div className="storageValue" title={p.path}>
+          <bdi>{p.path}</bdi>
+        </div>
+        <div className={`storageBar${low ? ' low' : ''}`} title={title}>
+          <div style={{ width: `${pct.toFixed(1)}%` }} />
+        </div>
+        <div className="storageMeta">
+          <span>{fmtBytes(p.sizeBytes) === '—' ? '0 B' : fmtBytes(p.sizeBytes)}{p.sizeTruncated ? '+' : ''} in {p.fileCount.toLocaleString()} file{p.fileCount === 1 ? '' : 's'}</span>
+          {p.disk && <span>{fmtBytes(p.disk.freeBytes)} free of {fmtBytes(p.disk.totalBytes)}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SystemPage() {
-  const { health, reloadHealth } = useApp();
+  const { health, healthLoaded, reloadHealth } = useApp();
   const [info, setInfo] = useState<SystemInfo | null>(null);
+  const [paths, setPaths] = useState<StoragePath[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const load = (refresh = false) => {
     setBusy(true);
-    Promise.all([api.system(refresh).then(setInfo), reloadHealth()])
+    Promise.all([api.system(refresh).then(setInfo), api.paths(refresh).then(setPaths), reloadHealth()])
       .catch((e) => setError(e.message))
       .finally(() => setBusy(false));
   };
@@ -30,9 +63,17 @@ export function SystemPage() {
         <div className="card-h">
           <Icon.Alert /> Health
           <span className="spacer" />
-          {health.length === 0 && <span className="badge green">All checks passed</span>}
+          {!healthLoaded ? (
+            <span className="small dim">
+              <span className="spinner" /> Checking…
+            </span>
+          ) : (
+            health.length === 0 && <span className="badge green">All checks passed</span>
+          )}
         </div>
-        {health.length === 0 ? (
+        {!healthLoaded ? (
+          <div className="card-b dim">Running health checks (network shares can take a few seconds)…</div>
+        ) : health.length === 0 ? (
           <div className="card-b dim">No issues found. rexarr can reach ffmpeg, your *arr apps and the files they report.</div>
         ) : (
           <table className="tbl">
@@ -57,6 +98,20 @@ export function SystemPage() {
           </table>
         )}
       </div>
+      {paths && (
+        <div className="card mb">
+          <div className="card-h">
+            <Icon.HardDrive /> Paths
+            <span className="spacer" />
+            <span className="small dim">bars show how full the disk holding each folder is</span>
+          </div>
+          <div className="card-b storagePaths">
+            {paths.map((p) => (
+              <PathRow key={p.id} p={p} />
+            ))}
+          </div>
+        </div>
+      )}
       {info && (
         <>
           <div className="stats mb">
@@ -113,7 +168,7 @@ export function SystemPage() {
                 <div className="field row"><label>Node</label><span>{info.node}</span></div>
                 <div className="field row"><label>Platform</label><span>{info.platform}</span></div>
                 <div className="field row"><label>Uptime</label><span>{fmtDuration(info.uptimeSeconds)}</span></div>
-                <div className="field row"><label>Data directory</label><code>{info.dataDir}</code></div>
+                <div className="field row"><label>Config directory</label><code style={{ wordBreak: 'break-all' }}>{info.dataDir}</code></div>
               </div>
             </div>
           </div>

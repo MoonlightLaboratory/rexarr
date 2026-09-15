@@ -100,7 +100,12 @@ export function MovieDetailPage() {
             prev={neighbours.prev}
             next={neighbours.next}
             attribution="Metadata is provided by TMDb"
-            badges={movie.file ? <QualityLabel quality={movie.file.quality} isRemux={movie.file.isRemux} /> : <span className="badge red">No file</span>}
+            badges={
+              <>
+                {movie.anime && <span className="badge purple" title={movie.titleKanji ?? ''}>Anime{movie.titleRomaji && movie.titleRomaji !== movie.title ? ` · ${movie.titleRomaji}` : ''}</span>}
+                {movie.file ? <QualityLabel quality={movie.file.quality} isRemux={movie.file.isRemux} /> : <span className="badge red">No file</span>}
+              </>
+            }
             pills={[
               { icon: <Icon.Folder />, text: movie.path, title: 'Path' },
               ...(movie.file ? [{ icon: <Icon.HardDrive />, text: fmtBytes(movie.file.size), title: 'Size on disk' }] : []),
@@ -112,6 +117,7 @@ export function MovieDetailPage() {
               ...(movie.certification ? [{ icon: <Icon.Bookmark />, text: movie.certification, title: 'Certification' }] : []),
               { icon: <Icon.ExternalLink />, text: 'TMDb', href: `https://www.themoviedb.org/movie/${movie.tmdbId}`, title: 'Open on TMDb' },
               ...(movie.imdbId ? [{ icon: <Icon.ExternalLink />, text: 'IMDb', href: `https://www.imdb.com/title/${movie.imdbId}/`, title: 'Open on IMDb' }] : []),
+              ...(movie.anidbId ? [{ icon: <Icon.ExternalLink />, text: 'AniDB', href: `https://anidb.net/anime/${movie.anidbId}`, title: 'Open on AniDB' }] : []),
             ]}
           />
           <div style={{ padding: 20 }}>
@@ -185,7 +191,7 @@ export function MovieDetailPage() {
           </div>
         </>
       )}
-      {modal && <TranscodeModal items={modal} mediaType="movie" onClose={() => setModal(null)} />}
+      {modal && <TranscodeModal items={modal} mediaType={movie?.anime ? 'anime' : 'movie'} onClose={() => setModal(null)} />}
     </Page>
   );
 }

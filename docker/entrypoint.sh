@@ -1,20 +1,32 @@
 #!/bin/sh
-# LinuxServer-style PUID/PGID/UMASK handling so files written to your media share are owned by you.
+# rexarr container entrypoint: LinuxServer-style PUID / PGID / UMASK handling.
+# Runs the app as an unprivileged user that owns /config and whatever it writes to your media shares.
 set -e
-PUID=${PUID:-1000}
-PGID=${PGID:-1000}
-UMASK=${UMASK:-002}
+PUID="${PUID:-1000}"
+PGID="${PGID:-1000}"
+UMASK="${UMASK:-002}"
+DATA_DIR="${REXARR_DATA_DIR:-/config}"
 umask "$UMASK"
 
 if [ "$(id -u)" = "0" ]; then
-  if ! getent group rexarr >/dev/null 2>&1; then addgroup -g "$PGID" rexarr 2>/dev/null || addgroup rexarr; fi
-  if ! id rexarr >/dev/null 2>&1; then adduser -D -H -u "$PUID" -G rexarr rexarr 2>/dev/null || adduser -D -H -G rexarr rexarr; fi
-  mkdir -p "${REXARR_DATA_DIR:-/config}"
-  chown -R rexarr:rexarr "${REXARR_DATA_DIR:-/config}" 2>/dev/null || true
-  # Let the app open the optical drive / GPU render node if they are passed through.
-  for dev in /dev/sr0 /dev/sr1 /dev/dri/renderD128; do
+  # Reuse an existing group / user with the requested ids, otherwise create "rexarr".
+  GROUP="$(awk -F: -v gid="$PGID" '$3 == gid { print $1; exit }' /etc/group || true)"
+  if [ -z "$GROUP" ]; then
+    addgroup -g "$PGID" rexarr
+    GROUP=rexarr
+  fi
+  USER="$(awk -F: -v uid="$PUID" '$3 == uid { print $1; exit }' /etc/passwd || true)"
+  if [ -z "$USER" ]; then
+    adduser -D -H -u "$PUID" -G "$GROUP" rexarr
+    USER=rexarr
+  fi
+  mkdir -p "$DATA_DIR"
+  chown -R "$PUID:$PGID" "$DATA_DIR" 2>/dev/null || true
+  # Optical drives / GPU render nodes passed through with --device need to be usable by that user.
+  for dev in /dev/sr[0-9]* /dev/sg[0-9]* /dev/cdrom /dev/dvd /dev/bluray /dev/dri/renderD[0-9]*; do
     [ -e "$dev" ] && chmod a+rw "$dev" 2>/dev/null || true
   done
-  exec su-exec rexarr "$@"
+  echo "rexarr: running as $USER ($PUID:$PGID), umask $UMASK, data in $DATA_DIR"
+  exec su-exec "$PUID:$PGID" "$@"
 fi
 exec "$@"

@@ -90,7 +90,7 @@ export function parseDrives(stdout: string): DiscDrive[] {
     const f = splitRobot(line.slice(4));
     const state = Number(f[1]);
     if (state === 256 || !f[6]) continue; // no drive
-    drives.push({ index: Number(f[0]), state: driveState(state), name: f[4], discLabel: f[5] || undefined, path: f[6] });
+    drives.push({ index: Number(f[0]), state: driveState(state), name: f[4], discLabel: f[5] || undefined, path: f[6], source: `disc:${Number(f[0])}` });
   }
   return drives;
 }
@@ -173,8 +173,8 @@ export function parseDiscInfo(stdout: string): DiscInfo {
   return { type, name: disc[A.name] ?? disc[A.volumeName] ?? '', volumeName: disc[A.volumeName] ?? '', titles: out.sort((a, b) => a.id - b.id) };
 }
 
-export async function readDisc(makemkv: string, driveIndex: number, minLengthSeconds: number): Promise<DiscInfo> {
-  const { stdout } = await run(makemkv, ['-r', '--cache=1', `--minlength=${Math.max(0, Math.floor(minLengthSeconds))}`, 'info', `disc:${driveIndex}`], { timeout: 15 * 60_000, maxBuffer: 64 * 1024 * 1024 }).catch((e: { stdout?: string; message?: string }) => {
+export async function readDisc(makemkv: string, source: string, minLengthSeconds: number): Promise<DiscInfo> {
+  const { stdout } = await run(makemkv, ['-r', '--cache=1', `--minlength=${Math.max(0, Math.floor(minLengthSeconds))}`, 'info', source], { timeout: 15 * 60_000, maxBuffer: 64 * 1024 * 1024 }).catch((e: { stdout?: string; message?: string }) => {
     if (e.stdout) return { stdout: e.stdout };
     throw new Error(e.message ?? 'makemkvcon failed');
   });
@@ -190,14 +190,14 @@ export interface RipHandle {
 /** Rip one title to a directory, streaming progress (0-100) and step names. */
 export function ripTitle(
   makemkv: string,
-  driveIndex: number,
+  source: string,
   titleId: number,
   outDir: string,
   minLengthSeconds: number,
   onProgress: (percent: number, step: string) => void,
   onLog: (line: string) => void,
 ): RipHandle {
-  const child = spawn(makemkv, ['-r', '--progress=-same', '--messages=-stdout', `--minlength=${Math.max(0, Math.floor(minLengthSeconds))}`, 'mkv', `disc:${driveIndex}`, String(titleId), outDir], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(makemkv, ['-r', '--progress=-same', '--messages=-stdout', `--minlength=${Math.max(0, Math.floor(minLengthSeconds))}`, 'mkv', source, String(titleId), outDir], { stdio: ['ignore', 'pipe', 'pipe'] });
   let cancelled = false;
   let step = '';
   let buf = '';
@@ -241,10 +241,91 @@ export function ripTitle(
   };
 }
 
+/**
+ * Virtual drives for testing: every .iso/.img file or DVD/Blu-ray folder (VIDEO_TS / BDMV) inside `dir`
+ * is presented as a loaded drive. makemkvcon reads them through its iso: / file: sources.
+ */
+export function listVirtualDrives(dir: string): DiscDrive[] {
+  if (!dir || !fs.existsSync(dir)) return [];
+  const out: DiscDrive[] = [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+  for (const e of entries) {
+    if (e.name.startsWith('.')) continue;
+    const full = `${dir.replace(/[\\/]+$/, '')}/${e.name}`;
+    let source: string | null = null;
+    if (e.isFile() && /\.(iso|img)$/i.test(e.name)) source = `iso:${full}`;
+    else if (e.isDirectory() && (fs.existsSync(`${full}/VIDEO_TS`) || fs.existsSync(`${full}/BDMV`))) source = `file:${full}`;
+    if (!source) continue;
+    out.push({ index: 1000 + out.length, name: 'Virtual drive', path: full, state: 'loaded', discLabel: e.name.replace(/\.(iso|img)$/i, ''), source, virtual: true });
+  }
+  return out;
+}
+
+/** Describe a single image file or disc folder as a virtual drive, or null if it is not one. */
+export function virtualDriveForPath(p: string, index = 2000, label?: string, virtualId?: string): DiscDrive | null {
+  if (!p) return null;
+  if (!fs.existsSync(p)) {
+    // Linked drive whose image is gone (unmounted share, deleted file): show it as an empty tray.
+    if (!virtualId) return null;
+    const n = p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? p;
+    return { index, name: 'Virtual drive', path: p, state: 'empty', discLabel: label || n.replace(/\.(iso|img)$/i, ''), source: '', virtual: true, virtualId, available: false };
+  }
+  const st = fs.statSync(p);
+  const name = p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? p;
+  const disp = label || name.replace(/\.(iso|img)$/i, '');
+  if (st.isFile() && /\.(iso|img)$/i.test(name)) return { index, name: virtualId ? 'Virtual drive' : 'Disc image', path: p, state: 'loaded', discLabel: disp, source: `iso:${p}`, virtual: true, virtualId, available: true };
+  if (st.isDirectory() && (fs.existsSync(`${p}/VIDEO_TS`) || fs.existsSync(`${p}/BDMV`))) return { index, name: virtualId ? 'Virtual drive' : 'Disc folder', path: p, state: 'loaded', discLabel: disp, source: `file:${p}`, virtual: true, virtualId, available: true };
+  // A BDMV / VIDEO_TS folder itself was linked: use its parent as the disc root.
+  if (st.isDirectory() && /^(BDMV|VIDEO_TS)$/i.test(name)) return virtualDriveForPath(p.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]+$/, ''), index, label, virtualId);
+  return null;
+}
+
+/**
+ * Disc images inside a finished download: .iso / .img files and disc folders (anything holding BDMV or VIDEO_TS),
+ * searched a few levels deep. A download that is itself an image or disc folder returns just that.
+ */
+export function findDiscImages(p: string, depth = 3): string[] {
+  if (!p || !fs.existsSync(p)) return [];
+  const self = virtualDriveForPath(p, 0);
+  if (self) return [self.path];
+  const out: string[] = [];
+  const walk = (dir: string, level: number) => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    entries.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    for (const e of entries) {
+      if (e.name.startsWith('.') || /^(sample|samples|extras?|featurettes)$/i.test(e.name)) continue;
+      const full = `${dir.replace(/[\/]+$/, '')}/${e.name}`;
+      if (e.isFile() && /\.(iso|img)$/i.test(e.name)) {
+        // Skip samples and tiny images; real DVD images are gigabytes, Blu-rays far more.
+        try {
+          if (/sample/i.test(e.name) || fs.statSync(full).size < 5 * 1024 * 1024) continue;
+        } catch {
+          continue;
+        }
+        out.push(full);
+      } else if (e.isDirectory()) {
+        if (/^(BDMV|VIDEO_TS)$/i.test(e.name)) {
+          if (!out.includes(dir)) out.push(dir);
+        } else if (fs.existsSync(`${full}/BDMV`) || fs.existsSync(`${full}/VIDEO_TS`)) out.push(full);
+        else if (level < depth) walk(full, level + 1);
+      }
+    }
+  };
+  if (fs.statSync(p).isDirectory()) walk(p, 1);
+  return out;
+}
+
 /** Eject a drive using the platform tool. */
 export async function ejectDrive(drivePath: string): Promise<void> {
   if (process.platform === 'darwin') {
-    await run('drutil', ['eject'], { timeout: 60_000 });
+    // a specific device (added by path) ejects by its disk node; otherwise the default drive
+    if (/^\/dev\/r?disk\d+$/.test(drivePath)) await run('diskutil', ['eject', drivePath.replace('/dev/rdisk', '/dev/disk')], { timeout: 60_000 }).catch(() => run('drutil', ['eject'], { timeout: 60_000 }));
+    else await run('drutil', ['eject'], { timeout: 60_000 });
   } else if (process.platform === 'win32') {
     await run('powershell', ['-NoProfile', '-Command', `(New-Object -comObject Shell.Application).Namespace(17).ParseName('${drivePath}').InvokeVerb('Eject')`], { timeout: 60_000 });
   } else {

@@ -16,8 +16,10 @@ export default async function jobRoutes(app: FastifyInstance) {
         poster: z.string().optional(),
         profileId: z.string(),
         source: z.object({
-          kind: z.enum(['movie', 'episode', 'file']),
-          arr: z.enum(['radarr', 'sonarr']).optional(),
+          kind: z.enum(['movie', 'episode', 'file', 'album', 'track']),
+          arr: z.enum(['radarr', 'sonarr', 'lidarr']).optional(),
+          albumId: z.number().optional(),
+          trackIds: z.array(z.number()).optional(),
           arrId: z.number().optional(),
           episodeIds: z.array(z.number()).optional(),
           seasonNumber: z.number().optional(),
@@ -46,8 +48,10 @@ export default async function jobRoutes(app: FastifyInstance) {
             subtitle: z.string().optional(),
             poster: z.string().optional(),
             source: z.object({
-              kind: z.enum(['movie', 'episode', 'file']),
-              arr: z.enum(['radarr', 'sonarr']).optional(),
+              kind: z.enum(['movie', 'episode', 'file', 'album', 'track']),
+              arr: z.enum(['radarr', 'sonarr', 'lidarr']).optional(),
+              albumId: z.number().optional(),
+              trackIds: z.array(z.number()).optional(),
               arrId: z.number().optional(),
               episodeIds: z.array(z.number()).optional(),
               seasonNumber: z.number().optional(),
@@ -88,6 +92,14 @@ export default async function jobRoutes(app: FastifyInstance) {
     queue.remove(req.params.id);
     return { ok: true };
   });
+  /** Queue: pause (running encodes finish, nothing new starts) / resume, and retry every failed job. */
+  app.get('/api/queue', async () => ({ paused: queue.paused }));
+  app.post<{ Body: { paused?: boolean } }>('/api/queue/pause', async (req) => {
+    queue.setPaused(req.body?.paused !== false);
+    return { paused: queue.paused };
+  });
+  app.post('/api/jobs/retry-failed', async () => ({ retried: queue.retryFailed() }));
+
   app.post('/api/jobs/clear', async () => {
     queue.clearFinished();
     return { ok: true };
@@ -109,6 +121,7 @@ export default async function jobRoutes(app: FastifyInstance) {
     reply.raw.write(`event: jobs\ndata: ${JSON.stringify({ type: 'jobs', jobs: queue.list() })}\n\n`);
     reply.raw.write(`event: rips\ndata: ${JSON.stringify({ type: 'rips', rips: discs.list() })}\n\n`);
     reply.raw.write(`event: drives\ndata: ${JSON.stringify({ type: 'drives', drives: discs.drives })}\n\n`);
+    reply.raw.write(`event: queue\ndata: ${JSON.stringify({ type: 'queue', paused: queue.paused })}\n\n`);
     const onEvent = (ev: ServerEvent) => {
       reply.raw.write(`event: ${ev.type}\ndata: ${JSON.stringify(ev)}\n\n`);
     };

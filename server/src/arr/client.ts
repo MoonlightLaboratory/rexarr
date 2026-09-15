@@ -1,4 +1,5 @@
 import type { ArrConnection } from '../../../shared/types.js';
+import { httpFetch } from '../net.js';
 
 export class ArrError extends Error {
   constructor(message: string, public status?: number) {
@@ -31,7 +32,7 @@ export class ArrHttp {
     const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 30_000);
     let res: Response;
     try {
-      res = await fetch(this.url(pathname, opts.query), {
+      res = await httpFetch(this.url(pathname, opts.query), {
         method,
         headers: {
           'X-Api-Key': this.conn.apiKey,
@@ -69,4 +70,25 @@ export class ArrHttp {
   post<T>(pathname: string, body?: unknown, query?: Record<string, string | number | boolean | undefined>) {
     return this.request<T>('POST', pathname, { body, query });
   }
+  delete<T>(pathname: string, query?: Record<string, string | number | boolean | undefined>) {
+    return this.request<T>('DELETE', pathname, { query });
+  }
+}
+
+export interface ArrQueueRecord {
+  id: number;
+  movieId?: number;
+  seriesId?: number;
+  episodeId?: number;
+  title: string;
+  status: string;
+  sizeleft: number;
+  size: number;
+  trackedDownloadState?: string;
+  trackedDownloadStatus?: string;
+  statusMessages?: { title?: string; messages?: string[] }[];
+  downloadId?: string;
+  outputPath?: string;
+  protocol?: string;
+  downloadClient?: string;
 }

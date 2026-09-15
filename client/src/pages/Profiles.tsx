@@ -8,6 +8,17 @@ import { Page, ToolbarButton } from '../components/Layout';
 import { Icon } from '../components/Icons';
 import { Modal } from '../components/Modal';
 
+/** fre:ac encoders offered for music profiles (all open source). */
+const MUSIC_FORMATS: { encoder: Profile['audio']['encoder']; container: Profile['container']; label: string; help: string }[] = [
+  { encoder: 'copy', container: 'flac', label: 'Keep as downloaded (no encode)', help: 'Grabbed albums are only imported into Lidarr.' },
+  { encoder: 'flac', container: 'flac', label: 'FLAC (libFLAC)', help: 'Lossless; bit-perfect unless you lower the sample rate or bit depth.' },
+  { encoder: 'wavpack', container: 'wv', label: 'WavPack', help: 'Lossless with APEv2 tags.' },
+  { encoder: 'ape', container: 'ape', label: "Monkey's Audio", help: 'Lossless, very small, slower to decode.' },
+  { encoder: 'libmp3lame', container: 'mp3', label: 'MP3 (LAME)', help: 'Plays everywhere. V0 is transparent for almost everyone.' },
+  { encoder: 'libopus', container: 'opus', label: 'Opus (libopus)', help: 'Best lossy quality per bit; 128–160 kbps is transparent for most music. No embedded artwork.' },
+  { encoder: 'libvorbis', container: 'ogg', label: 'Ogg Vorbis (libvorbis)', help: 'Open lossy format with artwork support.' },
+];
+
 function LangPicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const toggle = (c: string) => onChange(value.includes(c) ? value.filter((x) => x !== c) : [...value, c]);
   return (
@@ -33,7 +44,15 @@ function ProfileEditor({ initial, caps, onClose, onSaved }: { initial: Profile; 
   const isNew = !initial.id;
   const enc = VIDEO_ENCODER_INFO[p.video.encoder];
   const container = CONTAINER_INFO[p.container];
-  const upd = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((x) => ({ ...x, [k]: v }));
+  const upd = <K extends keyof Profile>(k: K, v: Profile[K]) =>
+    setP((x) => {
+      const next = { ...x, [k]: v };
+      // switching to / from music swaps in a sensible container and audio encoder
+      if (k === 'mediaType' && v === 'music' && x.mediaType !== 'music') return { ...next, container: 'flac', video: { ...x.video, encoder: 'copy' }, audio: { ...x.audio, encoder: 'flac', compressionLevel: 8, preserveMqa: true, replayGain: true, embedCover: true, languages: [], dropCommentary: false }, subtitles: { ...x.subtitles, mode: 'none' }, output: { ...x.output, renameTokens: false } };
+      if (k === 'mediaType' && v !== 'music' && x.mediaType === 'music') return { ...next, container: 'mkv', video: { ...x.video, encoder: 'libx265' }, audio: { ...x.audio, encoder: 'copy' }, subtitles: { ...x.subtitles, mode: 'copy' } };
+      return next;
+    });
+  const isMusic = p.mediaType === 'music';
   const updV = <K extends keyof Profile['video']>(k: K, v: Profile['video'][K]) => setP((x) => ({ ...x, video: { ...x.video, [k]: v } }));
   const updA = <K extends keyof Profile['audio']>(k: K, v: Profile['audio'][K]) => setP((x) => ({ ...x, audio: { ...x.audio, [k]: v } }));
   const updS = <K extends keyof Profile['subtitles']>(k: K, v: Profile['subtitles'][K]) => setP((x) => ({ ...x, subtitles: { ...x.subtitles, [k]: v } }));
@@ -101,6 +120,7 @@ function ProfileEditor({ initial, caps, onClose, onSaved }: { initial: Profile; 
             <option value="movie">Movies</option>
             <option value="tv">TV series</option>
             <option value="anime">Anime</option>
+            <option value="music">Music (fre:ac)</option>
           </select>
           <div className="help">Used to sort profiles and pick a default per media type.</div>
         </div>
@@ -110,6 +130,109 @@ function ProfileEditor({ initial, caps, onClose, onSaved }: { initial: Profile; 
         <input type="text" value={p.description} onChange={(e) => upd('description', e.target.value)} />
       </div>
 
+      {isMusic ? (
+        <div className="card">
+          <div className="card-h">
+            Music · fre:ac
+            <span className="spacer" />
+            <span className="small dim">open-source encoders only</span>
+          </div>
+          <div className="card-b">
+            <div className="grid-2">
+              <div className="field">
+                <label>Format</label>
+                <select
+                  value={p.audio.encoder}
+                  onChange={(e) => {
+                    const enc = e.target.value as Profile['audio']['encoder'];
+                    const container = MUSIC_FORMATS.find((f) => f.encoder === enc)?.container ?? 'flac';
+                    setP((x) => ({ ...x, container, audio: { ...x.audio, encoder: enc, bitrate: enc === 'libopus' ? 160 : enc === 'libmp3lame' ? 320 : enc === 'libvorbis' ? 192 : 0, vbrQuality: enc === 'libmp3lame' ? 0 : enc === 'libvorbis' ? 6 : undefined } }));
+                  }}
+                >
+                  {MUSIC_FORMATS.map((f) => (
+                    <option key={f.encoder} value={f.encoder}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="help">{MUSIC_FORMATS.find((f) => f.encoder === p.audio.encoder)?.help}</div>
+              </div>
+              {p.audio.encoder === 'flac' && (
+                <div className="field">
+                  <label>Compression level</label>
+                  <input type="number" min={0} max={8} value={p.audio.compressionLevel ?? 8} onChange={(e) => updA('compressionLevel', Number(e.target.value))} />
+                  <div className="help">0 fastest – 8 smallest. Always lossless.</div>
+                </div>
+              )}
+              {p.audio.encoder === 'libmp3lame' && (
+                <div className="field">
+                  <label>LAME mode</label>
+                  <select value={p.audio.vbrQuality === undefined ? 'cbr' : 'vbr'} onChange={(e) => updA('vbrQuality', e.target.value === 'vbr' ? 0 : undefined)}>
+                    <option value="vbr">VBR (quality)</option>
+                    <option value="cbr">CBR (bitrate)</option>
+                  </select>
+                </div>
+              )}
+              {p.audio.encoder === 'libmp3lame' && p.audio.vbrQuality !== undefined && (
+                <div className="field">
+                  <label>VBR quality</label>
+                  <select value={p.audio.vbrQuality} onChange={(e) => updA('vbrQuality', Number(e.target.value))}>
+                    {[0, 1, 2, 3, 4, 5].map((q) => (
+                      <option key={q} value={q}>
+                        V{q}
+                        {q === 0 ? ' (~245 kbps)' : q === 2 ? ' (~190 kbps)' : q === 5 ? ' (~130 kbps)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {((p.audio.encoder === 'libmp3lame' && p.audio.vbrQuality === undefined) || p.audio.encoder === 'libopus') && (
+                <div className="field">
+                  <label>Bitrate (kbps)</label>
+                  <input type="number" min={p.audio.encoder === 'libopus' ? 6 : 8} max={p.audio.encoder === 'libopus' ? 510 : 320} value={p.audio.bitrate} onChange={(e) => updA('bitrate', Number(e.target.value))} />
+                </div>
+              )}
+              {p.audio.encoder === 'libvorbis' && (
+                <div className="field">
+                  <label>Quality</label>
+                  <input type="number" min={0} max={10} step={0.5} value={p.audio.vbrQuality ?? 6} onChange={(e) => updA('vbrQuality', Number(e.target.value))} />
+                  <div className="help">-q 0–10; 6 ≈ 192 kbps.</div>
+                </div>
+              )}
+            </div>
+            <div className="grid-2">
+              <div className="field">
+                <label>Maximum sample rate</label>
+                <select value={p.audio.maxSampleRate ?? 0} onChange={(e) => updA('maxSampleRate', Number(e.target.value))}>
+                  <option value={0}>Keep source</option>
+                  <option value={44100}>44.1 kHz</option>
+                  <option value={48000}>48 kHz</option>
+                  <option value={96000}>96 kHz</option>
+                </select>
+                <div className="help">Higher rates are resampled with soxr.</div>
+              </div>
+              <div className="field">
+                <label>Bit depth</label>
+                <select value={p.audio.bitDepth ?? 0} onChange={(e) => updA('bitDepth', Number(e.target.value) as 0 | 16 | 24)} disabled={!['flac', 'wavpack', 'ape'].includes(p.audio.encoder)}>
+                  <option value={0}>Keep source</option>
+                  <option value={24}>24-bit</option>
+                  <option value={16}>16-bit (dithered)</option>
+                </select>
+              </div>
+            </div>
+            <label className="check mb">
+              <input type="checkbox" checked={p.audio.preserveMqa ?? true} onChange={(e) => updA('preserveMqa', e.target.checked)} /> Keep MQA intact <span className="dim">– MQA files are never resampled or dithered, and lossy formats skip them</span>
+            </label>
+            <label className="check mb">
+              <input type="checkbox" checked={p.audio.replayGain ?? true} onChange={(e) => updA('replayGain', e.target.checked)} /> Write ReplayGain track tags <span className="dim">(FLAC, MP3, Opus)</span>
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={p.audio.embedCover ?? true} onChange={(e) => updA('embedCover', e.target.checked)} disabled={p.audio.encoder === 'libopus'} /> Keep embedded cover art
+            </label>
+          </div>
+        </div>
+      ) : (
+        <>
       <div className="grid-2">
         <div className="card">
           <div className="card-h">Video</div>
@@ -201,6 +324,14 @@ function ProfileEditor({ initial, caps, onClose, onSaved }: { initial: Profile; 
                 <label className="check mb">
                   <input type="checkbox" checked={p.video.hdrPassthrough} onChange={(e) => updV('hdrPassthrough', e.target.checked)} /> Keep HDR10 metadata when the source is HDR
                 </label>
+                <div className="field">
+                  <label>Hardware acceleration</label>
+                  <select value={p.video.hwMode ?? 'auto'} onChange={(e) => updV('hwMode', e.target.value as 'auto' | 'software')}>
+                    <option value="auto">Follow Settings → Transcoding</option>
+                    <option value="software">Software only (CPU) – best quality</option>
+                  </select>
+                  <div className="help">With a hardware method selected in Settings, x264 / x265 / SVT-AV1 profiles use the GPU encoder unless set to software only.</div>
+                </div>
                 <div className="field">
                   <label>Extra ffmpeg video args</label>
                   <input type="text" className="mono" value={p.video.extraArgs} onChange={(e) => updV('extraArgs', e.target.value)} placeholder="-x265-params aq-mode=3" />
@@ -302,6 +433,9 @@ function ProfileEditor({ initial, caps, onClose, onSaved }: { initial: Profile; 
         </div>
       </div>
 
+        </>
+      )}
+
       <div className="card mt">
         <div className="card-h">Output</div>
         <div className="card-b">
@@ -315,6 +449,15 @@ function ProfileEditor({ initial, caps, onClose, onSaved }: { initial: Profile; 
               <input type="text" value={p.output.suffix} onChange={(e) => updO('suffix', e.target.value)} placeholder="e.g. -x265" />
             </div>
           </div>
+          <label className="check mb">
+            <input type="checkbox" checked={p.output.renameTokens !== false} onChange={(e) => updO('renameTokens', e.target.checked)} /> Rename for the encode: <span className="dim">Remux-2160p → Bluray-2160p, AVC → x265, TrueHD 7.1 → Opus 7.1</span>
+          </label>
+          <div className="help" style={{ margin: '-6px 0 12px 30px' }}>
+            Only quality, resolution, codec, audio, HDR and bit-depth tokens already in the name are changed; titles, years and release groups stay. Radarr / Sonarr then report the real quality instead of Remux.
+          </div>
+          <label className="check mb">
+            <input type="checkbox" checked={p.output.cleanMetadata !== false} onChange={(e) => updO('cleanMetadata', e.target.checked)} /> Write clean metadata: <span className="dim">file title, “English · Opus 5.1” track names, default track, no stale source tags</span>
+          </label>
           <label className="check mb">
             <input type="checkbox" checked={p.output.replaceOriginal} onChange={(e) => updO('replaceOriginal', e.target.checked)} /> Replace the original remux after a successful encode (deletes the source file)
           </label>
@@ -346,6 +489,12 @@ function ProfileEditor({ initial, caps, onClose, onSaved }: { initial: Profile; 
                 <li key={i}>{s}</li>
               ))}
             </ul>
+            {preview.output && (
+              <div className="field stack">
+                <label>Output file</label>
+                <code className="outputName">{preview.output.split('/').pop()}</code>
+              </div>
+            )}
             <pre className="log">{preview.command}</pre>
           </div>
         )}
@@ -362,10 +511,10 @@ function blankProfile(): Profile {
     builtin: false,
     mediaType: 'any',
     container: 'mkv',
-    video: { encoder: 'libx265', quality: 20, preset: 'slow', pixelFormat: 'yuv420p10le', tune: 'none', maxHeight: 0, hdrPassthrough: true, bitrate: 0, extraArgs: '' },
+    video: { encoder: 'libx265', quality: 20, preset: 'slow', pixelFormat: 'yuv420p10le', tune: 'none', maxHeight: 0, hdrPassthrough: true, bitrate: 0, extraArgs: '', hwMode: 'auto' },
     audio: { encoder: 'copy', bitrate: 0, channels: 0, languages: [], firstMatchOnly: false, dropCommentary: true },
     subtitles: { mode: 'copy', languages: [], burnLanguage: '', burnForcedOnly: false, keepFonts: true },
-    output: { directory: '', suffix: '', replaceOriginal: false, notifyArr: true },
+    output: { directory: '', suffix: '', renameTokens: true, cleanMetadata: true, replaceOriginal: false, notifyArr: true },
     createdAt: '',
     updatedAt: '',
   };
@@ -377,7 +526,7 @@ export function ProfilesPage() {
   const nav = useNavigate();
   const [caps, setCaps] = useState<FfmpegCapabilities | null>(null);
   const [editing, setEditing] = useState<Profile | null>(null);
-  const [filter, setFilter] = useState<'all' | 'movie' | 'tv' | 'anime'>('all');
+  const [filter, setFilter] = useState<'all' | 'movie' | 'tv' | 'anime' | 'music'>('all');
 
   useEffect(() => {
     api.ffmpeg().then(setCaps).catch(() => {});
@@ -389,7 +538,7 @@ export function ProfilesPage() {
     }
   }, [id, profiles]);
 
-  const list = useMemo(() => profiles.filter((p) => filter === 'all' || p.mediaType === filter || p.mediaType === 'any'), [profiles, filter]);
+  const list = useMemo(() => profiles.filter((p) => filter === 'all' || p.mediaType === filter || (p.mediaType === 'any' && filter !== 'music')), [profiles, filter]);
 
   const clone = async (p: Profile) => {
     try {
@@ -418,9 +567,9 @@ export function ProfilesPage() {
     >
       <div className="filterbar">
         <div className="seg">
-          {(['all', 'movie', 'tv', 'anime'] as const).map((f) => (
+          {(['all', 'movie', 'tv', 'anime', 'music'] as const).map((f) => (
             <button key={f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>
-              {f === 'all' ? 'All' : f === 'movie' ? 'Movies' : f === 'tv' ? 'TV' : 'Anime'}
+              {f === 'all' ? 'All' : f === 'movie' ? 'Movies' : f === 'tv' ? 'TV' : f === 'anime' ? 'Anime' : 'Music'}
             </button>
           ))}
         </div>
@@ -437,19 +586,28 @@ export function ProfilesPage() {
                 <span className="truncate">{p.name}</span>
                 <span className="spacer" />
                 {p.builtin ? <span className="badge muted">Preset</span> : <span className="badge green">Custom</span>}
-                {p.mediaType !== 'any' && <span className={`badge ${p.mediaType === 'anime' ? 'purple' : 'blue'}`}>{p.mediaType}</span>}
+                {p.mediaType !== 'any' && <span className={`badge ${p.mediaType === 'anime' ? 'purple' : p.mediaType === 'music' ? 'green' : 'blue'}`}>{p.mediaType}</span>}
               </div>
               <div className="card-b small" style={{ flex: 1 }}>
                 <p className="dim" style={{ marginTop: 0 }}>
                   {p.description || 'No description.'}
                 </p>
-                {missing && <div className="warn small">{p.video.encoder} is not available in the detected ffmpeg build.</div>}
+                {missing && p.mediaType !== 'music' && <div className="warn small">{p.video.encoder} is not available in the detected ffmpeg build.</div>}
+                {p.mediaType === 'music' ? (
+                  <div className="grid-2" style={{ gap: 8 }}>
+                    <div><span className="muted">Format</span><br />{MUSIC_FORMATS.find((f) => f.encoder === p.audio.encoder)?.label ?? p.audio.encoder}</div>
+                    <div><span className="muted">Quality</span><br />{p.audio.encoder === 'flac' ? `level ${p.audio.compressionLevel ?? 8}` : p.audio.vbrQuality !== undefined ? (p.audio.encoder === 'libmp3lame' ? `V${p.audio.vbrQuality}` : `q${p.audio.vbrQuality}`) : p.audio.bitrate ? `${p.audio.bitrate} kbps` : '—'}</div>
+                    <div><span className="muted">Resolution</span><br />{p.audio.bitDepth ? `${p.audio.bitDepth}-bit` : 'source depth'} · {p.audio.maxSampleRate ? `≤${p.audio.maxSampleRate / 1000} kHz` : 'source rate'}</div>
+                    <div><span className="muted">Extras</span><br />{[p.audio.preserveMqa ? 'MQA safe' : '', p.audio.replayGain ? 'ReplayGain' : '', p.audio.embedCover !== false ? 'cover' : ''].filter(Boolean).join(' · ') || '—'}</div>
+                  </div>
+                ) : (
                 <div className="grid-2" style={{ gap: 8 }}>
                   <div><span className="muted">Container</span><br />{p.container.toUpperCase()}</div>
                   <div><span className="muted">Video</span><br />{enc?.label.split(' (')[0] ?? p.video.encoder}{enc?.family !== 'copy' ? ` · ${enc?.qualityLabel} ${p.video.quality}` : ''}{p.video.preset ? ` · ${p.video.preset}` : ''}</div>
                   <div><span className="muted">Audio</span><br />{AUDIO_ENCODER_INFO[p.audio.encoder]?.label.split(' (')[0]}{p.audio.bitrate ? ` ${p.audio.bitrate}k` : ''}{p.audio.languages.length ? ` · ${p.audio.languages.join('/')}` : ''}</div>
                   <div><span className="muted">Subtitles</span><br />{p.subtitles.mode}{p.subtitles.keepFonts && p.container === 'mkv' ? ' + fonts' : ''}</div>
                 </div>
+                )}
                 {(p.video.tune !== 'none' || p.video.maxHeight > 0 || p.output.replaceOriginal) && (
                   <div className="chips mt">
                     {p.video.tune !== 'none' && <span className="chip on">tune {p.video.tune}</span>}

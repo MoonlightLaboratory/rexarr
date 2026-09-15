@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { labelToTitle, parseDiscInfo, parseDrives, parseDurationSeconds, splitRobot } from './makemkv.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { findDiscImages, labelToTitle, listVirtualDrives, parseDiscInfo, parseDrives, parseDurationSeconds, splitRobot } from './makemkv.js';
 
 test('splitRobot handles quoted fields with commas and escaped quotes', () => {
   assert.deepEqual(splitRobot('0,2,999,12,"BD-RE HL-DT-ST, WH16NS40","BLADE_RUNNER","/dev/sr0"'), ['0', '2', '999', '12', 'BD-RE HL-DT-ST, WH16NS40', 'BLADE_RUNNER', '/dev/sr0']);
@@ -18,7 +21,7 @@ test('parseDrives maps states and skips absent drives', () => {
     ].join('\n'),
   );
   assert.equal(out.length, 2);
-  assert.deepEqual(out[0], { index: 0, state: 'loaded', name: 'BD-RE HL-DT-ST BD-RE  WH16NS40 1.02', discLabel: 'BLADE_RUNNER_2049', path: '/dev/rdisk4' });
+  assert.deepEqual(out[0], { index: 0, state: 'loaded', name: 'BD-RE HL-DT-ST BD-RE  WH16NS40 1.02', discLabel: 'BLADE_RUNNER_2049', path: '/dev/rdisk4', source: 'disc:0' });
   assert.equal(out[1].state, 'empty');
   assert.equal(out[1].discLabel, undefined);
 });
@@ -66,6 +69,22 @@ test('parseDiscInfo builds titles with streams', () => {
   assert.equal(t.fileName, 'Blade_Runner_2049_t00.mkv');
 });
 
+test('listVirtualDrives finds ISOs and disc folders', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rexarr-vd-'));
+  fs.writeFileSync(path.join(dir, 'TEST_DVD.iso'), '');
+  fs.mkdirSync(path.join(dir, 'SOME_BLURAY', 'BDMV'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'not-a-disc'));
+  fs.writeFileSync(path.join(dir, 'notes.txt'), '');
+  const drives = listVirtualDrives(dir);
+  assert.deepEqual(drives.map((d) => [d.discLabel, d.source.split(':')[0], d.state, d.virtual]), [
+    ['SOME_BLURAY', 'file', 'loaded', true],
+    ['TEST_DVD', 'iso', 'loaded', true],
+  ]);
+  assert.equal(drives[0].index, 1000);
+  assert.deepEqual(listVirtualDrives(''), []);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('parseDurationSeconds', () => {
   assert.equal(parseDurationSeconds('1:02:03'), 3723);
   assert.equal(parseDurationSeconds('12:30'), 750);
@@ -77,4 +96,30 @@ test('labelToTitle cleans disc labels', () => {
   assert.deepEqual(labelToTitle('THE_OFFICE_S2_D1'), { title: 'The Office', year: undefined, season: 2, disc: 1 });
   assert.deepEqual(labelToTitle('SPIRITED.AWAY.2001.BLURAY'), { title: 'Spirited Away', year: 2001, season: undefined, disc: undefined });
   assert.equal(labelToTitle('COWBOY_BEBOP_SEASON_1_DISC_3').season, 1);
+});
+
+test('findDiscImages finds ISOs and disc folders inside a download', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rexarr-dl-'));
+  const big = (p: string) => {
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, '');
+    fs.truncateSync(p, 600 * 1024 * 1024); // sparse
+  };
+  // season pack with two BDMV discs, a sample ISO that must be skipped
+  fs.mkdirSync(path.join(root, 'Show.S01.COMPLETE.BLURAY', 'DISC_2', 'BDMV'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'Show.S01.COMPLETE.BLURAY', 'DISC_1', 'BDMV'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'Show.S01.COMPLETE.BLURAY', 'sample.iso'), 'x');
+  assert.deepEqual(findDiscImages(path.join(root, 'Show.S01.COMPLETE.BLURAY')).map((p) => path.basename(p)), ['DISC_1', 'DISC_2']);
+  // a download folder that is itself the disc root
+  fs.mkdirSync(path.join(root, 'Movie.BD50', 'BDMV'), { recursive: true });
+  assert.deepEqual(findDiscImages(path.join(root, 'Movie.BD50')), [path.join(root, 'Movie.BD50')]);
+  // nested ISO
+  big(path.join(root, 'Movie.DVD9', 'iso', 'MOVIE.ISO'));
+  assert.deepEqual(findDiscImages(path.join(root, 'Movie.DVD9')), [path.join(root, 'Movie.DVD9', 'iso', 'MOVIE.ISO')]);
+  // a single-file download
+  assert.deepEqual(findDiscImages(path.join(root, 'Movie.DVD9', 'iso', 'MOVIE.ISO')), [path.join(root, 'Movie.DVD9', 'iso', 'MOVIE.ISO')]);
+  // nothing
+  fs.mkdirSync(path.join(root, 'Empty'));
+  assert.deepEqual(findDiscImages(path.join(root, 'Empty')), []);
+  fs.rmSync(root, { recursive: true, force: true });
 });

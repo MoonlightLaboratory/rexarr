@@ -1,6 +1,6 @@
 {
   "name": "rexarr",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "private": true,
   "description": "Remux-first transcoding companion for the *arr stack. Finds Blu-ray remuxes via Radarr/Sonarr/Prowlarr and re-encodes them with FFmpeg using your own profiles.",
   "type": "module",
@@ -13,7 +13,8 @@
     "build": "npm run build -w client && npm run build -w server",
     "start": "node server/dist/server/src/index.js",
     "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
-    "test": "npm test -w server"
+    "test": "npm test -w server",
+    "test-media": "node scripts/make-test-media.mjs test-media"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

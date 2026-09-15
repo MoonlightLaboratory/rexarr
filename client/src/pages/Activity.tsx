@@ -6,6 +6,7 @@ import { useApp } from '../App';
 import { Page, ToolbarButton, ToolbarSeparator, ToolbarText } from '../components/Layout';
 import { Icon } from '../components/Icons';
 import { Modal } from '../components/Modal';
+import { EncodePreviewModal, LiveThumb } from '../components/EncodePreview';
 
 const STATUS_LABEL: Record<JobStatus, string> = { waiting: 'Waiting for import', queued: 'Queued', probing: 'Probing', encoding: 'Encoding', finalizing: 'Finalizing', done: 'Done', failed: 'Failed', cancelled: 'Cancelled' };
 const STATUS_CLASS: Record<JobStatus, string> = { waiting: 'blue', queued: '', probing: 'teal', encoding: 'remux', finalizing: 'teal', done: 'green', failed: 'red', cancelled: 'muted' };
@@ -21,7 +22,7 @@ function detailLink(j: Job) {
   return null;
 }
 
-function QueueRow({ job, onLog }: { job: Job; onLog: (j: Job) => void }) {
+function QueueRow({ job, onLog, onPreview }: { job: Job; onLog: (j: Job) => void; onPreview: (j: Job) => void }) {
   const { toast } = useApp();
   const active = ACTIVE.includes(job.status);
   const p = job.progress;
@@ -37,7 +38,7 @@ function QueueRow({ job, onLog }: { job: Job; onLog: (j: Job) => void }) {
   return (
     <tr>
       <td style={{ width: 40 }}>
-        <div className="thumb" style={{ width: 30, height: 45, backgroundImage: job.poster ? `url(${job.poster})` : undefined }} />
+        {job.status === 'encoding' && job.preview ? <LiveThumb job={job} onClick={() => onPreview(job)} /> : <div className="thumb" style={{ width: 30, height: 45, backgroundImage: job.poster ? `url(${job.poster})` : undefined }} />}
       </td>
       <td style={{ maxWidth: 420 }}>
         <div className="truncate">{link ? <Link to={link}>{job.title}</Link> : job.title}</div>
@@ -52,8 +53,10 @@ function QueueRow({ job, onLog }: { job: Job; onLog: (j: Job) => void }) {
           </div>
         )}
       </td>
-      <td>
+      <td style={{ whiteSpace: 'nowrap' }}>
         <span className="badge">{job.profileName}</span>
+        {job.trigger === 'auto' && <span className="badge purple sm" title="Queued by auto transcode">Auto</span>}
+        {job.trigger === 'disc' && <span className="badge teal sm" title="From a disc rip">Disc</span>}
       </td>
       <td style={{ minWidth: 220 }}>
         {active ? (
@@ -71,16 +74,28 @@ function QueueRow({ job, onLog }: { job: Job; onLog: (j: Job) => void }) {
         ) : (
           <span className={`badge ${STATUS_CLASS[job.status]}`}>{STATUS_LABEL[job.status]}</span>
         )}
-        {job.status === 'waiting' && <div className="small dim">polling {job.source.arr} · {fmtAge(job.createdAt)}</div>}
+        {job.source.disc && <span className="badge purple" style={{ marginLeft: 0 }}>{job.source.disc.format === 'uhd' ? 'UHD Blu-ray' : job.source.disc.format === 'dvd' ? 'DVD' : 'Blu-ray'} disc</span>}
+        {job.status === 'waiting' && <div className="small dim">{job.message ?? job.source.disc?.status ?? `polling ${job.source.arr}`} · {fmtAge(job.createdAt)}</div>}
+        {job.status === 'done' && job.source.disc?.ripIds?.length ? (
+          <div className="small dim">
+            {job.message} · <Link to="/discs">Discs</Link>
+          </div>
+        ) : null}
       </td>
       <td className="num dim" style={{ whiteSpace: 'nowrap' }}>
         {job.status === 'done' && job.inputSizeBytes && job.outputSizeBytes ? (
           <>
             {fmtBytes(job.inputSizeBytes)} → {fmtBytes(job.outputSizeBytes)}
-            <div className="small">{((job.outputSizeBytes / job.inputSizeBytes) * 100).toFixed(0)}% of source</div>
+            <div className="small" title={job.estimatedBytes ? `Estimated ${fmtBytes(job.estimatedBytes)} before the encode` : undefined}>
+              {((job.outputSizeBytes / job.inputSizeBytes) * 100).toFixed(0)}% of source
+              {job.estimatedBytes ? ` · est. ${fmtBytes(job.estimatedBytes)}` : ''}
+            </div>
           </>
         ) : active && p.sizeBytes ? (
-          fmtBytes(p.sizeBytes)
+          <>
+            {fmtBytes(p.sizeBytes)}
+            {job.estimatedBytes ? <div className="small">of ≈ {fmtBytes(job.estimatedBytes)}</div> : null}
+          </>
         ) : job.inputSizeBytes ? (
           fmtBytes(job.inputSizeBytes)
         ) : (
@@ -91,6 +106,11 @@ function QueueRow({ job, onLog }: { job: Job; onLog: (j: Job) => void }) {
         {job.status === 'done' && job.startedAt && job.finishedAt ? fmtDuration((new Date(job.finishedAt).getTime() - new Date(job.startedAt).getTime()) / 1000) : job.finishedAt ? fmtAge(job.finishedAt) : fmtAge(job.createdAt)}
       </td>
       <td className="num" style={{ whiteSpace: 'nowrap' }}>
+        {(active || job.status === 'done') && (
+          <button className="iconButton" title={active ? 'Live preview' : 'Compare source and encode'} onClick={() => onPreview(job)}>
+            <Icon.Eye />
+          </button>
+        )}
         <button className="iconButton" title="Log" onClick={() => onLog(job)}>
           <Icon.Terminal />
         </button>
@@ -153,14 +173,16 @@ function LogModal({ job, onClose }: { job: Job; onClose: () => void }) {
 }
 
 export function ActivityPage() {
-  const { jobs, toast } = useApp();
+  const { jobs, toast, queuePaused } = useApp();
   const [tab, setTab] = useState<'queue' | 'history'>('queue');
   const [logJob, setLogJob] = useState<Job | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   const queue = useMemo(() => [...jobs.filter((j) => !['done', 'failed', 'cancelled'].includes(j.status))].sort((a, b) => rank(a) - rank(b)), [jobs]);
   const history = useMemo(() => jobs.filter((j) => ['done', 'failed', 'cancelled'].includes(j.status)), [jobs]);
   const list = tab === 'queue' ? queue : history;
   const encoding = queue.filter((j) => ACTIVE.includes(j.status)).length;
+  const failedCount = history.filter((j) => j.status === 'failed').length;
   const saved = history.filter((j) => j.status === 'done').reduce((a, j) => a + ((j.inputSizeBytes ?? 0) - (j.outputSizeBytes ?? 0)), 0);
 
   return (
@@ -171,6 +193,14 @@ export function ActivityPage() {
           <ToolbarButton icon={<Icon.Activity />} label="Queue" selected={tab === 'queue'} onClick={() => setTab('queue')} indicator={encoding > 0} />
           <ToolbarButton icon={<Icon.Clock />} label="History" selected={tab === 'history'} onClick={() => setTab('history')} />
           <ToolbarSeparator />
+          <ToolbarButton
+            icon={queuePaused ? <Icon.Play /> : <Icon.StopSquare />}
+            label={queuePaused ? 'Resume' : 'Pause'}
+            selected={queuePaused}
+            title={queuePaused ? 'Start queued encodes again' : 'Let running encodes finish, start nothing new'}
+            onClick={() => api.pauseQueue(!queuePaused).then((r) => toast('info', r.paused ? 'Queue paused – running encodes will finish' : 'Queue resumed')).catch((e) => toast('error', e.message))}
+          />
+          <ToolbarButton icon={<Icon.Refresh />} label="Retry failed" wide disabled={!failedCount} onClick={() => api.retryFailedJobs().then((r) => toast('info', `Retrying ${r.retried} job(s)`)).catch((e) => toast('error', e.message))} />
           <ToolbarButton icon={<Icon.Trash />} label="Clear finished" wide disabled={!history.length} onClick={() => api.clearJobs().then(() => toast('info', 'Cleared finished jobs')).catch((e) => toast('error', e.message))} />
         </>
       }
@@ -181,6 +211,11 @@ export function ActivityPage() {
         </ToolbarText>
       }
     >
+      {queuePaused && (
+        <div className="warn">
+          The queue is paused: running encodes finish, queued ones wait. <button className="btn sm" onClick={() => api.pauseQueue(false).catch((e) => toast('error', e.message))}>Resume</button>
+        </div>
+      )}
       <div className="card tbl-wrap">
         {list.length === 0 ? (
           <div className="empty">
@@ -210,13 +245,14 @@ export function ActivityPage() {
             </thead>
             <tbody>
               {list.map((j) => (
-                <QueueRow key={j.id} job={j} onLog={setLogJob} />
+                <QueueRow key={j.id} job={j} onLog={setLogJob} onPreview={(x) => setPreviewId(x.id)} />
               ))}
             </tbody>
           </table>
         )}
       </div>
       {logJob && <LogModal job={logJob} onClose={() => setLogJob(null)} />}
+      {previewId && <EncodePreviewModal jobId={previewId} onClose={() => setPreviewId(null)} />}
     </Page>
   );
 }

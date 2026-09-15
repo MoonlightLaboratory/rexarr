@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { Job, Profile } from '@shared/types';
+import { useEffect, useMemo, useState } from 'react';
+import type { Job, Profile, SizeEstimate, SizeEstimateResult } from '@shared/types';
 import { api, fmtBytes, type PreviewResult } from '../api';
 import { Icon } from './Icons';
 import { QualityLabel } from './Labels';
@@ -15,10 +15,11 @@ export interface TranscodeItem {
   size?: number;
   quality?: string;
   isRemux?: boolean;
+  anime?: boolean;
 }
 
 /** Pick a profile and queue one or more library files for encoding. */
-export function TranscodeModal({ items, mediaType, onClose, onQueued }: { items: TranscodeItem[]; mediaType: 'movie' | 'tv' | 'anime'; onClose: () => void; onQueued?: () => void }) {
+export function TranscodeModal({ items, mediaType, onClose, onQueued }: { items: TranscodeItem[]; mediaType: 'movie' | 'tv' | 'anime' | 'music'; onClose: () => void; onQueued?: () => void }) {
   const { profiles, settings, toast } = useApp();
   const [profileId, setProfileId] = useState(settings?.defaultProfiles[mediaType] ?? profiles[0]?.id ?? '');
   const [busy, setBusy] = useState(false);
@@ -37,6 +38,24 @@ export function TranscodeModal({ items, mediaType, onClose, onQueued }: { items:
     }
   };
   const nonRemux = items.filter((i) => i.isRemux === false).length;
+
+  // Estimated output size for every profile (one probe on the server, then a model per profile)
+  const [estimates, setEstimates] = useState<SizeEstimateResult | null>(null);
+  const [estimateError, setEstimateError] = useState<string | null>(null);
+  useEffect(() => {
+    let stale = false;
+    api
+      .estimate(items.map((i) => ({ localPath: i.source.localPath, arrPath: i.source.arrPath, arr: i.source.arr, size: i.size, anime: i.anime || mediaType === 'anime' || undefined })))
+      .then((r) => !stale && setEstimates(r))
+      .catch((e) => !stale && setEstimateError((e as Error).message));
+    return () => {
+      stale = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const byProfile = useMemo(() => new Map((estimates?.estimates ?? []).map((e) => [e.profileId, e])), [estimates]);
+  const suffix = useMemo(() => Object.fromEntries([...byProfile].filter(([, e]) => e.bytes > 0).map(([id, e]) => [id, `≈ ${fmtBytes(e.bytes)}${e.sourceBytes ? ` (${pctChange(e.bytes, e.sourceBytes)})` : ''}`])), [byProfile]);
+  const est = byProfile.get(profileId);
 
   const submit = async () => {
     setBusy(true);
@@ -99,9 +118,10 @@ export function TranscodeModal({ items, mediaType, onClose, onQueued }: { items:
       {nonRemux > 0 && <div className="warn">{nonRemux} selected file(s) are not Blu-ray remuxes. Re-encoding an already lossy file loses more quality.</div>}
       <div className="field stack">
         <label>Encoding profile</label>
-        <ProfileSelect profiles={profiles} value={profileId} onChange={setProfileId} mediaType={mediaType} />
+        <ProfileSelect profiles={profiles} value={profileId} onChange={setProfileId} mediaType={mediaType} suffix={suffix} />
         {profile && <div className="help">{profile.description}</div>}
       </div>
+      <SizeEstimatePanel est={est} loading={!estimates && !estimateError} error={estimateError} result={estimates} />
       {profile && (
         <div className="grid-2 small">
           <div>
@@ -159,5 +179,75 @@ export function TranscodeModal({ items, mediaType, onClose, onQueued }: { items:
         </div>
       )}
     </Modal>
+  );
+}
+
+const pctChange = (out: number, src: number) => {
+  const p = Math.round((out / src - 1) * 100);
+  return p === 0 ? 'same size' : `${p > 0 ? '+' : '−'}${Math.abs(p)}%`;
+};
+
+/** Estimated output size for the selected profile: best guess, range, and what it is made of. */
+function SizeEstimatePanel({ est, loading, error, result }: { est?: SizeEstimate; loading: boolean; error: string | null; result: SizeEstimateResult | null }) {
+  if (loading)
+    return (
+      <div className="sizeEstimate">
+        <span className="spinner" /> Estimating output size…
+      </div>
+    );
+  if (error) return <div className="sizeEstimate dim small">Size estimate unavailable: {error}</div>;
+  if (!est || !est.bytes) return null;
+  const src = est.sourceBytes;
+  const pct = src ? Math.min(100, (est.bytes / src) * 100) : 0;
+  const parts = [
+    ['Video', est.parts.video, 'video'],
+    ['Audio', est.parts.audio, 'audio'],
+    ['Subtitles', est.parts.subtitles, 'subs'],
+    ['Fonts & container', est.parts.other, 'other'],
+  ].filter(([, n]) => (n as number) > 0) as [string, number, string][];
+  return (
+    <div className="sizeEstimate">
+      <div className="sizeEstimateHead">
+        <div>
+          <div className="dim small">Estimated size</div>
+          <div className="sizeEstimateValue">
+            {est.exact ? '' : '≈ '}
+            {fmtBytes(est.bytes)}
+            {src ? <span className={`badge sm ${est.bytes < src ? 'green' : 'red'}`}>{pctChange(est.bytes, src)}</span> : null}
+          </div>
+          {!est.exact && (
+            <div className="dim small">
+              likely {fmtBytes(est.low)} – {fmtBytes(est.high)}
+              {est.videoKbps ? ` · video ≈ ${(est.videoKbps / 1000).toFixed(est.videoKbps < 10000 ? 1 : 0)} Mbps` : ''}
+            </div>
+          )}
+        </div>
+        {src ? (
+          <div className="dim small" style={{ textAlign: 'right' }}>
+            Source
+            <div>{fmtBytes(src)}</div>
+          </div>
+        ) : null}
+      </div>
+      {src ? (
+        <div className="sizeBar" title={`${pct.toFixed(0)} % of the source`}>
+          {parts.map(([label, n, cls]) => (
+            <div key={label} className={`sizeBarPart ${cls}`} style={{ width: `${Math.min(100, (n / src) * 100)}%` }} />
+          ))}
+        </div>
+      ) : null}
+      <div className="sizeLegend small">
+        {parts.map(([label, n, cls]) => (
+          <span key={label}>
+            <i className={`sizeBarPart ${cls}`} /> {label} {fmtBytes(n)}
+          </span>
+        ))}
+      </div>
+      {[...est.notes, ...(result?.errors.length ? [`Could not probe: ${result.errors[0]}`] : [])].map((n) => (
+        <div key={n} className="dim small">
+          {n}
+        </div>
+      ))}
+    </div>
   );
 }

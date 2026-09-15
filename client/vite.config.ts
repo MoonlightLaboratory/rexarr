@@ -14,5 +14,7 @@ export default defineConfig({
       '/api': { target: 'http://localhost:7878', changeOrigin: true },
     },
   },
+  // relative asset URLs resolve against <base href>, which the server sets to the URL base
+  base: './',
   build: { outDir: 'dist', emptyOutDir: true },
 });

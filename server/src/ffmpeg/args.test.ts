@@ -149,3 +149,82 @@ test('output path never collides with the input', () => {
 test('sample profiles all build against the sample probe without throwing', () => {
   for (const p of BUILTIN_PROFILES) buildFfmpegArgs(p, probe(), '/in/x.mkv', `/out/x.${p.container}`);
 });
+
+// ---------------------------------------------------------------------------------------------
+// Settings → Transcoding (hardware acceleration)
+// ---------------------------------------------------------------------------------------------
+const hwSettings = (method: string, extra: Record<string, unknown> = {}) => ({ hardwareAcceleration: method, device: '', hardwareDecoding: true, fallbackToSoftware: true, ...extra }) as any;
+
+test('VAAPI maps x265 to hevc_vaapi, uses the render node and keeps frames on the GPU', () => {
+  const p = byId('builtin-movie-1080p');
+  const r = buildFfmpegArgs({ ...p, video: { ...p.video, maxHeight: 1080 } }, probe({ isHdr: false }), '/in/x.mkv', '/out/x.mkv', { hardware: hwSettings('vaapi', { device: '/dev/dri/renderD129' }) });
+  const a = r.args;
+  assert.equal(argAfter(a, '-c:v'), 'hevc_vaapi');
+  assert.equal(argAfter(a, '-init_hw_device'), 'vaapi=va:/dev/dri/renderD129');
+  assert.equal(argAfter(a, '-hwaccel_output_format'), 'vaapi');
+  assert.equal(argAfter(a, '-vf'), 'scale_vaapi=w=-2:h=1080:format=p010');
+  assert.equal(argAfter(a, '-qp'), '24'); // CRF 20 → QP 24
+  assert.ok(r.summary.some((s) => /hevc_vaapi/.test(s)));
+});
+
+test('VAAPI falls back to CPU frames + hwupload when subtitles are burned in', () => {
+  const p = byId('builtin-movie-1080p');
+  const r = buildFfmpegArgs({ ...p, subtitles: { ...p.subtitles, mode: 'burn', burnLanguage: 'jpn' } }, probe({ isHdr: false }), '/in/x.mkv', '/out/x.mkv', { hardware: hwSettings('vaapi') });
+  assert.equal(argAfter(r.args, '-hwaccel_output_format'), undefined);
+  assert.match(argAfter(r.args, '-vf')!, /subtitles=.*,format=p010le,hwupload$/);
+  assert.equal(argAfter(r.args, '-init_hw_device'), 'vaapi=va:/dev/dri/renderD128');
+});
+
+test('codec the method cannot encode stays on the CPU with a warning', () => {
+  const r = buildFfmpegArgs(byId('builtin-anime-av1'), probe({ isHdr: false }), '/in/x.mkv', '/out/x.mkv', { hardware: hwSettings('videotoolbox') });
+  assert.equal(argAfter(r.args, '-c:v'), 'libsvtav1');
+  assert.ok(r.warnings.some((w) => /cannot encode AV1/.test(w)));
+});
+
+test('profile set to software only ignores hardware acceleration', () => {
+  const p = byId('builtin-anime-x265');
+  const r = buildFfmpegArgs({ ...p, video: { ...p.video, hwMode: 'software' } }, probe({ isHdr: false }), '/in/x.mkv', '/out/x.mkv', { hardware: hwSettings('nvenc') });
+  assert.equal(argAfter(r.args, '-c:v'), 'libx265');
+  assert.equal(argAfter(r.args, '-tune'), 'animation');
+});
+
+test('NVENC mapping translates quality / preset and selects the GPU', () => {
+  const r = buildFfmpegArgs(byId('builtin-anime-x265'), probe({ isHdr: false }), '/in/x.mkv', '/out/x.mkv', { hardware: hwSettings('nvenc', { device: '1' }) });
+  const a = r.args;
+  assert.equal(argAfter(a, '-c:v'), 'hevc_nvenc');
+  assert.equal(argAfter(a, '-cq'), '20'); // CRF 18 → CQ 20
+  assert.equal(argAfter(a, '-preset'), 'p5'); // slow
+  assert.equal(argAfter(a, '-gpu'), '1');
+  assert.equal(argAfter(a, '-hwaccel_device'), '1');
+  assert.equal(argAfter(a, '-tune'), 'hq'); // software "animation" tune dropped
+});
+
+test('mapping is skipped when the encoder is missing from this ffmpeg build', () => {
+  const r = buildFfmpegArgs(byId('builtin-movie-1080p'), probe({ isHdr: false }), '/in/x.mkv', '/out/x.mkv', { hardware: hwSettings('qsv'), availableEncoders: ['libx265'] as any });
+  assert.equal(argAfter(r.args, '-c:v'), 'libx265');
+  assert.ok(r.warnings.some((w) => /not available in this ffmpeg/.test(w)));
+});
+
+test('Rockchip, V4L2 and QSV get their own options; hardware H.264 is 8-bit', () => {
+  const p = byId('builtin-movie-1080p');
+  const rk = buildFfmpegArgs(p, probe({ isHdr: false }), '/in/x.mkv', '/out/x.mkv', { hardware: hwSettings('rkmpp') }).args;
+  assert.equal(argAfter(rk, '-c:v'), 'hevc_rkmpp');
+  assert.equal(argAfter(rk, '-qp_init'), '23');
+  const v4 = buildFfmpegArgs(p, probe({ isHdr: false }), '/in/x.mkv', '/out/x.mkv', { hardware: hwSettings('v4l2') });
+  assert.equal(argAfter(v4.args, '-c:v'), 'hevc_v4l2m2m');
+  assert.match(argAfter(v4.args, '-b:v')!, /^\d+k$/);
+  const web = buildFfmpegArgs({ ...byId('builtin-web-mp4'), video: { ...byId('builtin-web-mp4').video, pixelFormat: 'yuv420p10le' } }, probe({ isHdr: false }), '/in/x.mkv', '/out/x.mp4', { hardware: hwSettings('qsv') });
+  assert.equal(argAfter(web.args, '-c:v'), 'h264_qsv');
+  assert.match(argAfter(web.args, '-vf')!, /format=nv12/);
+  if (process.platform !== 'win32') assert.ok(web.args.includes('qsv=qs@va'));
+});
+
+test('live preview is a second image output, skipped when video is copied', () => {
+  const r = buildFfmpegArgs(byId('builtin-movie-1080p'), probe({ isHdr: false }), '/in/x.mkv', '/out/x.mkv', { previewPath: '/t/job__preview.jpg' });
+  const a = r.args;
+  assert.equal(a[a.length - 1], '/t/job__preview.jpg');
+  assert.ok(a.indexOf('/out/x.mkv') < a.indexOf('/t/job__preview.jpg'), 'main output comes first so progress tracks it');
+  assert.equal(argAfter(a, '-update'), '1');
+  const copy = buildFfmpegArgs(byId('builtin-remux-audio-only'), probe({ isHdr: false }), '/in/x.mkv', '/out/x.mkv', { previewPath: '/t/p.jpg' }).args;
+  assert.ok(!copy.includes('/t/p.jpg'));
+});
