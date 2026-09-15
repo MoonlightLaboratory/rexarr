@@ -122,7 +122,7 @@ AniDB). Per-type profiles can be overridden there; otherwise the default profile
   backlog, at most *Max new jobs per scan* at a time. **Preview** lists exactly what would be queued.
 - **Schedule**: a scan runs every *Scan every (minutes)* (System → Tasks → *Auto transcode new remuxes*).
 - **Instant**: add a Webhook connection in Radarr / Sonarr (Settings → Connect, *On Import* + *On Upgrade*) pointing
-  at `http://rexarr:7878/api/webhook/radarr` or `/sonarr`; a scan runs 15 seconds after each import.
+  at `http://rexarr:3939/api/webhook/radarr` or `/sonarr`; a scan runs 15 seconds after each import.
 - **No loops**: every file rexarr queued, and every file it wrote, is remembered by path in `data/auto.json`, so a
   transcode that Radarr / Sonarr re-import (still named REMUX) is never transcoded again. Files that are not visible
   to rexarr are reported (fix the path mapping) and picked up once they are. *Reset history* forgets everything.
@@ -328,10 +328,10 @@ source.
 ```bash
 npm install
 npm run build
-npm start          # http://localhost:7878
+npm start          # http://localhost:3939
 ```
 
-Development (Vite dev server on :7979 proxying to the API on :7878):
+Development (Vite dev server on :7979 proxying to the API on :3939):
 
 ```bash
 npm run dev
@@ -341,7 +341,7 @@ Environment variables:
 
 | Variable            | Default   | Description                          |
 | ------------------- | --------- | ------------------------------------ |
-| `REXARR_PORT`       | `7878`    | HTTP port                            |
+| `REXARR_PORT`       | `3939`    | HTTP port                            |
 | `REXARR_HOST`       | `0.0.0.0` | Bind address                         |
 | `REXARR_CONFIG_DIR` | `./data`  | Root of everything rexarr stores (`/config` in Docker); `REXARR_DATA_DIR` is accepted too |
 | `REXARR_CLIENT_DIR` | auto      | Override location of the built UI    |
@@ -385,7 +385,7 @@ docker compose up -d --build  # or build locally from ./Dockerfile
 
   ```bash
   docker build -t rexarr .
-  docker run -d --name rexarr -p 7878:7878 -e PUID=1000 -e PGID=1000 \
+  docker run -d --name rexarr -p 3939:3939 -e PUID=1000 -e PGID=1000 \
     -v ./config:/config -v /path/to/media:/data/media rexarr
   ```
 
@@ -408,7 +408,7 @@ docker compose up -d --build  # or build locally from ./Dockerfile
   `docker/Dockerfile.makemkv` yourself (it compiles MakeMKV OSS + bin from makemkv.com, accepting their EULA),
   pass `--device /dev/sr0 --device /dev/sg0`, and enter your MakeMKV key once. Alternatively run rexarr on the
   host for ripping and in Docker for everything else.
-- `HEALTHCHECK` hits `/api/health`; the server binds `0.0.0.0:7878`; `REXARR_PORT`, `REXARR_HOST`,
+- `HEALTHCHECK` hits `/api/health`; the server binds `0.0.0.0:3939`; `REXARR_PORT`, `REXARR_HOST`,
   `REXARR_DATA_DIR`, `LOG_LEVEL` are honoured.
 
 The build stages (`npm ci` → `npm run build` → `npm prune --omit=dev` → copy `server/dist`, `client/dist`,

@@ -6,7 +6,7 @@ services:
     # build: { context: ., dockerfile: docker/Dockerfile.makemkv, args: { MAKEMKV_VERSION: "1.18.1" } }   # with MakeMKV for ripping
     container_name: rexarr
     ports:
-      - "7878:7878"
+      - "3939:3939"
     environment:
       - PUID=1000
       - PGID=1000

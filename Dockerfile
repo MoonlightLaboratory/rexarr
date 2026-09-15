@@ -2,7 +2,7 @@
 # rexarr – remux-first transcoding companion for the *arr stack
 #
 #   docker build -t rexarr .
-#   docker run -d -p 7878:7878 -e PUID=1000 -e PGID=1000 \
+#   docker run -d -p 3939:3939 -e PUID=1000 -e PGID=1000 \
 #     -v ./config:/config -v /path/to/media:/data/media rexarr
 #
 # Runtime: Node 22 on Alpine with the distro ffmpeg (x264, x265, SVT-AV1, libaom, VP9, Opus, VAAPI) and fre:ac
@@ -45,7 +45,7 @@ RUN apk add --no-cache ffmpeg su-exec tini libva \
 # Free uid/gid 1000 (the image's default "node" user) so PUID/PGID=1000 maps cleanly.
 RUN deluser --remove-home node || true
 ENV NODE_ENV=production \
-    REXARR_PORT=7878 \
+    REXARR_PORT=3939 \
     REXARR_HOST=0.0.0.0 \
     REXARR_DATA_DIR=/config \
     PUID=1000 PGID=1000 UMASK=002 \
@@ -60,7 +60,7 @@ COPY --from=build /app/shared ./shared
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh && mkdir -p /config
 VOLUME ["/config"]
-EXPOSE 7878
+EXPOSE 3939
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD wget -qO- "http://127.0.0.1:${REXARR_PORT}/api/health" >/dev/null || exit 1
 ENTRYPOINT ["/sbin/tini", "--", "/entrypoint.sh"]

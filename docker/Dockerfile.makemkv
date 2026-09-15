@@ -2,7 +2,7 @@
 # rexarr with MakeMKV compiled in, for disc ripping inside the container.
 #
 #   docker build -f docker/Dockerfile.makemkv --build-arg MAKEMKV_VERSION=1.18.1 -t rexarr:makemkv .
-#   docker run -d -p 7878:7878 --device /dev/sr0 --device /dev/sg0 -v ./config:/config -v /path/to/media:/data/media rexarr:makemkv
+#   docker run -d -p 3939:3939 --device /dev/sr0 --device /dev/sg0 -v ./config:/config -v /path/to/media:/data/media rexarr:makemkv
 #
 # MakeMKV is proprietary; by building this image you accept its EULA (https://www.makemkv.com/eula/).
 # Blu-ray decryption needs a registered key or the current free beta key entered under Settings once
@@ -43,7 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && userdel -r node 2>/dev/null || true
 COPY --from=makemkv /usr/bin/makemkvcon /usr/bin/mmccextr /usr/bin/mmgplsrv /usr/bin/
 COPY --from=makemkv /usr/lib/libdriveio.so.0 /usr/lib/libmakemkv.so.1 /usr/lib/libmmbd.so.0 /usr/lib/
-ENV NODE_ENV=production REXARR_PORT=7878 REXARR_HOST=0.0.0.0 REXARR_DATA_DIR=/config PUID=1000 PGID=1000 UMASK=002 HOME=/config
+ENV NODE_ENV=production REXARR_PORT=3939 REXARR_HOST=0.0.0.0 REXARR_DATA_DIR=/config PUID=1000 PGID=1000 UMASK=002 HOME=/config
 WORKDIR /app
 COPY --from=build /app/package.json ./
 COPY --from=build /app/node_modules ./node_modules
@@ -54,7 +54,7 @@ COPY --from=build /app/shared ./shared
 COPY docker/entrypoint-debian.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh && mkdir -p /config
 VOLUME ["/config"]
-EXPOSE 7878
+EXPOSE 3939
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD curl -fsS "http://127.0.0.1:${REXARR_PORT}/api/health" >/dev/null || exit 1
 ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
 CMD ["node", "server/dist/server/src/index.js"]

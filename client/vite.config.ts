@@ -11,7 +11,7 @@ export default defineConfig({
     port: 7979,
     fs: { allow: ['..'] },
     proxy: {
-      '/api': { target: 'http://localhost:7878', changeOrigin: true },
+      '/api': { target: 'http://localhost:3939', changeOrigin: true },
     },
   },
   // relative asset URLs resolve against <base href>, which the server sets to the URL base

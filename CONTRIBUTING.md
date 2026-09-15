@@ -31,7 +31,7 @@ reporting bugs to writing code.
 1. [Fork](https://github.com/MoonlightLaboratory/rexarr/fork) the repository and clone your fork
 2. Install dependencies: `npm install`
 3. Start the development servers: `npm run dev`
-   - API server on http://localhost:7878 (restarts on changes)
+   - API server on http://localhost:3939 (restarts on changes)
    - Vite UI on http://localhost:7979 (hot reload, proxies the API)
 4. Data goes to `./data` by default; set `REXARR_CONFIG_DIR` to use a throw-away folder
 5. Optional: `npm run test-media` builds sample remuxes and disc images for testing without real media
