@@ -1,6 +1,6 @@
 import { INSTANCE_NAME, URL_BASE } from '../base';
 import { APP_VERSION, REPO_URL } from '@shared/version';
-import { api } from '../api';
+import { api, ripOverallPercent } from '../api';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
@@ -72,7 +72,7 @@ function DriveStatus({ drives, rips }: { drives: DiscDrive[]; rips: DiscRip[] })
           state = 'Reading';
           cls = 'teal';
         } else if (rip?.status === 'ripping') {
-          state = `Ripping ${rip.progress.percent.toFixed(0)}%`;
+          state = `Ripping ${ripOverallPercent(rip.progress).toFixed(0)}%`;
           cls = 'gold';
         } else if (rip?.status === 'transcoding' || rip?.status === 'delivering') {
           state = rip.status === 'transcoding' ? 'Encoding' : 'Importing';

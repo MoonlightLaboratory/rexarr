@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { MusicBrainzRelease, DriveCandidate, DiscDrive, DiscRip, Episode, LookupResult, MakemkvInfo, RipMedia, RipOptions, RipStatus } from '@shared/types';
-import { api, fmtAge, fmtBytes, fmtDuration } from '../api';
+import { api, fmtAge, fmtBytes, fmtDuration, ripOverallPercent } from '../api';
 import { useApp } from '../App';
 import { Page, ToolbarButton } from '../components/Layout';
 import { Icon } from '../components/Icons';
@@ -574,8 +574,8 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
       {(rip.status === 'ripping' || rip.status === 'transcoding' || rip.status === 'delivering') && (
         <div className="card-b" style={{ paddingBottom: 6 }}>
           <div className="progress md">
-            <div style={{ width: `${rip.status === 'ripping' ? rip.progress.percent : 100}%` }} />
-            {rip.status === 'ripping' && <span className="text">{rip.progress.percent.toFixed(0)}%</span>}
+            <div style={{ width: `${rip.status === 'ripping' ? ripOverallPercent(rip.progress) : 100}%` }} />
+            {rip.status === 'ripping' && <span className="text">{ripOverallPercent(rip.progress).toFixed(0)}%</span>}
           </div>
           <div className="small dim" style={{ marginTop: 4 }}>
             {rip.status === 'ripping' && (
