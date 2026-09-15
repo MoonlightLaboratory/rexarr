@@ -1,0 +1,30 @@
+name: Feature Request
+description: Suggest an idea or improvement for rexarr
+labels: ["enhancement", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        rexarr is in **beta**, so priorities shift – ideas are welcome. Please search existing issues and discussions first.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the situation, not just the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would you like rexarr to do?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: How other *arr apps handle it, mockups, links …

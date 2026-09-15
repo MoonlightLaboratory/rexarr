@@ -2,6 +2,7 @@
   "name": "@rexarr/client",
   "version": "0.1.4",
   "private": true,
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "vite",

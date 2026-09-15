@@ -1,0 +1,75 @@
+name: Bug Report
+description: Something in rexarr is not working as it should
+labels: ["bug", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        rexarr is in **beta** – thanks for reporting. Please search [existing issues](https://github.com/MoonlightLaboratory/rexarr/issues) first.
+        **Remove API keys, passwords, hostnames and personal paths** from everything you paste.
+        Security problems: report them privately, see SECURITY.md.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to …
+        2. Pick profile …
+        3. …
+  - type: input
+    id: version
+    attributes:
+      label: rexarr version
+      description: Shown in the sidebar and on System → Status (e.g. 0.1.4.1)
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How do you run rexarr?
+      options:
+        - Docker (ghcr.io/moonlightlaboratory/rexarr)
+        - Docker (own build / MakeMKV image)
+        - From source (npm start)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS / platform
+      placeholder: e.g. Unraid 7, Ubuntu 24.04 amd64, macOS 15 Apple Silicon
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Search / releases
+        - Transcoding / profiles
+        - Hardware encoding
+        - Disc ripping
+        - Music (Lidarr / fre:ac / CD)
+        - Soulseek
+        - Local media
+        - Settings / authentication
+        - UI
+        - Other
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Job log from Activity, or System → Log Files. Trimmed to the relevant part.
+      render: shell
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, the FFmpeg command from the job log, ffprobe output of the source …
