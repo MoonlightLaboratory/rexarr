@@ -34,6 +34,7 @@ More in the [documentation](docs/README.md).
 
 ## Getting Started
 
+- [Download a release](https://github.com/MoonlightLaboratory/rexarr/releases) for Windows, macOS, Linux or FreeBSD ([install guide](docs/README.md#install-from-a-release))
 - [Installation with Docker](docs/README.md#docker)
 - [Run from source](docs/README.md#run-from-source)
 - [First-time setup](docs/README.md#setup)

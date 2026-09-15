@@ -3,9 +3,15 @@ name: Docker image
 on:
   push:
     branches: [main]
-    tags: ['v*']
   pull_request:
   workflow_dispatch:
+  # the Release workflow calls this with the release version, which becomes an image tag
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -31,7 +37,7 @@ jobs:
           images: ghcr.io/moonlightlaboratory/rexarr
           tags: |
             type=ref,event=branch
-            type=semver,pattern={{version}}
+            type=raw,value=${{ inputs.version }},enable=${{ inputs.version != '' }}
             type=raw,value=latest,enable={{is_default_branch}}
       - uses: docker/build-push-action@v6
         with:

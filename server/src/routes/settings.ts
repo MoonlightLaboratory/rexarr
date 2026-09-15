@@ -15,7 +15,7 @@ import { appEvents } from '../system.js';
 import net from 'node:net';
 import type { GeneralSettings } from '../../../shared/types.js';
 import { effectiveHost, hashPassword, newApiKey, normalizeUrlBase, redactGeneral } from '../general.js';
-import { applyLogLevel, hostRuntime, restart } from '../runtime.js';
+import { applyLogLevel, hostRuntime, restart, shutdown } from '../runtime.js';
 
 const conn = z.object({ enabled: z.boolean(), url: z.string(), apiKey: z.string() });
 
@@ -207,6 +207,11 @@ export default async function settingsRoutes(app: FastifyInstance) {
     store.saveSettings({ ...s, general: { ...s.general, security: { ...s.general.security, apiKey } } });
     appEvents.add('warning', 'Security', 'API key regenerated – update scripts and *arr webhooks that use it');
     return { apiKey };
+  });
+
+  app.post('/api/system/shutdown', async () => {
+    shutdown();
+    return { shuttingDown: true };
   });
 
   app.post('/api/system/restart', async () => {

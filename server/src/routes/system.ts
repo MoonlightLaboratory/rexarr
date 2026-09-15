@@ -2,7 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { SystemInfo } from '../../../shared/types.js';
-import { APP_VERSION, CONFIG_DIR } from '../config.js';
+import { APP_VERSION, CONFIG_DIR, PACKAGE_INFO } from '../config.js';
+import { IN_DOCKER } from '../general.js';
 import { store } from '../store.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 import { testConnection } from './settings.js';
@@ -30,6 +31,7 @@ export default async function systemRoutes(app: FastifyInstance) {
       node: process.version,
       platform: `${process.platform} ${process.arch}`,
       dataDir: CONFIG_DIR,
+      package: PACKAGE_INFO ? { version: PACKAGE_INFO.PackageVersion ?? APP_VERSION, runtime: PACKAGE_INFO.Runtime ?? '', branch: PACKAGE_INFO.Branch ?? 'main' } : IN_DOCKER ? { version: APP_VERSION, runtime: 'docker', branch: 'main' } : undefined,
       uptimeSeconds: Math.round((Date.now() - startedAt) / 1000),
       ffmpeg,
       freac,

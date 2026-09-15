@@ -41,7 +41,7 @@ function PathRow({ p }: { p: StoragePath }) {
 }
 
 export function SystemPage() {
-  const { health, healthLoaded, reloadHealth } = useApp();
+  const { health, healthLoaded, reloadHealth, toast } = useApp();
   const [info, setInfo] = useState<SystemInfo | null>(null);
   const [paths, setPaths] = useState<StoragePath[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,10 +53,25 @@ export function SystemPage() {
       .finally(() => setBusy(false));
   };
   useEffect(() => load(), []);
+  const shutdown = async () => {
+    const active = info?.jobs.active ?? 0;
+    if (!confirm(active ? `Shut down rexarr? ${active} running encode(s) will be stopped and restarted from the beginning next time.` : 'Shut down rexarr? You will need to start it again from your computer.')) return;
+    try {
+      await api.shutdown();
+      toast('warn', 'rexarr is shutting down');
+    } catch (e) {
+      toast('error', (e as Error).message);
+    }
+  };
   return (
     <Page
       title="System"
-      toolbarLeft={<ToolbarButton icon={<Icon.Refresh />} label="Re-detect" onClick={() => load(true)} busy={busy} />}
+      toolbarLeft={
+        <>
+          <ToolbarButton icon={<Icon.Refresh />} label="Re-detect" onClick={() => load(true)} busy={busy} />
+          <ToolbarButton icon={<Icon.Power />} label="Shutdown" onClick={shutdown} />
+        </>
+      }
       narrow
     >
       {error && <div className="error">{error}</div>}
@@ -166,6 +181,10 @@ export function SystemPage() {
               <div className="card-h">About</div>
               <div className="card-b">
                 <div className="field row"><label>rexarr</label><span>v{info.version}</span></div>
+                <div className="field row">
+                  <label>Installed as</label>
+                  <span>{!info.package ? 'Source' : info.package.runtime === 'docker' ? 'Docker' : `Release package (${info.package.runtime}, ${info.package.branch})`}</span>
+                </div>
                 <div className="field row">
                   <label>GitHub</label>
                   <span className="inline" style={{ gap: 12 }}>

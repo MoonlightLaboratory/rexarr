@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,8 +8,37 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 export { APP_VERSION, REPO_URL } from '../../shared/version.js';
 export const PORT = Number(process.env.REXARR_PORT ?? process.env.PORT ?? 3939);
 export const HOST = process.env.REXARR_HOST ?? '0.0.0.0';
+
+/** `package_info` at the root of a release package (tar.gz, zip, macOS app, Windows installer); absent in source checkouts and Docker. */
+export const PACKAGE_INFO: Record<string, string> | null = (() => {
+  let dir = here;
+  for (let i = 0; i < 6; i++) {
+    const file = path.join(dir, 'package_info');
+    if (fs.existsSync(file)) {
+      return Object.fromEntries(
+        fs
+          .readFileSync(file, 'utf8')
+          .split(/\r?\n/)
+          .map((l) => l.match(/^\s*([\w.]+)\s*=\s*(.*?)\s*$/))
+          .filter((m): m is RegExpMatchArray => Boolean(m))
+          .map((m) => [m[1], m[2]]),
+      );
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+})();
+
+/** Where a release package keeps its data: C:\\ProgramData\\rexarr on Windows, ~/.config/rexarr elsewhere (like Sonarr). */
+function packagedConfigDir(): string {
+  if (process.platform === 'win32') return path.join(process.env.ProgramData ?? 'C:\\ProgramData', 'rexarr');
+  return path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'rexarr');
+}
+
 /** Root of everything rexarr stores (the Docker /config volume). REXARR_DATA_DIR is accepted for compatibility. */
-export const CONFIG_DIR = path.resolve(process.env.REXARR_CONFIG_DIR ?? process.env.REXARR_DATA_DIR ?? path.join(process.cwd(), 'data'));
+export const CONFIG_DIR = path.resolve(process.env.REXARR_CONFIG_DIR ?? process.env.REXARR_DATA_DIR ?? (PACKAGE_INFO ? packagedConfigDir() : path.join(process.cwd(), 'data')));
 export const LOG_LINES_KEPT = 400;
 
 const env = (name: string, fallback: string) => path.resolve(process.env[name] ?? fallback);

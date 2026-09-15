@@ -1055,6 +1055,8 @@ export interface SystemInfo {
   node: string;
   platform: string;
   dataDir: string;
+  /** How rexarr was installed: a release package (runtime e.g. "linux-x64", "osx-arm64-app"), Docker, or undefined for source. */
+  package?: { version: string; runtime: string; branch: string };
   uptimeSeconds: number;
   ffmpeg: FfmpegCapabilities;
   /** fre:ac (freaccmd): music encodes and CD ripping. */

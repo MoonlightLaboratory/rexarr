@@ -315,13 +315,69 @@ source.
 
 ## Requirements
 
-- Node.js 22.12+
+- Node.js 22.12+ (bundled in the release packages, except FreeBSD)
 - FFmpeg 6+ (7.x recommended) with the encoders you plan to use
 - MakeMKV (optional, for disc ripping)
 - fre:ac 1.1.7+ (optional, for music encodes and CD rips; macOS: `brew install --cask freac`) and cdparanoia on
   Linux for CD tables of contents
 - Lidarr v2 (API v1) and slskd (optional, for music)
 - Radarr v4 / Sonarr v4 (API v3); Prowlarr optional
+
+## Install from a release
+
+Every [release](https://github.com/MoonlightLaboratory/rexarr/releases) has packages for each platform, named like
+Sonarr's (`rexarr.main.<version>.<platform>`). Each one bundles Node.js; FFmpeg, fre:ac and MakeMKV are installed
+separately (see *Requirements*).
+
+| Platform | Package | How to run |
+| --- | --- | --- |
+| Windows 10 / 11 | `win-x64-installer.exe` (`win-x86-installer.exe` for 32-bit) | Run the installer, then **rexarr** from the Start menu. Portable: `win-x64.zip`, run `rexarr.vbs` (no window) or `rexarr.cmd` (console) |
+| macOS 11+ | `osx-arm64-app.zip` (Apple silicon), `osx-x64-app.zip` (Intel) | Unzip, move `rexarr.app` to Applications and open it. Terminal: `osx-*.tar.gz`, run `rexarr/rexarr` |
+| Linux (glibc: Debian, Ubuntu, Fedora…) | `linux-x64`, `linux-arm64`, `linux-arm` (32-bit Raspberry Pi OS) `.tar.gz` | `tar -xzf rexarr.main.*.tar.gz && ./rexarr/rexarr` |
+| Linux (musl: Alpine) | `linux-musl-x64`, `linux-musl-arm64` `.tar.gz` | `apk add libstdc++`, then `./rexarr/rexarr` |
+| FreeBSD | `freebsd-x64.tar.gz` (no bundled Node) | `pkg install node22`, then `./rexarr/rexarr` |
+
+Then open **http://localhost:3939**. Notes:
+
+- **Data** lives in `C:\ProgramData\rexarr` on Windows and `~/.config/rexarr` elsewhere (`REXARR_CONFIG_DIR`
+  overrides it). Upgrading replaces the program files only.
+- **Stopping**: *System → Shutdown*, or close the console / press Ctrl+C. Launching rexarr again while it is running
+  just opens it in your browser.
+- **macOS**: the app is not notarised. If macOS says it cannot be opened, open it once from Finder with
+  right-click → *Open*, or allow it under System Settings → Privacy & Security → *Open Anyway*.
+- **Linux as a service** (systemd), with rexarr extracted to `/opt/rexarr` and a `rexarr` user:
+
+  ```ini
+  # /etc/systemd/system/rexarr.service
+  [Unit]
+  Description=rexarr
+  After=network-online.target
+
+  [Service]
+  User=rexarr
+  UMask=0002
+  ExecStart=/opt/rexarr/rexarr
+  Restart=on-failure
+  TimeoutStopSec=20
+
+  [Install]
+  WantedBy=multi-user.target
+  ```
+
+  `sudo systemctl enable --now rexarr`; data then lives in `/home/rexarr/.config/rexarr` (or set
+  `Environment=REXARR_CONFIG_DIR=/var/lib/rexarr`).
+
+### Publishing a release (maintainers)
+
+1. Set `APP_VERSION` in `shared/version.ts` and write `docs/release-notes/<version>.md`.
+2. Push to `main`, then **Actions → Release → Run workflow** (or push a tag `v<version>`).
+3. The workflow builds every package with `scripts/package.mjs`, builds the Windows installers with Inno Setup
+   (`distribution/windows/rexarr.iss`), starts the packages on Linux x64 / arm64, Alpine, macOS and Windows
+   (`scripts/smoke-test.sh`), then publishes the GitHub release and the `ghcr.io/moonlightlaboratory/rexarr:<version>`
+   image. Pre-release is ticked by default while rexarr is in beta.
+
+Build packages locally with `npm run build && node scripts/package.mjs --targets osx-arm64-app,linux-x64` (Node
+runtimes are downloaded from nodejs.org and checked against their SHA-256 sums; output in `release/`).
 
 ## Run from source
 

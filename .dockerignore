@@ -10,3 +10,4 @@ data
 test-media
 docker-compose*.yml
 README.md
+release
