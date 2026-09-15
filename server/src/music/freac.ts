@@ -30,13 +30,23 @@ export interface FreacInfo {
 /** Encoders rexarr will use: all open source. */
 export const OPEN_ENCODERS = ['flac', 'lame', 'opus', 'vorbis', 'wv', 'mac'] as const;
 
-const CANDIDATES = ['/Applications/freac.app/Contents/MacOS/freaccmd', '/usr/bin/freaccmd', '/usr/local/bin/freaccmd', '/opt/freac/freaccmd', '/app/bin/freaccmd', 'freaccmd'];
+const CANDIDATES = [
+  '/Applications/freac.app/Contents/MacOS/freaccmd',
+  '/usr/bin/freaccmd',
+  '/usr/local/bin/freaccmd',
+  '/opt/freac/freaccmd',
+  '/app/bin/freaccmd',
+  'C:\\Program Files\\freac\\freaccmd.exe',
+  'C:\\Program Files (x86)\\freac\\freaccmd.exe',
+  ...(process.env.LOCALAPPDATA ? [`${process.env.LOCALAPPDATA}\\Programs\\freac\\freaccmd.exe`] : []),
+  'freaccmd',
+];
 
 let cached: { key: string; at: number; info: FreacInfo } | null = null;
 
 export function resolveFreac(configured: string): string {
   if (configured.trim()) return configured.trim();
-  return CANDIDATES.find((c) => c.includes('/') && fs.existsSync(c)) ?? 'freaccmd';
+  return CANDIDATES.find((c) => /[\\/]/.test(c) && fs.existsSync(c)) ?? 'freaccmd';
 }
 
 export async function freacInfo(configured: string, force = false): Promise<FreacInfo> {

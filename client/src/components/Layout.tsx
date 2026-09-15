@@ -36,6 +36,7 @@ const links = [
       { to: '/system/backup', label: 'Backup' },
       { to: '/system/events', label: 'Events' },
       { to: '/system/logs', label: 'Log Files' },
+      { to: '/system/tools', label: 'Tools' },
     ],
   },
 ] as { to: string; label: string; icon: ReactNode; children?: { to: string; label: string }[] }[];

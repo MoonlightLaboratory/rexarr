@@ -337,7 +337,10 @@ separately (see *Requirements*).
 | Linux (musl: Alpine) | `linux-musl-x64`, `linux-musl-arm64` `.tar.gz` | `apk add libstdc++`, then `./rexarr/rexarr` |
 | FreeBSD | `freebsd-x64.tar.gz` (no bundled Node) | `pkg install node22`, then `./rexarr/rexarr` |
 
-Then open **http://localhost:3939**. Notes:
+Then open **http://localhost:3939**. On first launch rexarr opens **System → Tools**, which checks for FFmpeg, fre:ac,
+MakeMKV and slskd and shows how to install whichever is missing on your platform (winget / Homebrew / apt commands
+and the official download pages). The Windows installer has the same list as a *Recommended tools* page: tick a tool
+and its download page opens when setup finishes. Notes:
 
 - **Data** lives in `C:\ProgramData\rexarr` on Windows and `~/.config/rexarr` elsewhere (`REXARR_CONFIG_DIR`
   overrides it). Upgrading replaces the program files only.
@@ -472,6 +475,9 @@ The build stages (`npm ci` → `npm run build` → `npm prune --omit=dev` → co
 
 ## Setup
 
+0. On first launch, **System → Tools** lists FFmpeg (required), fre:ac, MakeMKV and slskd with install steps for your
+   platform. Close it with *Skip for now* / *Continue*; it stays available in the System menu
+   (`GET /api/setup/tools`, `POST /api/setup/dismiss`).
 1. Open **Settings**, enable Radarr and/or Sonarr, paste the URL and API key, click **Test**, save.
 2. Check **System** – it lists the ffmpeg version and which encoders are actually available.
 3. Pick default profiles per media type (movie / TV / anime) or create your own under **Profiles**.

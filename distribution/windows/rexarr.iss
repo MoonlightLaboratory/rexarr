@@ -81,6 +81,77 @@ Filename: "{sys}\wscript.exe"; Parameters: """{app}\rexarr.vbs"""; WorkingDir: "
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\stop-rexarr.ps1"" -AppDir ""{app}"""; Flags: runhidden waituntilterminated; RunOnceId: "StopRexarr"
 
 [Code]
+const
+  UrlFfmpeg = 'https://www.gyan.dev/ffmpeg/builds/';
+  UrlFreac = 'https://github.com/enzo1982/freac/releases/latest';
+  UrlMakemkv = 'https://www.makemkv.com/download/';
+  UrlSlskd = 'https://github.com/slskd/slskd/releases/latest';
+
+var
+  ToolsPage: TInputOptionWizardPage;
+
+function FfmpegFound: Boolean;
+begin
+  Result := FileSearch('ffmpeg.exe', GetEnv('PATH')) <> '';
+end;
+
+function FreacFound: Boolean;
+begin
+  Result := FileExists(ExpandConstant('{commonpf32}\freac\freaccmd.exe'));
+  if (not Result) and IsWin64 then
+    Result := FileExists(ExpandConstant('{commonpf64}\freac\freaccmd.exe'));
+end;
+
+function MakemkvFound: Boolean;
+begin
+  Result := FileExists(ExpandConstant('{commonpf32}\MakeMKV\makemkvcon64.exe')) or FileExists(ExpandConstant('{commonpf32}\MakeMKV\makemkvcon.exe'));
+end;
+
+// One checkbox per tool; ticked by default only for a missing required tool.
+procedure AddTool(const Caption: String; Found, Required: Boolean);
+var
+  Index: Integer;
+begin
+  if Found then
+    Index := ToolsPage.Add(Caption + '   (already installed)')
+  else
+    Index := ToolsPage.Add(Caption);
+  ToolsPage.Values[Index] := Required and not Found;
+end;
+
+procedure InitializeWizard;
+begin
+  ToolsPage := CreateInputOptionPage(wpSelectTasks,
+    'Recommended tools',
+    'rexarr works with these free programs, which are installed separately.',
+    'Tick the ones you want to download: their official download pages open in your browser when setup finishes. ' +
+    'You can do this later too, under System > Tools in rexarr.',
+    False, False);
+  AddTool('FFmpeg - required: transcoding, media details and previews', FfmpegFound, True);
+  AddTool('fre:ac - music profiles, audio CD ripping, cue sheet splitting', FreacFound, False);
+  AddTool('MakeMKV - DVD and Blu-ray ripping, full-disc downloads', MakemkvFound, False);
+  AddTool('slskd - Soulseek album search (runs as its own server)', False, False);
+end;
+
+procedure OpenPage(const Url: String);
+var
+  ErrorCode: Integer;
+begin
+  // as the signed-in user, not the elevated installer
+  ShellExecAsOriginalUser('open', Url, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if (CurStep = ssDone) and not WizardSilent then
+  begin
+    if ToolsPage.Values[0] then OpenPage(UrlFfmpeg);
+    if ToolsPage.Values[1] then OpenPage(UrlFreac);
+    if ToolsPage.Values[2] then OpenPage(UrlMakemkv);
+    if ToolsPage.Values[3] then OpenPage(UrlSlskd);
+  end;
+end;
+
 // Stop a running rexarr from this folder before files are replaced.
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var

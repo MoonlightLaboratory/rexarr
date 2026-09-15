@@ -28,6 +28,7 @@ import previewRoutes from './routes/preview.js';
 import musicRoutes from './routes/music.js';
 import localRoutes from './routes/local.js';
 import estimateRoutes from './routes/estimate.js';
+import setupRoutes from './routes/setup.js';
 import { startLocalMedia } from './library/local.js';
 import { autoTranscode } from './auto.js';
 import { appEvents, backups, createLogStream, tasks } from './system.js';
@@ -105,6 +106,7 @@ async function buildApp(host: { bindAddress: string; port: number; urlBase: stri
   await instance.register(musicRoutes);
   await instance.register(localRoutes);
   await instance.register(estimateRoutes);
+  await instance.register(setupRoutes);
 
   instance.get('/api/health', async () => ({ ok: true, version: APP_VERSION }));
 
