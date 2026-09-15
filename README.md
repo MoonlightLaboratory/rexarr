@@ -22,6 +22,15 @@ Radarr, Sonarr and Lidarr, finds Blu-ray remux and full-disc releases for the ti
 they import with FFmpeg – or fre:ac for music – using profiles you control. It can also rip discs with MakeMKV,
 split album images, and find media on your disks that none of the \*arr apps manage.
 
+## Screenshots
+
+| | |
+| :---: | :---: |
+| <img src="docs/screenshots/series.jpg" alt="Series library" width="420"><br>Series library | <img src="docs/screenshots/movie.jpg" alt="Movie details" width="420"><br>Movie details |
+| <img src="docs/screenshots/transcode.jpg" alt="Transcode dialog with estimated size" width="420"><br>Transcode with estimated size | <img src="docs/screenshots/header-search.jpg" alt="Smart search" width="420"><br>Smart search |
+
+More in the [documentation](docs/README.md).
+
 ## Getting Started
 
 - [Installation with Docker](docs/README.md#docker)

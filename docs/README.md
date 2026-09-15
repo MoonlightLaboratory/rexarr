@@ -20,6 +20,13 @@ rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  opt
 
 ## Features
 
+![Series library](screenshots/series.jpg)
+
+| | |
+| :---: | :---: |
+| ![Movie details](screenshots/movie.jpg)<br>Movie details | ![Series details](screenshots/series-detail.jpg)<br>Series details |
+| ![Encoding profiles](screenshots/profiles.jpg)<br>Encoding profiles | ![Transcode dialog](screenshots/transcode.jpg)<br>Transcode dialog with estimated size |
+
 - **Web UI in the \*arr style** – Movies, Series, Search, Activity, Profiles, Settings, System.
 - **Remux-only search** – interactive search through Radarr / Sonarr (and raw Prowlarr search),
   filtered to `Remux-1080p`, `Remux-2160p`, `Bluray-1080p Remux`, `REMUX` titles, etc.
@@ -156,6 +163,10 @@ rexarr auto-detects the macOS app bundle and `/usr/bin/makemkvcon`. Ejecting use
 
 ### Search
 
+| | |
+| :---: | :---: |
+| ![Header search popup](screenshots/header-search.jpg)<br>Header search | ![Search page](screenshots/search.jpg)<br>Search page |
+
 Type a title in the header (`/`) or on the Search page; results appear as you type:
 
 - **In your library** (instant): Radarr + Sonarr titles matched on title, alternate titles and AniDB romaji / kanji,
@@ -194,6 +205,10 @@ Requirements: MakeMKV (Blu-ray ISOs need a registered or beta key), a path mappi
 the finished ISO with **Discs → Virtual drive**. If Radarr imports an `.iso` itself, rexarr rips that file instead.
 
 ## Music
+
+| | |
+| :---: | :---: |
+| ![Music library](screenshots/music.jpg)<br>Artists | ![Artist page](screenshots/artist.jpg)<br>Artist and albums |
 
 Connect **Lidarr** (API v1) in Settings → Connections to get a **Music** page and the *Music* scope in search.
 Audio work runs through [fre:ac](https://www.freac.org/)'s command-line encoder `freaccmd`; FFmpeg is only used to
@@ -260,6 +275,8 @@ in Settings → Connections → fre:ac, or build your own image on a distributio
 warns when it is missing.
 
 ## Local media (outside the \*arr apps)
+
+![Local files](screenshots/local-files.jpg)
 
 Not every movie, show or album is added to Radarr, Sonarr or Lidarr. rexarr scans the local folder of every path
 mapping (and any folders added in Settings → Connections → *Local media*) in the background and indexes what the
