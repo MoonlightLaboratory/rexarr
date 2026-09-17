@@ -122,7 +122,7 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
   if (g.proxy.enabled && !g.proxy.hostname) out.push({ type: 'warning', source: 'Proxy', message: 'The proxy is enabled without a hostname.', link: '/settings/general' });
 
   const ff = await ffmpegCapabilities(s.ffmpegPath);
-  if (!ff.available) out.push({ type: 'error', source: 'FFmpeg', message: `ffmpeg was not found at "${s.ffmpegPath}". Encoding cannot run.`, link: '/settings' });
+  if (!ff.available) out.push({ type: 'error', source: 'FFmpeg', message: `${ff.error ?? `ffmpeg was not found at "${s.ffmpegPath}"`}. Encoding cannot run.`, link: '/settings' });
   else {
     const missing = store.profiles.filter((p) => p.video.encoder !== 'copy' && !ff.videoEncoders.includes(p.video.encoder) && !p.builtin);
     if (missing.length) out.push({ type: 'warning', source: 'FFmpeg', message: `Profile${missing.length > 1 ? 's' : ''} ${missing.map((p) => `"${p.name}"`).join(', ')} use${missing.length > 1 ? '' : 's'} an encoder this ffmpeg build does not have.`, link: '/profiles' });
@@ -187,7 +187,7 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
 
   if (s.disc.enabled) {
     const mk = await makemkvInfo(s.disc.makemkvPath);
-    if (!mk.available) out.push({ type: 'error', source: 'Disc ripping', message: `makemkvcon was not found at "${mk.path}". Disc ripping is enabled but cannot run.`, link: '/settings' });
+    if (!mk.available) out.push({ type: 'error', source: 'Disc ripping', message: `${mk.error ?? `makemkvcon was not found at "${mk.path}"`}. Disc ripping is enabled but cannot run.`, link: '/settings' });
     const ripDir = s.disc.ripDirectory?.trim() || PATHS.rips;
     const free = freeSpace(ripDir);
     if (free && free < 60 * 1024 ** 3) out.push({ type: 'warning', source: 'Disc ripping', message: `Only ${fmtBytes(free)} free for rips in "${ripDir}". A UHD Blu-ray can need up to 100 GB.`, link: '/settings' });

@@ -11,6 +11,7 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import { promisify } from 'node:util';
+import { toolError } from '../spawnError.js';
 import type { DiscDrive, DiscTitle, DriveState, MakemkvInfo } from '../../../shared/types.js';
 
 const run = promisify(execFile);
@@ -38,7 +39,7 @@ export async function makemkvInfo(configured: string, force = false): Promise<Ma
     const ver = stdout.match(/MakeMKV v?([\d.]+)/)?.[1];
     info = { available: true, path, version: ver };
   } catch (err) {
-    info = { available: false, path, error: (err as Error).message };
+    info = { available: false, path, error: toolError(err, path) };
   }
   infoCache = { path, at: Date.now(), info };
   return info;
