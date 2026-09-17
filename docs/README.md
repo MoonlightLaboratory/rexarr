@@ -154,6 +154,7 @@ cached for a week, no API key. With it:
 Rexarr behaves like ARM:
 
 1. Insert a Blu-ray / DVD. Rexarr polls the drives through `makemkvcon` and creates an entry on the **Discs** page.
+   Each title shows its estimated rip size and, when *Transcode* is on, the estimated size after encoding.
 2. The title list is read (titles shorter than *minimum title length* are skipped) and the disc label is looked
    up in Radarr (movies) and Sonarr (series). You can correct the match, pick season / first episode number, and
    choose which titles to rip.
@@ -214,6 +215,16 @@ Disc releases get a purple *Blu-ray ISO / disc*, *UHD Blu-ray* or *DVD* badge. G
 Requirements: MakeMKV (Blu-ray ISOs need a registered or beta key), a path mapping for the download client's folder
 (e.g. `/downloads` → `/mnt/downloads`), and a rip folder the \*arr apps can reach. Prowlarr grabs are untracked; open
 the finished ISO with **Discs → Virtual drive**. If Radarr imports an `.iso` itself, Rexarr rips that file instead.
+
+### Audio tracks
+
+Discs often carry the same language several times – DTS 5.1, Dolby Digital 5.1 and a stereo track. **Best audio per
+language** (the default, *Settings → Disc ripping*) keeps the best one per language: lossless first (TrueHD,
+DTS-HD MA, LPCM, FLAC), then DTS over Dolby Digital, then more channels, then the higher bitrate; commentary tracks
+are never the automatic pick. Pick a specific track per title in the **Audio** column, or switch to *All tracks*.
+
+Tracks that are not kept are dropped from the ripped MKV by a stream copy (no re-encode), which also shrinks the file
+before it is transcoded: on a Naruto DVD, 6 audio tracks down to 1 took a title from 1.58 GB to 1.21 GB.
 
 ## Music
 

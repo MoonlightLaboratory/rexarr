@@ -1024,3 +1024,14 @@ table.metaTags td.mono { word-break: break-word; }
 .toolCard .toolError { word-break: break-word; }
 .toolsFooter { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 5px 0 20px; }
 .toolsFooter .check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+
+/* ---- Discs: audio picker and the compact size estimate */
+.audioPick { max-width: 210px; height: 26px; padding: 0 6px; font-size: var(--smallFontSize); }
+.ripEstimate { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ripEstimate > svg { width: 12px; height: 12px; color: var(--helpTextColor); }
+.ripEstimate strong { font-weight: 600; }
+.ripEstimateBar { display: inline-flex; width: 90px; height: 6px; border-radius: 3px; overflow: hidden; background: var(--defaultBorderColor); }
+.ripEstimateBar i { display: block; }
+.ripEstimateBar .v { background: var(--themeBlue); }
+.ripEstimateBar .a { background: var(--purple); }
+.ripEstimateBar .s { background: var(--themeOrange, #e5a00d); }

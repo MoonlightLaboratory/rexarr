@@ -86,6 +86,7 @@ export const settingsSchema = z.object({
     makemkvPath: z.string(),
     ripDirectory: z.string(),
     minTitleSeconds: z.number().int().min(0).max(36000),
+    audioMode: z.enum(['best', 'all']).default('best'),
     pollIntervalSeconds: z.number().int().min(5).max(3600),
     autoRip: z.boolean(),
     autoTranscode: z.boolean(),

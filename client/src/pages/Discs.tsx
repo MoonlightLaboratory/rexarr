@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { MusicBrainzRelease, DriveCandidate, DiscDrive, DiscRip, Episode, LookupResult, MakemkvInfo, RipMedia, RipOptions, RipStatus } from '@shared/types';
+import type { MusicBrainzRelease, DriveCandidate, DiscAudioTrack, DiscDrive, DiscEstimate, DiscRip, DiscTitle, Episode, LookupResult, MakemkvInfo, RipMedia, RipOptions, RipStatus } from '@shared/types';
 import { api, fmtAge, fmtBytes, fmtDuration, ripOverallPercent } from '../api';
 import { useApp } from '../App';
 import { Page, ToolbarButton } from '../components/Layout';
@@ -453,6 +453,9 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
   const [profileId, setProfileId] = useState(rip.profileId ?? '');
   const [options, setOptions] = useState<RipOptions>(rip.options);
   const [episodeMap, setEpisodeMap] = useState<Record<number, number>>(rip.episodeMap ?? {});
+  const [audioMode, setAudioMode] = useState<'best' | 'all' | 'custom'>(rip.audioMode ?? 'best');
+  const [selectedAudio, setSelectedAudio] = useState<Record<string, number[]>>(rip.selectedAudio ?? {});
+  const [estimate, setEstimate] = useState<DiscEstimate | null>(null);
   const [sonarrEpisodes, setSonarrEpisodes] = useState<Episode[] | null>(null);
   const [busy, setBusy] = useState(false);
   const editable = ['ready', 'failed', 'cancelled'].includes(rip.status);
@@ -499,7 +502,28 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
       setBusy(false);
     }
   };
-  const start = () => act(() => api.startRip(rip.id, { media, selectedTitleIds: selected, episodeMap: isSeries ? renumber(media.episodeStart ?? 1, selected, episodeMap) : undefined, profileId: profileId || undefined, options }), 'Rip started');
+  const start = () => act(() => api.startRip(rip.id, { media, selectedTitleIds: selected, episodeMap: isSeries ? renumber(media.episodeStart ?? 1, selected, episodeMap) : undefined, profileId: profileId || undefined, options, audioMode, selectedAudio }), 'Rip started');
+
+  // Estimated sizes for what is selected right now (nothing has been ripped yet, so this uses the disc's own stream list).
+  const hasTitles = rip.titles.length > 0 && rip.discType !== 'cd';
+  useEffect(() => {
+    if (!editable || !hasTitles || !selected.length) {
+      setEstimate(null);
+      return;
+    }
+    let live = true;
+    const t = setTimeout(() => {
+      api
+        .estimateRip(rip.id, { selectedTitleIds: selected, profileId: profileId || undefined, options, audioMode, selectedAudio })
+        .then((e) => live && setEstimate(e))
+        .catch(() => live && setEstimate(null));
+    }, 250);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editable, hasTitles, selected, profileId, options.transcode, audioMode, selectedAudio]);
   const changeMedia = (m: Partial<RipMedia>) => {
     setMedia((x) => {
       const next = { ...x, ...m };
@@ -581,6 +605,8 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
             {rip.status === 'ripping' && (
               <>
                 {rip.discType === 'cd' ? 'Track' : 'Title'} {rip.progress.titleIndex}/{rip.progress.titleCount} · {rip.progress.percent.toFixed(1)}% {rip.progress.step && `· ${rip.progress.step}`}
+                {rip.progress.startedAt && ` · ${fmtDuration(Math.round((Date.now() - new Date(rip.progress.startedAt).getTime()) / 1000))} elapsed`}
+                {rip.progress.etaSeconds ? ` · ${fmtDuration(rip.progress.etaSeconds)} left` : ''}
               </>
             )}
             {rip.status === 'transcoding' && (
@@ -612,7 +638,7 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
                   <th>Chapters</th>
                   {isSeries && <th style={{ minWidth: 200 }}>Episode</th>}
                   <th>Video</th>
-                  <th>Audio</th>
+                  <th style={{ minWidth: 190 }}>Audio</th>
                   <th>Subs</th>
                 </tr>
               </thead>
@@ -658,8 +684,16 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
                     <td className="dim small">
                       {t.videoCodec} {t.resolution}
                     </td>
-                    <td className="dim small" title={t.audio.join('\n')}>
-                      {t.audio.length ? `${t.audio.length}: ${t.audio.slice(0, 2).join(', ')}${t.audio.length > 2 ? '…' : ''}` : '—'}
+                    <td className="dim small">
+                      <AudioPicker
+                        title={t}
+                        mode={audioMode}
+                        custom={selectedAudio[String(t.id)]}
+                        onChange={(next) => {
+                          setSelectedAudio((m) => ({ ...m, [String(t.id)]: next }));
+                          setAudioMode('custom');
+                        }}
+                      />
                     </td>
                     <td className="dim small" title={t.subtitles.join('\n')}>
                       {t.subtitles.length || '—'}
@@ -692,10 +726,20 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
             <label className="check">
               <input type="checkbox" checked={options.keepRaw} onChange={(e) => setOptions({ ...options, keepRaw: e.target.checked })} /> Keep raw rip
             </label>
+            {audioMode === 'custom' ? (
+              <span className="inline small" style={{ gap: 6 }}>
+                <span className="badge sm outline blue">Audio: picked by hand</span>
+                <button className="btn sm" onClick={() => { setAudioMode('best'); setSelectedAudio({}); }}>
+                  Reset
+                </button>
+              </span>
+            ) : (
+              <label className="check" title="Keep the best audio track per language (DTS over Dolby Digital, 5.1 over stereo) instead of every track on the disc">
+                <input type="checkbox" checked={audioMode === 'best'} onChange={(e) => setAudioMode(e.target.checked ? 'best' : 'all')} /> Best audio per language
+              </label>
+            )}
             <span className="spacer" />
-            <span className="small dim">
-              {selected.length} title(s) · {fmtBytes(totalSelected)}
-            </span>
+            <RipEstimate titles={selected.length} sourceBytes={totalSelected} estimate={estimate} transcode={options.transcode} />
             <button className="btn primary" onClick={start} disabled={busy || !selected.length || (options.transcode && !profileId)}>
               {busy ? <span className="spinner" /> : <Icon.Play />} {rip.status === 'ready' ? 'Rip' : 'Rip again'}
             </button>
@@ -706,7 +750,10 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
 
       {rip.files.length > 0 && (
         <div className="card-b" style={{ borderTop: '1px solid var(--border)' }}>
-          <div className="small dim mb">Files</div>
+          <div className="small dim mb">
+            Files
+            {rip.ripSeconds ? ` · ripped in ${fmtDuration(rip.ripSeconds)}` : ''}
+          </div>
           {rip.files.map((f) => (
             <div key={f.titleId} className="small mono truncate" title={f.finalPath ?? f.path}>
               {f.finalPath ?? f.path} <span className="dim">({fmtBytes(f.sizeBytes)})</span>
@@ -716,6 +763,80 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
         </div>
       )}
     </div>
+  );
+}
+
+/** One title's audio tracks: automatic (best per language) or a hand-picked track. */
+function AudioPicker({ title, mode, custom, onChange }: { title: DiscTitle; mode: 'best' | 'all' | 'custom'; custom?: number[]; onChange: (next: number[]) => void }) {
+  const tracks = title.audioTracks ?? [];
+  if (!tracks.length) return <span className="muted">—</span>;
+  const auto = bestAudioTracks(tracks);
+  const value = mode === 'custom' && custom?.length === 1 ? String(custom[0]) : mode === 'all' ? 'all' : 'auto';
+  const autoLabel = auto.map((i) => tracks[i]?.language || '?').join(' + ');
+  return (
+    <select
+      className="audioPick"
+      value={value}
+      title={tracks.map((t) => t.label).join('\n')}
+      onChange={(e) => onChange(e.target.value === 'all' ? tracks.map((t) => t.index) : e.target.value === 'auto' ? auto : [Number(e.target.value)])}
+    >
+      <option value="auto">Best per language ({autoLabel})</option>
+      <option value="all">All {tracks.length} tracks</option>
+      {tracks.map((t) => (
+        <option key={t.index} value={t.index}>
+          {t.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** Best track per language, mirroring the server so the dropdown shows what a rip would keep. */
+function bestAudioTracks(tracks: DiscAudioTrack[]): number[] {
+  const rank = (t: DiscAudioTrack) => {
+    const c = t.codec.toLowerCase();
+    const codec = /truehd/.test(c) ? 100 : /dts-?hd\s*ma|master/.test(c) ? 95 : /flac/.test(c) ? 90 : /pcm/.test(c) ? 85 : /dts/.test(c) ? 60 : /e-?ac-?3|ddp/.test(c) ? 50 : /ac-?3|dolby|dd/.test(c) ? 40 : /aac/.test(c) ? 30 : 10;
+    const commentary = /comment|director|narration/i.test(`${t.label} ${t.name ?? ''}`) ? -1e6 : 0;
+    return commentary + codec * 1000 + Math.min(8, t.channels ?? 2) * 100 + Math.min(99, Math.round((t.bitrateKbps ?? 0) / 100));
+  };
+  const best = new Map<string, DiscAudioTrack>();
+  for (const t of tracks) {
+    const key = (t.language || 'und').toLowerCase();
+    const cur = best.get(key);
+    if (!cur || rank(t) > rank(cur)) best.set(key, t);
+  }
+  return [...best.values()].map((t) => t.index).sort((a, b) => a - b);
+}
+
+/** Compact version of the Transcode dialog's size panel. */
+function RipEstimate({ titles, sourceBytes, estimate, transcode }: { titles: number; sourceBytes: number; estimate: DiscEstimate | null; transcode: boolean }) {
+  const out = transcode ? estimate?.transcode?.bytes : estimate?.ripBytes;
+  const saved = out && sourceBytes ? Math.round((1 - out / sourceBytes) * 100) : 0;
+  const parts = estimate?.transcode?.parts;
+  return (
+    <span className="ripEstimate" title={estimate?.transcode?.notes.join('\n')}>
+      <span className="small dim">
+        {titles} title(s) · {fmtBytes(sourceBytes)} on disc
+      </span>
+      {out ? (
+        <>
+          <Icon.ChevronRight />
+          <strong>≈ {fmtBytes(out)}</strong>
+          {saved > 0 && <span className="badge green sm">−{saved}%</span>}
+          <span className="small dim">
+            {transcode ? 'after encoding' : 'ripped'}
+            {estimate?.transcode?.low ? ` · ${fmtBytes(estimate.transcode.low)} – ${fmtBytes(estimate.transcode.high)}` : ''}
+          </span>
+          {transcode && parts && (
+            <span className="ripEstimateBar" aria-hidden>
+              <i className="v" style={{ flex: Math.max(1, parts.video) }} />
+              <i className="a" style={{ flex: Math.max(1, parts.audio) }} />
+              <i className="s" style={{ flex: Math.max(1, parts.subtitles + parts.other) }} />
+            </span>
+          )}
+        </>
+      ) : null}
+    </span>
   );
 }
 

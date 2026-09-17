@@ -381,6 +381,8 @@ export interface DiscSettings {
   ripDirectory: string;
   /** Ignore titles shorter than this (trailers, menus). */
   minTitleSeconds: number;
+  /** Which audio tracks a rip keeps: the best one per language, or every track on the disc. */
+  audioMode: 'best' | 'all';
   /** Seconds between drive polls. */
   pollIntervalSeconds: number;
   /** Start ripping as soon as a disc is identified, without confirmation. */
@@ -914,6 +916,14 @@ export interface Series {
 }
 
 /** Estimated output size of an encode (Transcode dialog). */
+/** Estimated size of a disc rip (and of the transcode that follows), before anything has been ripped. */
+export interface DiscEstimate {
+  ripBytes: number;
+  transcode?: SizeEstimate;
+  titleCount: number;
+  durationSeconds: number;
+}
+
 export interface SizeEstimate {
   profileId: string;
   profileName: string;
@@ -1128,6 +1138,21 @@ export interface DriveCandidate {
   note?: string;
 }
 
+/** One audio stream of a disc title. `index` is its position among the title's audio streams, which is also the order in the ripped MKV. */
+export interface DiscAudioTrack {
+  index: number;
+  codec: string;
+  language: string;
+  languageName?: string;
+  channels?: number;
+  bitrateKbps?: number;
+  /** "Surround 5.1", "Stereo", "Director's commentary" … as the disc labels it. */
+  name?: string;
+  lossless: boolean;
+  /** Ready-made description, e.g. "Japanese · DTS 5.1 768 kbps". */
+  label: string;
+}
+
 export interface DiscTitle {
   id: number;
   name: string;
@@ -1141,6 +1166,7 @@ export interface DiscTitle {
   resolution?: string;
   frameRate?: string;
   audio: string[];
+  audioTracks?: DiscAudioTrack[];
   subtitles: string[];
 }
 
@@ -1217,6 +1243,9 @@ export interface DiscRip {
   media: RipMedia;
   titles: DiscTitle[];
   selectedTitleIds: number[];
+  /** Which audio tracks to keep: the best per language, all of them, or a hand-picked set per title id. */
+  audioMode?: 'best' | 'all' | 'custom';
+  selectedAudio?: Record<string, number[]>;
   /** Series: explicit title -> episode number mapping (falls back to episodeStart + order). */
   episodeMap?: Record<number, number>;
   /** Title ids that look like a "play all" title (duration ≈ sum of the others). */
@@ -1226,7 +1255,9 @@ export interface DiscRip {
   options: RipOptions;
   outputDir?: string;
   files: RippedFile[];
-  progress: { percent: number; step: string; titleIndex: number; titleCount: number };
+  progress: { percent: number; step: string; titleIndex: number; titleCount: number; startedAt?: string; etaSeconds?: number };
+  /** How long the rip itself took, once it has finished. */
+  ripSeconds?: number;
   log: string[];
   error?: string;
   createdAt: string;

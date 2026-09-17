@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { findDiscImages, labelToTitle, listVirtualDrives, parseDiscInfo, parseDrives, parseDurationSeconds, splitRobot } from './makemkv.js';
+import { audioSelectionFor, bestAudioPerLanguage, codecRank } from './audio.js';
+import type { DiscAudioTrack } from '../../../shared/types.js';
 
 test('splitRobot handles quoted fields with commas and escaped quotes', () => {
   assert.deepEqual(splitRobot('0,2,999,12,"BD-RE HL-DT-ST, WH16NS40","BLADE_RUNNER","/dev/sr0"'), ['0', '2', '999', '12', 'BD-RE HL-DT-ST, WH16NS40', 'BLADE_RUNNER', '/dev/sr0']);
@@ -124,4 +126,99 @@ test('findDiscImages finds ISOs and disc folders inside a download', () => {
   fs.mkdirSync(path.join(root, 'Empty'));
   assert.deepEqual(findDiscImages(path.join(root, 'Empty')), []);
   fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('the automatic audio pick keeps the best track per language', () => {
+  const tracks: DiscAudioTrack[] = [
+    { index: 0, codec: 'DD', language: 'eng', channels: 2, bitrateKbps: 224, lossless: false, label: 'English · DD Stereo', name: 'Stereo' },
+    { index: 1, codec: 'DD', language: 'jpn', channels: 2, bitrateKbps: 224, lossless: false, label: 'Japanese · DD Stereo', name: 'Stereo' },
+    { index: 2, codec: 'DTS', language: 'eng', channels: 6, bitrateKbps: 768, lossless: false, label: 'English · DTS 5.1', name: 'Surround 5.1' },
+    { index: 3, codec: 'DTS', language: 'jpn', channels: 6, bitrateKbps: 768, lossless: false, label: 'Japanese · DTS 5.1', name: 'Surround 5.1' },
+    { index: 4, codec: 'DD', language: 'eng', channels: 6, bitrateKbps: 448, lossless: false, label: 'English · DD 5.1', name: 'Surround 5.1' },
+    { index: 5, codec: 'DD', language: 'jpn', channels: 6, bitrateKbps: 448, lossless: false, label: 'Japanese · DD 5.1', name: 'Surround 5.1' },
+  ];
+  assert.deepEqual(bestAudioPerLanguage(tracks), [2, 3]);
+
+  // lossless wins over more channels, and commentary is never the automatic pick
+  const bluray: DiscAudioTrack[] = [
+    { index: 0, codec: 'DTS-HD MA', language: 'eng', channels: 6, bitrateKbps: 3000, lossless: true, label: 'English · DTS-HD MA 5.1' },
+    { index: 1, codec: 'DD', language: 'eng', channels: 8, bitrateKbps: 640, lossless: false, label: 'English · DD 7.1' },
+    { index: 2, codec: 'TrueHD', language: 'eng', channels: 8, bitrateKbps: 4000, lossless: true, label: "English · TrueHD 7.1 director's commentary", name: "Director's commentary" },
+  ];
+  assert.deepEqual(bestAudioPerLanguage(bluray), [0]);
+  assert.equal(codecRank('DTS-HD MA').lossless, true);
+  assert.equal(codecRank('DD').lossless, false);
+});
+
+test('audio selection modes', () => {
+  const title = {
+    id: 1,
+    name: 'Title 1',
+    durationSeconds: 1440,
+    sizeBytes: 1_600_000_000,
+    chapters: 4,
+    fileName: 't00.mkv',
+    audio: [],
+    subtitles: [],
+    audioTracks: [
+      { index: 0, codec: 'DD', language: 'eng', channels: 2, lossless: false, label: 'English · DD Stereo' },
+      { index: 1, codec: 'DTS', language: 'jpn', channels: 6, lossless: false, label: 'Japanese · DTS 5.1' },
+    ],
+  };
+  assert.deepEqual(audioSelectionFor(title, 'all'), [0, 1]);
+  assert.deepEqual(audioSelectionFor(title, 'best'), [0, 1]);
+  assert.deepEqual(audioSelectionFor(title, 'custom', [1]), [1]);
+  // an impossible custom choice falls back to the automatic pick instead of ripping no audio at all
+  assert.deepEqual(audioSelectionFor(title, 'custom', [7]), [0, 1]);
+});
+
+test('parseDiscInfo reads the audio streams of a title', () => {
+  const robot = [
+    'DRV:0,2,999,1,"HL-DT-ST DVDRAM","NARUTO_D1","/dev/rdisk4"',
+    'CINFO:1,6209,"DVD disc"',
+    'CINFO:2,0,"NARUTO_D1"',
+    'CINFO:32,0,"NARUTO_D1"',
+    'TINFO:0,2,0,"Title 1"',
+    'TINFO:0,8,0,"4"',
+    'TINFO:0,9,0,"0:23:55"',
+    'TINFO:0,11,0,"1685000000"',
+    'TINFO:0,27,0,"title_t00.mkv"',
+    'SINFO:0,0,1,6201,"Video"',
+    'SINFO:0,0,6,0,"Mpeg2"',
+    'SINFO:0,0,19,0,"720x576"',
+    'SINFO:0,0,21,0,"25"',
+    'SINFO:0,1,1,6202,"Audio"',
+    'SINFO:0,1,2,0,"Stereo"',
+    'SINFO:0,1,3,0,"eng"',
+    'SINFO:0,1,4,0,"English"',
+    'SINFO:0,1,6,0,"DD"',
+    'SINFO:0,1,13,0,"224 Kb/s"',
+    'SINFO:0,1,14,0,"2"',
+    'SINFO:0,1,40,0,"Stereo"',
+    'SINFO:0,2,1,6202,"Audio"',
+    'SINFO:0,2,2,0,"Surround 5.1"',
+    'SINFO:0,2,3,0,"jpn"',
+    'SINFO:0,2,4,0,"Japanese"',
+    'SINFO:0,2,6,0,"DTS"',
+    'SINFO:0,2,13,0,"768 Kb/s"',
+    'SINFO:0,2,14,0,"6"',
+    'SINFO:0,2,40,0,"5.1"',
+    'SINFO:0,3,1,6203,"Subtitles"',
+    'SINFO:0,3,3,0,"eng"',
+    'SINFO:0,3,6,0,"VOBSUB"',
+  ].join('\n');
+  const info = parseDiscInfo(robot);
+  assert.equal(info.type, 'dvd');
+  const t = info.titles[0];
+  assert.equal(t.audioTracks?.length, 2);
+  assert.deepEqual(
+    t.audioTracks?.map((a) => [a.index, a.codec, a.language, a.channels, a.bitrateKbps]),
+    [
+      [0, 'DD', 'eng', 2, 224],
+      [1, 'DTS', 'jpn', 6, 768],
+    ],
+  );
+  assert.equal(t.audioTracks?.[1].label, 'Japanese · DTS 5.1 768 kbps');
+  // one track per language, so both are kept
+  assert.deepEqual(audioSelectionFor(t, 'best'), [0, 1]);
 });
