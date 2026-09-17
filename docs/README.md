@@ -372,7 +372,16 @@ and its download page opens when setup finishes. Notes:
 
 ### Publishing a release (maintainers)
 
-1. Set `APP_VERSION` in `shared/version.ts` and write `docs/release-notes/<version>.md`.
+1. Bump the version and fill in the release notes it creates:
+
+   ```bash
+   node scripts/bump-version.mjs feature   # major | backend | feature | minor, or an exact 0.2.0.0
+   ```
+
+   Versions are `major.backend.feature.minor`: `0.0.0.X` for fixes and small changes, `0.0.X.0` for a new feature
+   or page, `0.X.0.0` for backend work (server, storage layout, API, settings) and `X.0.0.0` for a rewrite or a
+   release that breaks compatibility. The script updates `shared/version.ts` (the only place the version lives),
+   the `package.json` files, the Dockerfile label and the docs, and starts `docs/release-notes/<version>.md`.
 2. Push to `main`, then **Actions → Release → Run workflow** (or push a tag `v<version>`).
 3. The workflow builds every package with `scripts/package.mjs`, builds the Windows installers with Inno Setup
    (`distribution/windows/rexarr.iss`), starts the packages on Linux x64 / arm64, Alpine, macOS and Windows

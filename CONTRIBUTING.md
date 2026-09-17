@@ -16,6 +16,19 @@ reporting bugs to writing code.
 - **Remove API keys, passwords, hostnames and personal paths** from logs and screenshots before posting.
 - Security issues are not reported in public issues – see [SECURITY.md](SECURITY.md).
 
+## Versions
+
+Rexarr uses four-part versions, `major.backend.feature.minor`:
+
+| Version | Means |
+| --- | --- |
+| `0.0.0.X` | fixes, wording and other small changes |
+| `0.0.X.0` | a new feature or page |
+| `0.X.0.0` | backend work: server, storage layout, API or settings |
+| `X.0.0.0` | a rewrite, or a release that breaks compatibility |
+
+Maintainers bump it with `node scripts/bump-version.mjs <level>`; leave it alone in pull requests.
+
 ## Development
 
 ### Tools required

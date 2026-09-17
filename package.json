@@ -1,6 +1,6 @@
 {
   "name": "rexarr",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "license": "GPL-3.0-or-later",
   "description": "Remux-first transcoding companion for the *arr stack (beta): finds Blu-ray remuxes via Radarr/Sonarr/Lidarr/Prowlarr and re-encodes them with FFmpeg or fre:ac using your own profiles.",
