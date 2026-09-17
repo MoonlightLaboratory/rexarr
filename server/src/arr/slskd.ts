@@ -1,7 +1,7 @@
 /**
  * Soulseek through slskd (https://github.com/slskd/slskd), REST API v0 with an API key.
  *
- * A search returns files from many peers; rexarr groups them into album folders (one peer + one directory), keeps
+ * A search returns files from many peers; Rexarr groups them into album folders (one peer + one directory), keeps
  * audio files only, and describes each folder like a release (format, bit depth, sample rate, size, free upload
  * slot, queue length, speed) so it can be ranked and grabbed alongside Lidarr's indexer results.
  */

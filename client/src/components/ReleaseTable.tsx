@@ -69,7 +69,7 @@ export function ReleaseTable({
             {th('peers', 'Peers')}
             <th>Languages</th>
             {th('quality', 'Quality')}
-            {th('score', 'Score', 'num', 'rexarr score: source, resolution, what you searched for, availability')}
+            {th('score', 'Score', 'num', 'Rexarr score: source, resolution, what you searched for, availability')}
             <th className="iconCell" />
             <th className="iconCell" />
           </tr>
@@ -94,7 +94,7 @@ export function ReleaseTable({
                   {r.category && r.category !== 'remux' && <span className={`badge sm ${r.isDisc ? 'purple' : 'outline'}`}>{r.isDisc ? `${r.discFormat === 'uhd' ? 'UHD Blu-ray' : r.discFormat === 'dvd' ? 'DVD' : 'Blu-ray'} disc` : CATEGORY_LABEL[r.category]}</span>}
                   {r.fullSeason && <span className="badge sm blue">{r.source === 'lidarr' ? 'Discography' : 'Season pack'}</span>}
                   {r.music?.trackCount ? <span className="badge sm">{r.music.trackCount} tracks</span> : null}
-                  {r.music?.cue ? <span className="badge sm purple" title="One audio file per disc with a cue sheet. rexarr splits it into tracks after the download so Lidarr can import it.">image + cue</span> : null}
+                  {r.music?.cue ? <span className="badge sm purple" title="One audio file per disc with a cue sheet. Rexarr splits it into tracks after the download so Lidarr can import it.">image + cue</span> : null}
                   {r.tags?.map((t) => (
                     <span key={t} className={`badge sm ${tagKind(t)}`}>
                       {t}

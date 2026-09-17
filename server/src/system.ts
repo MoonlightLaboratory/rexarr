@@ -198,14 +198,14 @@ export const backups = {
     const raw = typeof source === 'string' ? fs.readFileSync(this.path(source)) : source;
     const json = raw[0] === 0x1f && raw[1] === 0x8b ? zlib.gunzipSync(raw).toString('utf8') : raw.toString('utf8');
     const bundle = JSON.parse(json) as { files?: Record<string, unknown> };
-    if (!bundle.files || typeof bundle.files !== 'object') throw new Error('not a rexarr backup');
+    if (!bundle.files || typeof bundle.files !== 'object') throw new Error('not a Rexarr backup');
     const written: string[] = [];
     for (const [f, content] of Object.entries(bundle.files)) {
       if (!BACKUP_FILES.includes(f)) continue;
       fs.writeFileSync(path.join(DATA_DIR, f), JSON.stringify(content, null, 2));
       written.push(f);
     }
-    appEvents.add('warning', 'Backup', `Restored ${written.join(', ')} from backup – restart rexarr to apply`);
+    appEvents.add('warning', 'Backup', `Restored ${written.join(', ')} from backup – restart Rexarr to apply`);
     return written;
   },
 };

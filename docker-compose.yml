@@ -4,7 +4,7 @@ services:
     # or build locally:
     # build: .
     # build: { context: ., dockerfile: docker/Dockerfile.makemkv, args: { MAKEMKV_VERSION: "1.18.1" } }   # with MakeMKV for ripping
-    container_name: rexarr
+    container_name: Rexarr
     ports:
       - "3939:3939"
     environment:

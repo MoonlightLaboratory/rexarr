@@ -40,7 +40,7 @@ function freeSpace(p: string): number {
 /**
  * Network shares that list folders but hang on reads (a stalled SMB / NFS mount) make encodes and probes wait
  * forever. For every scan root / path mapping, list the folder and read 256 KB from a media file in a separate
- * process with a deadline, so a stuck mount cannot block rexarr itself. Cached for a few minutes.
+ * process with a deadline, so a stuck mount cannot block Rexarr itself. Cached for a few minutes.
  */
 let shareCache: { at: number; checks: HealthCheck[] } | null = null;
 let shareRunning: Promise<HealthCheck[]> | null = null;
@@ -107,7 +107,7 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
   // Settings → General
   const g = s.general;
   if (g.security.authentication === 'none' && !['localhost', '127.0.0.1', '::1'].includes(g.host.bindAddress)) {
-    out.push({ type: 'warning', source: 'Security', message: 'Authentication is disabled: anyone who can reach rexarr can change settings, grab releases and delete files. Enable it in Settings → General → Security.', link: '/settings/general' });
+    out.push({ type: 'warning', source: 'Security', message: 'Authentication is disabled: anyone who can reach Rexarr can change settings, grab releases and delete files. Enable it in Settings → General → Security.', link: '/settings/general' });
   } else if (g.security.authentication !== 'none' && (!g.security.username || !g.security.passwordHash)) {
     out.push({ type: 'error', source: 'Security', message: 'Authentication is selected but no username / password is set, so it is not enforced.', link: '/settings/general' });
   }
@@ -117,7 +117,7 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
     }
   }
   const rt = hostRuntime();
-  if (rt.restartRequired) out.push({ type: 'warning', source: 'Host', message: 'Host settings changed (bind address, port, URL base or SSL). Restart rexarr to apply them.', link: '/settings/general' });
+  if (rt.restartRequired) out.push({ type: 'warning', source: 'Host', message: 'Host settings changed (bind address, port, URL base or SSL). Restart Rexarr to apply them.', link: '/settings/general' });
   if (g.host.enableSsl && !rt.sslPort) out.push({ type: 'error', source: 'Host', message: `HTTPS is enabled but not running on port ${g.host.sslPort} – check the certificate paths (System → Events).`, link: '/settings/general' });
   if (g.proxy.enabled && !g.proxy.hostname) out.push({ type: 'warning', source: 'Proxy', message: 'The proxy is enabled without a hostname.', link: '/settings/general' });
 
@@ -172,13 +172,13 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
     const { radarr, sonarr } = arr();
     if (radarr.configured) {
       const m = (await radarr.movies()).find((x) => x.file);
-      if (m?.file && !fs.existsSync(m.file.localPath)) out.push({ type: 'error', source: 'Path mappings', message: `Radarr reports "${m.file.path}" but rexarr cannot see it${m.file.localPath !== m.file.path ? ` (mapped to "${m.file.localPath}")` : ''}. Add or fix a path mapping so encodes can find the files.`, link: '/settings' });
+      if (m?.file && !fs.existsSync(m.file.localPath)) out.push({ type: 'error', source: 'Path mappings', message: `Radarr reports "${m.file.path}" but Rexarr cannot see it${m.file.localPath !== m.file.path ? ` (mapped to "${m.file.localPath}")` : ''}. Add or fix a path mapping so encodes can find the files.`, link: '/settings' });
     }
     if (sonarr.configured) {
       const sr = (await sonarr.series()).find((x) => x.statistics.episodeFileCount > 0);
       if (sr) {
         const f = (await sonarr.episodeFiles(sr.id))[0];
-        if (f && !fs.existsSync(f.localPath)) out.push({ type: 'error', source: 'Path mappings', message: `Sonarr reports "${f.path}" but rexarr cannot see it${f.localPath !== f.path ? ` (mapped to "${f.localPath}")` : ''}. Add or fix a path mapping.`, link: '/settings' });
+        if (f && !fs.existsSync(f.localPath)) out.push({ type: 'error', source: 'Path mappings', message: `Sonarr reports "${f.path}" but Rexarr cannot see it${f.localPath !== f.path ? ` (mapped to "${f.localPath}")` : ''}. Add or fix a path mapping.`, link: '/settings' });
       }
     }
   } catch {

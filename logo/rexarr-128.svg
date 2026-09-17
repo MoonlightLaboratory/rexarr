@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="128" height="128" role="img" aria-label="rexarr">
-  <rect width="256" height="256" rx="56" fill="#e5a00d"/>
-  <g fill="#1b1b1b">
-    <path transform="translate(-2 20) scale(0.85)" d="M60 196V60h58c29 0 48 16 48 41 0 19-11 33-29 38l33 57h-33l-30-53H88v53H60zm28-78h28c14 0 22-6 22-17s-8-17-22-17H88v34z"/>
-    <path transform="translate(40 30) scale(0.8) translate(0 -40)" d="M150 140l20 28 20-28h28l-34 46 36 50h-29l-21-31-21 31h-29l36-50-34-46h28z"/>
-  </g>
-</svg>

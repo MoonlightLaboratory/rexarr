@@ -9,7 +9,7 @@
  *     discs/TEST_DVD.iso                                                  real DVD-Video image (needs dvdauthor)
  *     discs/TEST_DVD_FOLDER/VIDEO_TS                                      same disc as a folder
  *
- * Point Settings → Disc ripping → "Virtual drives folder" at test-media/discs and rexarr will treat the
+ * Point Settings → Disc ripping → "Virtual drives folder" at test-media/discs and Rexarr will treat the
  * image as an inserted disc and rip it with MakeMKV. Point a path mapping or Radarr root at Movies/ to
  * test transcoding from the library, or queue the files directly from a job with a file path.
  *
@@ -43,9 +43,9 @@ fs.mkdirSync(outDir, { recursive: true });
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rexarr-test-media-'));
 
 const subs = (lines) => lines.map((t, i) => `${i + 1}\n00:00:0${i * 2 + 1},000 --> 00:00:0${i * 2 + 2},500\n${t}\n`).join('\n');
-fs.writeFileSync(path.join(tmp, 'eng.srt'), subs(['Hello from rexarr', 'Second line', 'Third line']));
-fs.writeFileSync(path.join(tmp, 'jpn.srt'), subs(['rexarr からこんにちは', '二行目', '三行目']));
-fs.writeFileSync(path.join(tmp, 'chapters.txt'), `;FFMETADATA1\ntitle=rexarr test\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=${Math.floor((seconds * 1000) / 2)}\ntitle=Opening\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=${Math.floor((seconds * 1000) / 2)}\nEND=${seconds * 1000}\ntitle=Ending\n`);
+fs.writeFileSync(path.join(tmp, 'eng.srt'), subs(['Hello from Rexarr', 'Second line', 'Third line']));
+fs.writeFileSync(path.join(tmp, 'jpn.srt'), subs(['Rexarr からこんにちは', '二行目', '三行目']));
+fs.writeFileSync(path.join(tmp, 'chapters.txt'), `;FFMETADATA1\ntitle=Rexarr test\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=${Math.floor((seconds * 1000) / 2)}\ntitle=Opening\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=${Math.floor((seconds * 1000) / 2)}\nEND=${seconds * 1000}\ntitle=Ending\n`);
 
 /** A 1080p "remux-like" MKV: h264 video, two FLAC audio tracks (eng/jpn), two SRT subtitle tracks, chapters. */
 function makeRemux(dest, { label, width = 1920, height = 1080, pattern = 'testsrc2' }) {

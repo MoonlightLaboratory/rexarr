@@ -83,7 +83,7 @@ export default async function musicRoutes(app: FastifyInstance) {
     return results;
   });
 
-  /** Tags, streams and format of any media file rexarr can see. */
+  /** Tags, streams and format of any media file Rexarr can see. */
   app.get<{ Querystring: { path?: string } }>('/api/media/metadata', async (req, reply) => {
     const p = req.query.path ?? '';
     if (!p || !fs.existsSync(p) || !fs.statSync(p).isFile()) return reply.code(404).send({ error: 'file not found' });
@@ -121,7 +121,7 @@ export default async function musicRoutes(app: FastifyInstance) {
     const lidarr = lidarrOr503(reply);
     if (!lidarr) return;
     const dir = body.data.path.trim();
-    if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return reply.code(404).send({ error: `Folder not found: ${dir} (use the path as rexarr sees it)` });
+    if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return reply.code(404).send({ error: `Folder not found: ${dir} (use the path as Rexarr sees it)` });
     const images = body.data.split ? findCueImages(dir) : [];
     if (!images.length) {
       await lidarr.importFolder(toArrPath(dir, 'lidarr'));

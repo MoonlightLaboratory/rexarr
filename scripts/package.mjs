@@ -4,13 +4,13 @@
  *
  *   rexarr.main.<version>.linux-x64.tar.gz        linux-arm64 / linux-arm / linux-musl-x64 / linux-musl-arm64
  *   rexarr.main.<version>.osx-arm64.tar.gz        osx-x64
- *   rexarr.main.<version>.osx-arm64-app.zip       osx-x64-app   (rexarr.app)
+ *   rexarr.main.<version>.osx-arm64-app.zip       osx-x64-app   (Rexarr.app)
  *   rexarr.main.<version>.win-x64.zip             win-x86       (installers are built from these by Inno Setup)
  *   rexarr.main.<version>.freebsd-x64.tar.gz      no bundled Node: FreeBSD has no official build (pkg install node22)
  *
  * Every package carries the built app (server/dist, client/dist, production node_modules – pure JavaScript, so the
  * same for all platforms), a Node runtime for its platform in runtime/, a launcher and a package_info file (which
- * also makes rexarr keep its data in ~/.config/rexarr or C:\ProgramData\rexarr instead of ./data).
+ * also makes Rexarr keep its data in ~/.config/rexarr or C:\ProgramData\rexarr instead of ./data).
  *
  * Usage (after `npm ci && npm run build`):
  *   node scripts/package.mjs [--out release] [--targets linux-x64,osx-arm64-app] [--node-version 22.x.y]
@@ -167,7 +167,7 @@ function localDist() {
 
 // ---------------------------------------------------------------- launchers
 const UNIX_LAUNCHER = `#!/bin/sh
-# rexarr launcher. Options: --browser opens the web UI once it is running.
+# Rexarr launcher. Options: --browser opens the web UI once it is running.
 # Data lives in ~/.config/rexarr unless REXARR_CONFIG_DIR is set; port 3939 unless REXARR_PORT is set.
 SOURCE="$0"
 while [ -h "$SOURCE" ]; do
@@ -195,12 +195,12 @@ exec "$APP/runtime/node" "$APP/server/dist/server/src/index.js" --browser
 `;
 
 const WIN_CMD = `@echo off
-rem rexarr in a console window: close the window or press Ctrl+C to stop it.
+rem Rexarr in a console window: close the window or press Ctrl+C to stop it.
 rem Data lives in C:\\ProgramData\\rexarr unless REXARR_CONFIG_DIR is set; port 3939 unless REXARR_PORT is set.
 "%~dp0runtime\\node.exe" "%~dp0server\\dist\\server\\src\\index.js" %*
 `;
 
-const WIN_VBS = `' rexarr without a console window; opens the web UI in your browser. Stop it from System > Shutdown.
+const WIN_VBS = `' Rexarr without a console window; opens the web UI in your browser. Stop it from System > Shutdown.
 Set fso = CreateObject("Scripting.FileSystemObject")
 dir = fso.GetParentFolderName(WScript.ScriptFullName)
 CreateObject("WScript.Shell").Run """" & dir & "\\runtime\\node.exe"" """ & dir & "\\server\\dist\\server\\src\\index.js"" --browser", 0, False
@@ -211,12 +211,12 @@ const infoPlist = (arch) => `<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
 <dict>
   <key>CFBundleDevelopmentRegion</key><string>en</string>
-  <key>CFBundleDisplayName</key><string>rexarr</string>
-  <key>CFBundleExecutable</key><string>rexarr</string>
-  <key>CFBundleIconFile</key><string>rexarr</string>
+  <key>CFBundleDisplayName</key><string>Rexarr</string>
+  <key>CFBundleExecutable</key><string>Rexarr</string>
+  <key>CFBundleIconFile</key><string>Rexarr</string>
   <key>CFBundleIdentifier</key><string>com.moonlightlaboratory.rexarr</string>
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-  <key>CFBundleName</key><string>rexarr</string>
+  <key>CFBundleName</key><string>Rexarr</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>${VERSION}</string>
   <key>CFBundleVersion</key><string>${VERSION}</string>
@@ -243,7 +243,7 @@ async function packageTarget(target, app) {
   const t = TARGETS[target];
   const work = path.join(STAGE, target);
   fs.rmSync(work, { recursive: true, force: true });
-  const top = t.os === 'app' ? path.join(work, 'rexarr.app') : path.join(work, 'rexarr');
+  const top = t.os === 'app' ? path.join(work, 'Rexarr.app') : path.join(work, 'rexarr');
   const files = t.os === 'app' ? path.join(top, 'Contents/Resources/rexarr') : top;
   fs.cpSync(app, files, { recursive: true });
   write(path.join(files, 'package_info'), t.os === 'windows' ? crlf(packageInfo(target)) : packageInfo(target));
@@ -257,7 +257,7 @@ async function packageTarget(target, app) {
     if (t.os !== 'windows') fs.chmodSync(path.join(files, 'runtime', bin), 0o755);
   }
 
-  if (t.os === 'unix') write(path.join(files, 'rexarr'), UNIX_LAUNCHER, 0o755);
+  if (t.os === 'unix') write(path.join(files, 'Rexarr'), UNIX_LAUNCHER, 0o755);
   if (t.os === 'windows') {
     write(path.join(files, 'rexarr.cmd'), crlf(WIN_CMD));
     write(path.join(files, 'rexarr.vbs'), crlf(WIN_VBS));
@@ -266,8 +266,8 @@ async function packageTarget(target, app) {
     fs.rmSync(path.join(files, 'rexarr.ico'));
     write(path.join(top, 'Contents/Info.plist'), infoPlist(target.includes('arm64') ? 'arm64' : 'x86_64'));
     write(path.join(top, 'Contents/PkgInfo'), 'APPL????');
-    write(path.join(top, 'Contents/MacOS/rexarr'), APP_LAUNCHER, 0o755);
-    fs.copyFileSync(path.join(ROOT, 'logo/rexarr.icns'), path.join(top, 'Contents/Resources/rexarr.icns'));
+    write(path.join(top, 'Contents/MacOS/Rexarr'), APP_LAUNCHER, 0o755);
+    fs.copyFileSync(path.join(ROOT, 'logo/rexarr.icns'), path.join(top, 'Contents/Resources/Rexarr.icns'));
   } else if (t.os !== 'windows') fs.rmSync(path.join(files, 'rexarr.ico'));
 
   const out = path.join(OUT, `rexarr.${BRANCH}.${VERSION}.${target}.${t.archive}`);
@@ -279,7 +279,7 @@ async function packageTarget(target, app) {
 }
 
 fs.mkdirSync(CACHE, { recursive: true });
-log(`rexarr ${VERSION} (${BRANCH}), Node ${NODE_VERSION}: ${selected.join(', ')}`);
+log(`Rexarr ${VERSION} (${BRANCH}), Node ${NODE_VERSION}: ${selected.join(', ')}`);
 const app = buildApp();
 for (const target of selected) await packageTarget(target, app);
 if (!flag('keep-stage')) {

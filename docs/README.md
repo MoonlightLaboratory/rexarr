@@ -1,12 +1,12 @@
-# rexarr documentation
+# Rexarr documentation
 
 > [!WARNING]
-> rexarr is in **beta**. Settings, file layout and the API can still change between releases – keep backups
+> Rexarr is in **beta**. Settings, file layout and the API can still change between releases – keep backups
 > (System → Backup) and read the release notes before updating.
 
 This is the full guide. For a quick overview see the [README](../README.md).
 
-**Remux-first transcoding for the \*arr stack.** rexarr sits next to Radarr and Sonarr, finds Blu-ray remux
+**Remux-first transcoding for the \*arr stack.** Rexarr sits next to Radarr and Sonarr, finds Blu-ray remux
 releases for the titles you pick, and re-encodes them with FFmpeg using profiles you control – container, video
 encoder, quality, audio encoder, subtitles – with built-in presets for movies, TV and anime.
 
@@ -15,7 +15,7 @@ Search (Radarr / Sonarr / Prowlarr)  →  remux-only results  →  Grab
         ↓
 *arr downloads & imports the remux
         ↓
-rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  optional replace + rescan
+Rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  optional replace + rescan
 ```
 
 ## Features
@@ -36,7 +36,7 @@ rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  opt
 - **Full-disc (ISO) releases** – `BR-DISK`, `COMPLETE.BLURAY`, BD25/50/66/100, BD-ISO, BDMV, DVD5/DVD9/DVDR and
   VIDEO_TS releases are recognised too. Grabbed discs are ripped with MakeMKV when the download finishes, then
   transcoded and imported (see below).
-- **Automatic pipeline** – grab a release, rexarr polls the \*arr app until the file is imported,
+- **Automatic pipeline** – grab a release, Rexarr polls the \*arr app until the file is imported,
   then queues the encode. Season packs expand into one job per episode.
 - **Library view** – see which movies / episodes already have a remux on disk and transcode them
   (single, multi-select, whole season).
@@ -53,7 +53,7 @@ rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  opt
 - **Command preview** – see the exact ffmpeg command a profile produces, against a sample UHD
   remux or a real file on disk.
 - **Path mappings** – translate Docker / remote \*arr paths to local paths.
-- **Disc ripping** – ARM-style: insert a disc, rexarr identifies it, rips it with MakeMKV, transcodes it and
+- **Disc ripping** – ARM-style: insert a disc, Rexarr identifies it, rips it with MakeMKV, transcodes it and
   hands it to Radarr / Sonarr.
 - **Music** – Lidarr library (artists, albums, tracks with format / bit depth / sample rate / MQA), album search
   through Lidarr's indexers and Soulseek (slskd), audio CD ripping to FLAC with MusicBrainz tags and cover art, and
@@ -123,15 +123,15 @@ AniDB). Per-type profiles can be overridden there; otherwise the default profile
 - **Schedule**: a scan runs every *Scan every (minutes)* (System → Tasks → *Auto transcode new remuxes*).
 - **Instant**: add a Webhook connection in Radarr / Sonarr (Settings → Connect, *On Import* + *On Upgrade*) pointing
   at `http://rexarr:3939/api/webhook/radarr` or `/sonarr`; a scan runs 15 seconds after each import.
-- **No loops**: every file rexarr queued, and every file it wrote, is remembered by path in `data/auto.json`, so a
+- **No loops**: every file Rexarr queued, and every file it wrote, is remembered by path in `data/auto.json`, so a
   transcode that Radarr / Sonarr re-import (still named REMUX) is never transcoded again. Files that are not visible
-  to rexarr are reported (fix the path mapping) and picked up once they are. *Reset history* forgets everything.
+  to Rexarr are reported (fix the path mapping) and picked up once they are. *Reset history* forgets everything.
 - Auto-created jobs carry an **Auto** label in Activity and are logged under System → Events.
 - API: `GET /api/auto/status`, `POST /api/auto/scan[?dryRun=1]`, `POST /api/auto/reset`, `POST /api/webhook/:arr`.
 
 ## AniDB for anime
 
-Enable **Settings → Metadata → AniDB for anime**. rexarr downloads AniDB's title dump and the
+Enable **Settings → Metadata → AniDB for anime**. Rexarr downloads AniDB's title dump and the
 [Anime-Lists](https://github.com/Anime-Lists/anime-lists) mapping (AniDB ↔ TVDB / TMDB / IMDb) – about 20 MB,
 cached for a week, no API key. With it:
 
@@ -150,9 +150,9 @@ cached for a week, no API key. With it:
 | :---: | :---: |
 | ![Disc scanned and ready to rip](screenshots/disc-ready.jpg)<br>DVD scanned by MakeMKV, titles and tracks | ![Disc ripping in progress](screenshots/disc-ripping.jpg)<br>Ripping in progress |
 
-Enable **Settings → Disc ripping** and rexarr behaves like ARM:
+Enable **Settings → Disc ripping** and Rexarr behaves like ARM:
 
-1. Insert a Blu-ray / DVD. rexarr polls the drives through `makemkvcon` and creates an entry on the **Discs** page.
+1. Insert a Blu-ray / DVD. Rexarr polls the drives through `makemkvcon` and creates an entry on the **Discs** page.
 2. The title list is read (titles shorter than *minimum title length* are skipped) and the disc label is looked
    up in Radarr (movies) and Sonarr (series). You can correct the match, pick season / first episode number, and
    choose which titles to rip.
@@ -164,12 +164,12 @@ Enable **Settings → Disc ripping** and rexarr behaves like ARM:
 
 **Drives MakeMKV does not list** (USB enclosures, a drive passed into Docker, one of several): *Discs → Add drive* and
 enter the device path – `/dev/sr0`, `/dev/cdrom` or a stable `/dev/disk/by-id/…` path on Linux, `/dev/disk4` on macOS.
-The dialog lists the optical devices it finds. rexarr checks the tray itself (Linux `/sys/block/srN`, macOS `drutil`),
+The dialog lists the optical devices it finds. Rexarr checks the tray itself (Linux `/sys/block/srN`, macOS `drutil`),
 reads the label with `blkid` / `diskutil`, and rips through MakeMKV's `dev:` source. In Docker pass both nodes
 (`--device /dev/sr0 --device /dev/sg0`); a configured drive that is missing shows up under System → Status.
 
 With *auto rip* on, steps 2–5 run without confirmation. Requires [MakeMKV](https://www.makemkv.com/) (`makemkvcon`);
-rexarr auto-detects the macOS app bundle and `/usr/bin/makemkvcon`. Ejecting uses `drutil` on macOS and `eject` on Linux.
+Rexarr auto-detects the macOS app bundle and `/usr/bin/makemkvcon`. Ejecting uses `drutil` on macOS and `eject` on Linux.
 
 ### Search
 
@@ -201,7 +201,7 @@ Disc releases get a purple *Blu-ray ISO / disc*, *UHD Blu-ray* or *DVD* badge. G
 
 1. Sends it to Radarr / Sonarr as usual and creates a job that follows the download in the app's queue
    (*Downloading full disc · 62%* in Activity).
-2. When the download completes (Radarr / Sonarr cannot import it and leave it *import pending*), rexarr maps the
+2. When the download completes (Radarr / Sonarr cannot import it and leave it *import pending*), Rexarr maps the
    queue item's `outputPath` through the path mappings and looks for `.iso` / `.img` files and `BDMV` / `VIDEO_TS`
    folders up to three levels deep (samples skipped). Multi-disc packs become one rip per disc.
 3. Each disc opens on the **Discs** page already matched to the movie / series, with the profile picked at grab time.
@@ -212,7 +212,7 @@ Disc releases get a purple *Blu-ray ISO / disc*, *UHD Blu-ray* or *DVD* badge. G
 
 Requirements: MakeMKV (Blu-ray ISOs need a registered or beta key), a path mapping for the download client's folder
 (e.g. `/downloads` → `/mnt/downloads`), and a rip folder the \*arr apps can reach. Prowlarr grabs are untracked; open
-the finished ISO with **Discs → Virtual drive**. If Radarr imports an `.iso` itself, rexarr rips that file instead.
+the finished ISO with **Discs → Virtual drive**. If Radarr imports an `.iso` itself, Rexarr rips that file instead.
 
 ## Music
 
@@ -229,7 +229,7 @@ Search (Lidarr indexers + Soulseek)  →  Grab album
         ↓
 Lidarr downloads it  /  slskd downloads the folder → Lidarr "import folder"
         ↓
-rexarr sees the imported track files  →  fre:ac with your music profile  →  Lidarr rescan
+Rexarr sees the imported track files  →  fre:ac with your music profile  →  Lidarr rescan
 ```
 
 **Music profiles** (Profiles → *Music*): container / codec, VBR or CBR, compression level, maximum sample rate and
@@ -241,7 +241,7 @@ old video profiles that used `libfdk_aac` fall back to FFmpeg's native AAC with 
 | Codec | fre:ac encoder | Tags / cover | ReplayGain |
 | --- | --- | --- | --- |
 | FLAC | `flac` (libFLAC, `-c 0…8`) | yes | yes |
-| MP3 | `lame` (`-m VBR -q N` / `-m CBR -b N`) | yes (cover re-embedded by rexarr) | yes |
+| MP3 | `lame` (`-m VBR -q N` / `-m CBR -b N`) | yes (cover re-embedded by Rexarr) | yes |
 | Opus | `opus` (`--bitrate`, `--comp`) | yes | yes (`R128`) |
 | Vorbis | `vorbis` (`-q` / `-b`) | yes | – |
 | WavPack | `wv` | yes | – |
@@ -250,21 +250,21 @@ old video profiles that used `libfdk_aac` fall back to FFmpeg's native AAC with 
 **Soulseek** (slskd): add the slskd URL and API key, the folder where slskd saves downloads, and add a Lidarr path
 mapping if Lidarr sees that folder under another path. *Also search Soulseek* in album search groups peer responses
 into album folders (one user + one directory) and shows format, bit depth, sample rate, track count, free slot
-and queue length. Grabbing queues the folder in slskd; when every file has finished rexarr asks Lidarr to import
+and queue length. Grabbing queues the folder in slskd; when every file has finished Rexarr asks Lidarr to import
 the folder, then encodes with the profile. Folders from peers with a long queue can be hidden with *Max peer
 queue*.
 
 **Image + cue downloads**: Lidarr cannot import an album that is one long FLAC / APE / WavPack / WAV file with a
-cue sheet. rexarr watches Lidarr's queue (grabs from Lidarr itself included) and, when such a download finishes,
+cue sheet. Rexarr watches Lidarr's queue (grabs from Lidarr itself included) and, when such a download finishes,
 splits it into FLAC tracks with fre:ac inside the download folder (`rexarr-split/<album folder>`), keeping bit depth
 and sample rate. Tracks get their tags from the cue sheet, plus album artist, disc number and the folder's cover
 image. Cue sheets in Shift-JIS, GBK, Big5, EUC-KR or Windows-1252 are converted to UTF-8 first, and a FILE entry
-that names the wrong file (`CDImage.wav` next to a `.flac`) is matched to the real one. rexarr then asks Lidarr to
+that names the wrong file (`CDImage.wav` next to a `.flac`) is matched to the real one. Rexarr then asks Lidarr to
 import the tracks for the same download, so the queue item completes. Soulseek folders are split the same way
 before import. Search results show such releases as *image + cue*. Downloads that already left the queue can be
 imported with Music → *Import Folder*. Turn it off in Settings → Connections → Lidarr.
 
-**Audio CDs** (Discs → drive → ♫ *Read audio CD*): rexarr reads the table of contents (macOS: the mounted
+**Audio CDs** (Discs → drive → ♫ *Read audio CD*): Rexarr reads the table of contents (macOS: the mounted
 `.TOC.plist`; Linux: `cdparanoia -Q`), computes the MusicBrainz disc id and lists matching releases – pick one or
 search by artist and album when the disc is not in MusicBrainz. Tracks are ripped by fre:ac with its paranoia
 reader (`device://cdda:<drive>/<track>`) to FLAC, tagged (album, artist, track / disc numbers, date, label,
@@ -275,9 +275,9 @@ and imported into Lidarr.
 signal (L⊕R bit stream, 36-bit sync pattern, 4-bit original sample rate code). Detected albums get an *MQA* label
 and `MQA` / `ORIGINALSAMPLERATE` tags. With *Keep MQA intact* a profile keeps such files bit-exact (FLAC at the source
 bit depth and sample rate, no dither, no resampling) and skips lossy targets, since any of those destroy the MQA
-stream. Detection is a best-effort signal check, not a licensed decoder – rexarr never unfolds MQA.
+stream. Detection is a best-effort signal check, not a licensed decoder – Rexarr never unfolds MQA.
 
-**Metadata**: Music → album → a track's 👁 *Tags and file details* button shows every tag, stream and format detail rexarr reads from the
+**Metadata**: Music → album → a track's 👁 *Tags and file details* button shows every tag, stream and format detail Rexarr reads from the
 file (the same view is available for any media file through `GET /api/media/metadata?path=`).
 
 The Docker image includes Alpine's fre:ac 1.1.7, which has FLAC, LAME MP3, Opus and Vorbis but **no WavPack or
@@ -288,7 +288,7 @@ set its path in Settings → Connections → fre:ac if it is not found; System �
 
 ![Local files](screenshots/local-files.jpg)
 
-Not every movie, show or album is added to Radarr, Sonarr or Lidarr. rexarr scans the local folder of every path
+Not every movie, show or album is added to Radarr, Sonarr or Lidarr. Rexarr scans the local folder of every path
 mapping (and any folders added in Settings → Connections → *Local media*) in the background and indexes what the
 apps do not manage:
 
@@ -310,7 +310,7 @@ search, a 210px sidebar with status messages, a 60px per-page toolbar with icon-
 sort / filter menus, `#202020` page body, `#333` cards, filled labels, 4px-radius buttons and inputs, poster
 grids with episode progress bars, backdrop detail headers and season blocks. The colour tokens in
 `client/src/styles.css` are named after Sonarr's theme variables (dark and light themes; toggle in the header)
-with Radarr's yellow as the accent. The styles are rexarr's own implementation of that look, not copied
+with Radarr's yellow as the accent. The styles are Rexarr's own implementation of that look, not copied
 source.
 
 ## Requirements
@@ -331,29 +331,29 @@ separately (see *Requirements*).
 
 | Platform | Package | How to run |
 | --- | --- | --- |
-| Windows 10 / 11 | `win-x64-installer.exe` (`win-x86-installer.exe` for 32-bit) | Run the installer, then **rexarr** from the Start menu. Portable: `win-x64.zip`, run `rexarr.vbs` (no window) or `rexarr.cmd` (console) |
-| macOS 11+ | `osx-arm64-app.zip` (Apple silicon), `osx-x64-app.zip` (Intel) | Unzip, move `rexarr.app` to Applications and open it. Terminal: `osx-*.tar.gz`, run `rexarr/rexarr` |
+| Windows 10 / 11 | `win-x64-installer.exe` (`win-x86-installer.exe` for 32-bit) | Run the installer, then **Rexarr** from the Start menu. Portable: `win-x64.zip`, run `rexarr.vbs` (no window) or `rexarr.cmd` (console) |
+| macOS 11+ | `osx-arm64-app.zip` (Apple silicon), `osx-x64-app.zip` (Intel) | Unzip, move `Rexarr.app` to Applications and open it. Terminal: `osx-*.tar.gz`, run `rexarr/rexarr` |
 | Linux (glibc: Debian, Ubuntu, Fedora…) | `linux-x64`, `linux-arm64`, `linux-arm` (32-bit Raspberry Pi OS) `.tar.gz` | `tar -xzf rexarr.main.*.tar.gz && ./rexarr/rexarr` |
 | Linux (musl: Alpine) | `linux-musl-x64`, `linux-musl-arm64` `.tar.gz` | `apk add libstdc++`, then `./rexarr/rexarr` |
 | FreeBSD | `freebsd-x64.tar.gz` (no bundled Node) | `pkg install node22`, then `./rexarr/rexarr` |
 
-Then open **http://localhost:3939**. On first launch rexarr opens **System → Tools**, which checks for FFmpeg, fre:ac,
+Then open **http://localhost:3939**. On first launch Rexarr opens **System → Tools**, which checks for FFmpeg, fre:ac,
 MakeMKV and slskd and shows how to install whichever is missing on your platform (winget / Homebrew / apt commands
 and the official download pages). The Windows installer has the same list as a *Recommended tools* page: tick a tool
 and its download page opens when setup finishes. Notes:
 
 - **Data** lives in `C:\ProgramData\rexarr` on Windows and `~/.config/rexarr` elsewhere (`REXARR_CONFIG_DIR`
   overrides it). Upgrading replaces the program files only.
-- **Stopping**: *System → Shutdown*, or close the console / press Ctrl+C. Launching rexarr again while it is running
+- **Stopping**: *System → Shutdown*, or close the console / press Ctrl+C. Launching Rexarr again while it is running
   just opens it in your browser.
 - **macOS**: the app is not notarised. If macOS says it cannot be opened, open it once from Finder with
   right-click → *Open*, or allow it under System Settings → Privacy & Security → *Open Anyway*.
-- **Linux as a service** (systemd), with rexarr extracted to `/opt/rexarr` and a `rexarr` user:
+- **Linux as a service** (systemd), with Rexarr extracted to `/opt/rexarr` and a `rexarr` user:
 
   ```ini
   # /etc/systemd/system/rexarr.service
   [Unit]
-  Description=rexarr
+  Description=Rexarr
   After=network-online.target
 
   [Service]
@@ -377,7 +377,7 @@ and its download page opens when setup finishes. Notes:
 3. The workflow builds every package with `scripts/package.mjs`, builds the Windows installers with Inno Setup
    (`distribution/windows/rexarr.iss`), starts the packages on Linux x64 / arm64, Alpine, macOS and Windows
    (`scripts/smoke-test.sh`), then publishes the GitHub release and the `ghcr.io/moonlightlaboratory/rexarr:<version>`
-   image. Pre-release is ticked by default while rexarr is in beta.
+   image. Pre-release is ticked by default while Rexarr is in beta.
 
 Build packages locally with `npm run build && node scripts/package.mjs --targets osx-arm64-app,linux-x64` (Node
 runtimes are downloaded from nodejs.org and checked against their SHA-256 sums; output in `release/`).
@@ -402,7 +402,7 @@ Environment variables:
 | ------------------- | --------- | ------------------------------------ |
 | `REXARR_PORT`       | `3939`    | HTTP port                            |
 | `REXARR_HOST`       | `0.0.0.0` | Bind address                         |
-| `REXARR_CONFIG_DIR` | `./data`  | Root of everything rexarr stores (`/config` in Docker); `REXARR_DATA_DIR` is accepted too |
+| `REXARR_CONFIG_DIR` | `./data`  | Root of everything Rexarr stores (`/config` in Docker); `REXARR_DATA_DIR` is accepted too |
 | `REXARR_CLIENT_DIR` | auto      | Override location of the built UI    |
 | `LOG_LEVEL`         | `info`    | Server log level                     |
 
@@ -465,7 +465,7 @@ docker compose up -d --build  # or build locally from ./Dockerfile
   container runtime.
 - **Disc ripping**: `makemkvcon` is not redistributable, so the default image cannot rip. Build
   `docker/Dockerfile.makemkv` yourself (it compiles MakeMKV OSS + bin from makemkv.com, accepting their EULA),
-  pass `--device /dev/sr0 --device /dev/sg0`, and enter your MakeMKV key once. Alternatively run rexarr on the
+  pass `--device /dev/sr0 --device /dev/sg0`, and enter your MakeMKV key once. Alternatively run Rexarr on the
   host for ripping and in Docker for everything else.
 - `HEALTHCHECK` hits `/api/health`; the server binds `0.0.0.0:3939`; `REXARR_PORT`, `REXARR_HOST`,
   `REXARR_DATA_DIR`, `LOG_LEVEL` are honoured.
@@ -481,7 +481,7 @@ The build stages (`npm ci` → `npm run build` → `npm prune --omit=dev` → co
 1. Open **Settings**, enable Radarr and/or Sonarr, paste the URL and API key, click **Test**, save.
 2. Check **System** – it lists the ffmpeg version and which encoders are actually available.
 3. Pick default profiles per media type (movie / TV / anime) or create your own under **Profiles**.
-4. **Search** for a title. If it is not in Radarr / Sonarr yet, rexarr adds it. Choose a profile,
+4. **Search** for a title. If it is not in Radarr / Sonarr yet, Rexarr adds it. Choose a profile,
    click **Grab** on a remux. The job appears in **Activity** as *Waiting for import* and starts
    encoding once the \*arr app has imported the download.
 5. Or go to **Movies** / **Series**, filter to *Remux only* and transcode files you already have.
@@ -492,7 +492,7 @@ Laid out like Sonarr's General settings (*Show Advanced* reveals the orange, adv
 
 - **Host** – Bind Address (`*`, `localhost` or an IP), Port, URL Base (reverse proxy sub-path, e.g. `/rexarr`),
   Instance Name (browser tab and login page), Application URL (used for webhook links), and SSL (HTTPS on its own
-  port with a PEM cert + key or a `.pfx`). Host changes need a restart: the page shows a *Restart* button, and rexarr
+  port with a PEM cert + key or a `.pfx`). Host changes need a restart: the page shows a *Restart* button, and Rexarr
   restarts its web server in place (falling back to the old port if the new one cannot be bound).
   `REXARR_PORT` / `PORT`, `REXARR_HOST` and `REXARR_URL_BASE` environment variables take precedence and lock the fields.
 - **Security** – Authentication *None*, *Basic (Browser Popup)* or *Forms (Login Page)*; *Authentication Required* can
@@ -500,7 +500,7 @@ Laid out like Sonarr's General settings (*Show Advanced* reveals the orange, adv
   Passwords are stored as salted scrypt hashes; sessions are signed cookies (30 days with *Remember me*); repeated
   failed logins are throttled and logged under System → Events. The **API key** (`X-Api-Key` header or `?apikey=`)
   always works – the webhook URLs on the Connections page include it when authentication is on. Locked out? Start
-  rexarr once with `REXARR_RESET_AUTH=1` to turn authentication off. *Certificate Validation* controls HTTPS checks for
+  Rexarr once with `REXARR_RESET_AUTH=1` to turn authentication off. *Certificate Validation* controls HTTPS checks for
   Radarr / Sonarr / Prowlarr and other servers (enabled, disabled for local addresses, disabled).
 - **Proxy** – HTTP(S) proxy (with credentials, an ignore list such as `*.local, 192.168.1.*`, and a bypass for local
   addresses) for AniDB data, cover art and remote *arr apps.
@@ -564,7 +564,7 @@ as a Radarr root folder and use the library pages). Every built-in profile has b
 
 **Disc ripping**: set **Settings → Disc ripping → Virtual drives folder** to `test-media/discs`. Every `.iso` /
 `.img` file and every DVD or Blu-ray folder (`VIDEO_TS`, `BDMV`) there appears on the **Discs** page as a loaded
-*virtual* drive. rexarr feeds it to the real `makemkvcon` through its `iso:` / `file:` sources, so scanning,
+*virtual* drive. Rexarr feeds it to the real `makemkvcon` through its `iso:` / `file:` sources, so scanning,
 identification, ripping, transcoding and *arr delivery run exactly as with a physical disc; only eject is a no-op.
 Or link images individually: **Discs → Virtual drive** adds an `.iso` / `.img` file or a `BDMV` / `VIDEO_TS`
 folder (the folder itself or its parent) as a persistent virtual drive with an optional label. It shows next to the
@@ -581,4 +581,4 @@ npm test
 
 ## License
 
-rexarr is licensed under the [GNU General Public License v3.0](../LICENSE.md). See [COPYRIGHT.md](../COPYRIGHT.md).
+Rexarr is licensed under the [GNU General Public License v3.0](../LICENSE.md). See [COPYRIGHT.md](../COPYRIGHT.md).

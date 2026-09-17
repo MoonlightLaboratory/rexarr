@@ -148,7 +148,7 @@ export function MovieDetailPage() {
                   <div className="empty">
                     <h3>No file yet</h3>
                     <p>
-                      <Link to={`/search?kind=movie&id=${movieId}`}>Search for a Blu-ray remux</Link> and rexarr will encode it once Radarr imports the download.
+                      <Link to={`/search?kind=movie&id=${movieId}`}>Search for a Blu-ray remux</Link> and Rexarr will encode it once Radarr imports the download.
                     </p>
                   </div>
                 )}

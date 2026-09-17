@@ -13,7 +13,7 @@ function forApp(mappings: PathMapping[], app: App) {
   return mappings.filter((m) => m.remote && m.local && (!m.app || m.app === 'all' || !app || m.app === app));
 }
 
-/** Translate a path reported by an *arr app into one rexarr can open. Longest remote prefix wins. */
+/** Translate a path reported by an *arr app into one Rexarr can open. Longest remote prefix wins. */
 export function toLocalPath(arrPath: string, app?: App, mappings: PathMapping[] = store.settings.pathMappings): string {
   const p = arrPath.replace(/\\/g, '/');
   const sorted = forApp(mappings, app).sort((a, b) => normalise(b.remote).length - normalise(a.remote).length || Number(Boolean(b.app && b.app !== 'all')) - Number(Boolean(a.app && a.app !== 'all')));

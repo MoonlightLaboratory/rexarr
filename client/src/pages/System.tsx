@@ -55,10 +55,10 @@ export function SystemPage() {
   useEffect(() => load(), []);
   const shutdown = async () => {
     const active = info?.jobs.active ?? 0;
-    if (!confirm(active ? `Shut down rexarr? ${active} running encode(s) will be stopped and restarted from the beginning next time.` : 'Shut down rexarr? You will need to start it again from your computer.')) return;
+    if (!confirm(active ? `Shut down Rexarr? ${active} running encode(s) will be stopped and restarted from the beginning next time.` : 'Shut down Rexarr? You will need to start it again from your computer.')) return;
     try {
       await api.shutdown();
-      toast('warn', 'rexarr is shutting down');
+      toast('warn', 'Rexarr is shutting down');
     } catch (e) {
       toast('error', (e as Error).message);
     }
@@ -90,7 +90,7 @@ export function SystemPage() {
         {!healthLoaded ? (
           <div className="card-b dim">Running health checks (network shares can take a few seconds)…</div>
         ) : health.length === 0 ? (
-          <div className="card-b dim">No issues found. rexarr can reach ffmpeg, your *arr apps and the files they report.</div>
+          <div className="card-b dim">No issues found. Rexarr can reach ffmpeg, your *arr apps and the files they report.</div>
         ) : (
           <table className="tbl">
             <thead>
@@ -180,7 +180,7 @@ export function SystemPage() {
               </div>
               <div className="card-h">About</div>
               <div className="card-b">
-                <div className="field row"><label>rexarr</label><span>v{info.version}</span></div>
+                <div className="field row"><label>Rexarr</label><span>v{info.version}</span></div>
                 <div className="field row">
                   <label>Installed as</label>
                   <span>{!info.package ? 'Source' : info.package.runtime === 'docker' ? 'Docker' : `Release package (${info.package.runtime}, ${info.package.branch})`}</span>

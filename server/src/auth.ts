@@ -102,7 +102,7 @@ export function registerAuth(app: FastifyInstance, urlBase: string) {
         const [user, ...rest] = Buffer.from(h.slice(6), 'base64').toString().split(':');
         if (checkCredentials(user, rest.join(':'), clientIp(req))) return;
       }
-      return reply.code(401).header('WWW-Authenticate', `Basic realm="${store.settings.general.host.instanceName || 'rexarr'}", charset="UTF-8"`).send({ error: 'authentication required' });
+      return reply.code(401).header('WWW-Authenticate', `Basic realm="${store.settings.general.host.instanceName || 'Rexarr'}", charset="UTF-8"`).send({ error: 'authentication required' });
     }
 
     // forms

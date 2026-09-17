@@ -6,9 +6,9 @@ export function openBrowser(url: string) {
     process.platform === 'darwin' ? ['open', [url]] : process.platform === 'win32' ? ['cmd', ['/c', 'start', '""', url]] : ['xdg-open', [url]];
   try {
     const child = spawn(cmd, args, { stdio: 'ignore', detached: true, windowsHide: true });
-    child.on('error', () => console.log(`[rexarr] open ${url} in your browser`));
+    child.on('error', () => console.log(`[Rexarr] open ${url} in your browser`));
     child.unref();
   } catch {
-    console.log(`[rexarr] open ${url} in your browser`);
+    console.log(`[Rexarr] open ${url} in your browser`);
   }
 }

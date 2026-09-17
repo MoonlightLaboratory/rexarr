@@ -104,10 +104,10 @@ export function BackupPage() {
     }
   };
   const restoreFile = async (f: File) => {
-    if (!confirm(`Restore configuration from ${f.name}? Current settings, profiles and history will be overwritten and rexarr must be restarted.`)) return;
+    if (!confirm(`Restore configuration from ${f.name}? Current settings, profiles and history will be overwritten and Rexarr must be restarted.`)) return;
     await act(async () => {
       const r = await api.restoreBackupUpload(f);
-      toast('warn', `Restored ${r.restored.join(', ')} – restart rexarr to apply`);
+      toast('warn', `Restored ${r.restored.join(', ')} – restart Rexarr to apply`);
     });
   };
   return (
@@ -163,7 +163,7 @@ export function BackupPage() {
                     <a className="iconButton" href={withBase(`/api/system/backups/${encodeURIComponent(b.name)}`)} download title="Download">
                       <Icon.Download />
                     </a>
-                    <button className="iconButton" title="Restore" disabled={busy} onClick={() => confirm(`Restore ${b.name}? Current configuration will be overwritten and rexarr must be restarted.`) && act(() => api.restoreBackup(b.name).then((r) => toast('warn', `Restored ${r.restored.join(', ')} – restart rexarr to apply`)))}>
+                    <button className="iconButton" title="Restore" disabled={busy} onClick={() => confirm(`Restore ${b.name}? Current configuration will be overwritten and Rexarr must be restarted.`) && act(() => api.restoreBackup(b.name).then((r) => toast('warn', `Restored ${r.restored.join(', ')} – restart Rexarr to apply`)))}>
                       <Icon.Refresh />
                     </button>
                     <button className="iconButton danger" title="Delete" disabled={busy} onClick={() => confirm(`Delete ${b.name}?`) && act(() => api.deleteBackup(b.name), 'Backup deleted')}>

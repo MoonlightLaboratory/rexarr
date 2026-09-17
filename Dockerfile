@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1.7
-# rexarr – remux-first transcoding companion for the *arr stack
+# Rexarr – remux-first transcoding companion for the *arr stack
 #
-#   docker build -t rexarr .
+#   docker build -t Rexarr .
 #   docker run -d -p 3939:3939 -e PUID=1000 -e PGID=1000 \
-#     -v ./config:/config -v /path/to/media:/data/media rexarr
+#     -v ./config:/config -v /path/to/media:/data/media Rexarr
 #
 # Runtime: Node 22 on Alpine with the distro ffmpeg (x264, x265, SVT-AV1, libaom, VP9, Opus, VAAPI) and fre:ac
 # for music (FLAC, LAME MP3, Opus, Vorbis; this build has no WavPack / Monkey's Audio encoder).
@@ -27,7 +27,7 @@ RUN npm run build \
 # ---------- runtime ----------
 FROM node:22-alpine
 ARG REXARR_VERSION=0.1.4.2
-LABEL org.opencontainers.image.title="rexarr" \
+LABEL org.opencontainers.image.title="Rexarr" \
       org.opencontainers.image.description="Remux-first transcoding, music and disc ripping companion for Radarr, Sonarr and Lidarr" \
       org.opencontainers.image.source="https://github.com/MoonlightLaboratory/rexarr" \
       org.opencontainers.image.licenses="GPL-3.0-or-later" \

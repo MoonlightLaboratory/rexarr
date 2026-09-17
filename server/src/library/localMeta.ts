@@ -7,7 +7,7 @@
  *
  * Matching runs in the background after each scan, one title at a time, and only for titles without a match (or
  * whose last attempt is old). Results are kept in data/local-meta.json by item id; Fix Match stores a manual choice
- * that later runs never overwrite. Images go through rexarr's image proxy and cache.
+ * that later runs never overwrite. Images go through Rexarr's image proxy and cache.
  */
 import fs from 'node:fs';
 import path from 'node:path';

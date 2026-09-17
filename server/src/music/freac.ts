@@ -27,7 +27,7 @@ export interface FreacInfo {
   error?: string;
 }
 
-/** Encoders rexarr will use: all open source. */
+/** Encoders Rexarr will use: all open source. */
 export const OPEN_ENCODERS = ['flac', 'lame', 'opus', 'vorbis', 'wv', 'mac'] as const;
 
 const CANDIDATES = [

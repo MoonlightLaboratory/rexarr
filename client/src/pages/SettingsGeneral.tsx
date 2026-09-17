@@ -176,7 +176,7 @@ export function SettingsGeneralPage() {
           /* still restarting */
         }
       }
-      toast('warn', `rexarr did not come back on port ${r.port}. Check System → Events.`);
+      toast('warn', `Rexarr did not come back on port ${r.port}. Check System → Events.`);
     } catch (e) {
       toast('error', (e as Error).message);
     } finally {
@@ -232,7 +232,7 @@ export function SettingsGeneralPage() {
     >
       {rt?.restartRequired && (
         <div className="warn">
-          Host settings were changed. rexarr is still listening on port {rt.port}
+          Host settings were changed. Rexarr is still listening on port {rt.port}
           {rt.urlBase ? ` with URL base ${rt.urlBase}` : ''}.{' '}
           <button className="btn sm warning" onClick={doRestart} disabled={restarting}>
             {restarting ? <span className="spinner" /> : <Icon.Refresh />} Restart now
@@ -287,8 +287,8 @@ export function SettingsGeneralPage() {
         <FormGroup
           label="Authentication"
           show={adv}
-          help="Require Username and Password to access rexarr"
-          warning={g.security.authentication === 'none' && !localBind ? 'Without authentication anyone who can reach rexarr can change settings, grab releases and delete files. You can still skip it for local addresses.' : undefined}
+          help="Require Username and Password to access Rexarr"
+          warning={g.security.authentication === 'none' && !localBind ? 'Without authentication anyone who can reach Rexarr can change settings, grab releases and delete files. You can still skip it for local addresses.' : undefined}
         >
           <select value={g.security.authentication} onChange={(e) => set('security', { authentication: e.target.value as GeneralSettings['security']['authentication'] })}>
             <option value="none">None</option>
@@ -396,7 +396,7 @@ export function SettingsGeneralPage() {
           label="Automatic"
           advanced
           show={adv}
-          warning={g.updates.mechanism === 'docker' ? 'Automatic updates are not directly supported when using the Docker update mechanism. You will need to update the container image outside of rexarr or use a script' : g.updates.automatic ? 'rexarr has no update server yet, so there is nothing to install automatically. Use a script or your package manager.' : undefined}
+          warning={g.updates.mechanism === 'docker' ? 'Automatic updates are not directly supported when using the Docker update mechanism. You will need to update the container image outside of Rexarr or use a script' : g.updates.automatic ? 'Rexarr has no update server yet, so there is nothing to install automatically. Use a script or your package manager.' : undefined}
         >
           <label className="check">
             <input type="checkbox" checked={g.updates.automatic} disabled={g.updates.mechanism === 'docker'} onChange={(e) => set('updates', { automatic: e.target.checked })} />{' '}
@@ -419,7 +419,7 @@ export function SettingsGeneralPage() {
 
       <fieldset className="fieldSet">
         <legend>Backups</legend>
-        <FormGroup label="Folder" advanced show={adv} help={`Relative paths will be under rexarr's config directory${rt ? ` (${rt.configDir})` : ''}. Empty uses ${rt?.defaultBackupFolder ?? 'the default Backups folder'}.`}>
+        <FormGroup label="Folder" advanced show={adv} help={`Relative paths will be under Rexarr's config directory${rt ? ` (${rt.configDir})` : ''}. Empty uses ${rt?.defaultBackupFolder ?? 'the default Backups folder'}.`}>
           <PathInput value={g.backups.folder} onChange={(v) => set('backups', { folder: v })} folders title="Backup folder" placeholder={rt?.defaultBackupFolder ?? 'Backups'} />
         </FormGroup>
         <FormGroup label="Interval" advanced show={adv} help="Interval between automatic backups">
