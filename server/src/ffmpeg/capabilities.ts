@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { AudioEncoder, FfmpegCapabilities, VideoEncoder } from '../../../shared/types.js';
 import { AUDIO_ENCODER_INFO, VIDEO_ENCODER_INFO } from '../../../shared/presets.js';
+import { toolError } from '../spawnError.js';
 
 const run = promisify(execFile);
 
@@ -30,7 +31,7 @@ export async function ffmpegCapabilities(ffmpegPath: string, force = false): Pro
     }
     caps.available = true;
   } catch (err) {
-    caps.error = (err as Error).message;
+    caps.error = toolError(err, ffmpegPath);
   }
   cache = { path: ffmpegPath, caps, at: Date.now() };
   return caps;

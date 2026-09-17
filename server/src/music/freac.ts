@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import type { Profile } from '../../../shared/types.js';
+import { toolError } from '../spawnError.js';
 
 const run = promisify(execFile);
 
@@ -57,8 +58,9 @@ export async function freacInfo(configured: string, force = false): Promise<Frea
     // --help exits non-zero; its text is what we need
     const out = await run(bin, ['--help'], { timeout: 20_000, maxBuffer: 1024 * 1024 }).then(
       (r) => `${r.stdout}${r.stderr}`,
-      (e: { stdout?: string; stderr?: string; code?: string }) => {
-        if (e.code === 'ENOENT') throw new Error(`freaccmd not found at "${bin}"`);
+      (e: { stdout?: string; stderr?: string; code?: string | number; errno?: number }) => {
+        // a non-zero exit is expected; a string code (ENOENT, EACCES, …) means it could not start at all
+        if (typeof e.code === 'string' || e.errno === -86) throw new Error(toolError(e, bin));
         return `${e.stdout ?? ''}${e.stderr ?? ''}`;
       },
     );

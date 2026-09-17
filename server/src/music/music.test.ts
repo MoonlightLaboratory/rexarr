@@ -6,6 +6,7 @@ import { BUILTIN_PROFILES } from '../../../shared/presets.js';
 import { discId, parseCdparanoiaToc, parseTocPlist, tocString } from './musicbrainz.js';
 import { formatLabel, musicCategory, musicFormatFromText } from './format.js';
 import { crashedAfterDone, freacEncoderArgs } from './freac.js';
+import { toolError } from '../spawnError.js';
 import { detectMqaInSamples, MQA_SYNC } from '../audio/mqa.js';
 import { groupResponses, splitSoulseekPath } from '../arr/slskd.js';
 import { rankReleases } from '../search/releaseInfo.js';
@@ -176,4 +177,12 @@ test('fre:ac crash on exit is only forgiven after every file finished', () => {
   assert.equal(crashedAfterDone(bin, null, 'SIGSEGV', 'Processing file: a.wav...done.\n\nError: Unable to create output file: a.flac\naborted.'), false);
   assert.equal(crashedAfterDone(bin, 1, null, 'Processing file: a.wav...done.'), false);
   assert.equal(crashedAfterDone('/usr/bin/ffmpeg', null, 'SIGSEGV', 'Processing file: a.wav...done.'), false);
+});
+
+test('tool errors explain themselves', () => {
+  const wrongArch = { errno: -86, code: 'UNKNOWN', message: 'spawn Unknown system error -86' };
+  assert.match(toolError(wrongArch, '/usr/local/bin/ffmpeg'), /different processor|Apple silicon/);
+  assert.match(toolError({ code: 'ENOENT' }, '/usr/bin/freaccmd'), /freaccmd was not found/);
+  assert.match(toolError({ code: 'EACCES' }, '/opt/x/ffmpeg'), /not executable/);
+  assert.equal(toolError({ message: 'something else' }, 'ffmpeg'), 'something else');
 });
