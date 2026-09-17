@@ -174,11 +174,32 @@ export function parseDiscInfo(stdout: string): DiscInfo {
   return { type, name: disc[A.name] ?? disc[A.volumeName] ?? '', volumeName: disc[A.volumeName] ?? '', titles: out.sort((a, b) => a.id - b.id) };
 }
 
+/**
+ * macOS mounts a DVD as soon as it is inserted, and MakeMKV then falls back to "OS access mode", which cannot read
+ * most discs ("Failed to open disc", no titles). Unmounting the volume – the disc stays in the drive – gives it
+ * direct disc access. Does nothing on other platforms or when the disc is not mounted.
+ */
+export async function unmountForDirectAccess(devicePath: string): Promise<string | null> {
+  if (process.platform !== 'darwin') return null;
+  const dev = devicePath.trim().replace(/^\/dev\/r/, '/dev/');
+  if (!dev.startsWith('/dev/')) return null;
+  const info = await run('diskutil', ['info', dev], { timeout: 10_000 }).then((r) => r.stdout, () => '');
+  if (!/^\s*Mounted:\s*Yes/im.test(info)) return null;
+  const ok = await run('diskutil', ['unmount', dev], { timeout: 30_000 }).then(() => true, () => false);
+  return ok ? `Unmounted ${dev} so MakeMKV can read the disc directly (macOS keeps DVDs mounted)` : `Could not unmount ${dev}; MakeMKV may fail to open the disc`;
+}
+
 export async function readDisc(makemkv: string, source: string, minLengthSeconds: number): Promise<DiscInfo> {
   const { stdout } = await run(makemkv, ['-r', '--cache=1', `--minlength=${Math.max(0, Math.floor(minLengthSeconds))}`, 'info', source], { timeout: 15 * 60_000, maxBuffer: 64 * 1024 * 1024 }).catch((e: { stdout?: string; message?: string }) => {
     if (e.stdout) return { stdout: e.stdout };
     throw new Error(e.message ?? 'makemkvcon failed');
   });
+  // an empty title list is usually this, not a disc without titles
+  if (/Failed to open disc/i.test(stdout)) {
+    throw new Error(
+      `MakeMKV could not open the disc${process.platform === 'darwin' ? ' (macOS may still have it mounted: eject and reinsert it, or unmount the volume in Disk Utility)' : ' – check that the drive can read it and that MakeMKV has access to the device'}`,
+    );
+  }
   return parseDiscInfo(stdout);
 }
 
