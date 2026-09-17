@@ -16,7 +16,7 @@ import { freacInfo, ripCdTrack } from '../music/freac.js';
 import { detectMqa } from '../audio/mqa.js';
 import { proxiedImage } from '../routes/images.js';
 import { appEvents } from '../system.js';
-import { ejectDrive, labelToTitle, listDrives, listVirtualDrives, readDisc, resolveMakemkv, ripTitle, virtualDriveForPath, type RipHandle } from './makemkv.js';
+import { ejectDrive, labelToTitle, listDrives, listVirtualDrives, readDisc, resolveMakemkv, ripTitle, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
 
 /** Pre-filled details for a rip that did not come from a physical drive (e.g. a grabbed full-disc release). */
 export interface RipPreset {
@@ -213,6 +213,10 @@ export class DiscManager {
     this.emit(rip);
     // Audio CDs never reach MakeMKV: read the table of contents first.
     if (await this.scanCd(rip).catch((err: Error) => (this.log(rip, `Audio CD check failed: ${err.message}`), false))) return;
+    if (!rip.virtual && rip.drivePath) {
+      const unmounted = await unmountForDirectAccess(rip.drivePath).catch(() => null);
+      if (unmounted) this.log(rip, unmounted);
+    }
     this.log(rip, 'Reading disc structure with MakeMKV…');
     this.emit(rip);
     try {
@@ -628,6 +632,11 @@ export class DiscManager {
 
   private async runRip(rip: DiscRip, titles: DiscRip['titles']) {
     try {
+      // macOS may have remounted the disc since the scan
+      if (!rip.virtual && rip.drivePath) {
+        const unmounted = await unmountForDirectAccess(rip.drivePath).catch(() => null);
+        if (unmounted) this.log(rip, unmounted);
+      }
       for (let i = 0; i < titles.length; i++) {
         const t = titles[i];
         rip.progress.titleIndex = i + 1;
