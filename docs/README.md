@@ -221,7 +221,8 @@ the finished ISO with **Discs → Virtual drive**. If Radarr imports an `.iso` i
 Discs often carry the same language several times – DTS 5.1, Dolby Digital 5.1 and a stereo track. **Best audio per
 language** (the default, *Settings → Disc ripping*) keeps the best one per language: lossless first (TrueHD,
 DTS-HD MA, LPCM, FLAC), then DTS over Dolby Digital, then more channels, then the higher bitrate; commentary tracks
-are never the automatic pick. Pick a specific track per title in the **Audio** column, or switch to *All tracks*.
+are never the automatic pick. Tick the tracks you want per title in the **Audio** column – several at once is fine – and *Apply to all titles* copies
+that choice to every episode on the disc.
 
 Tracks that are not kept are dropped from the ripped MKV by a stream copy (no re-encode), which also shrinks the file
 before it is transcoded: on a Naruto DVD, 6 audio tracks down to 1 took a title from 1.58 GB to 1.21 GB.

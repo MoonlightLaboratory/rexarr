@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { MusicBrainzRelease, DriveCandidate, DiscAudioTrack, DiscDrive, DiscEstimate, DiscRip, DiscTitle, Episode, LookupResult, MakemkvInfo, RipMedia, RipOptions, RipStatus } from '@shared/types';
 import { api, fmtAge, fmtBytes, fmtDuration, ripOverallPercent } from '../api';
@@ -693,6 +693,11 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
                           setSelectedAudio((m) => ({ ...m, [String(t.id)]: next }));
                           setAudioMode('custom');
                         }}
+                        onApplyAll={(next) => {
+                          setSelectedAudio(Object.fromEntries(rip.titles.map((x) => [String(x.id), next.filter((i) => (x.audioTracks ?? []).some((a) => a.index === i))])));
+                          setAudioMode('custom');
+                          toast('info', `Audio selection applied to ${rip.titles.length} title(s)`);
+                        }}
                       />
                     </td>
                     <td className="dim small" title={t.subtitles.join('\n')}>
@@ -767,27 +772,94 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
 }
 
 /** One title's audio tracks: automatic (best per language) or a hand-picked track. */
-function AudioPicker({ title, mode, custom, onChange }: { title: DiscTitle; mode: 'best' | 'all' | 'custom'; custom?: number[]; onChange: (next: number[]) => void }) {
+function AudioPicker({
+  title,
+  mode,
+  custom,
+  onChange,
+  onApplyAll,
+}: {
+  title: DiscTitle;
+  mode: 'best' | 'all' | 'custom';
+  custom?: number[];
+  onChange: (next: number[]) => void;
+  onApplyAll: (next: number[]) => void;
+}) {
   const tracks = title.audioTracks ?? [];
+  const [open, setOpen] = useState(false);
+  // fixed position: the menu is wider than the Audio column and would be clipped by the table's scroll area
+  const [at, setAt] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const r = box.current?.getBoundingClientRect();
+      if (!r) return;
+      const width = 310;
+      setAt({ top: Math.min(r.bottom + 2, window.innerHeight - 260), left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)) });
+    };
+    place();
+    const close = (e: MouseEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open]);
   if (!tracks.length) return <span className="muted">—</span>;
+
   const auto = bestAudioTracks(tracks);
-  const value = mode === 'custom' && custom?.length === 1 ? String(custom[0]) : mode === 'all' ? 'all' : 'auto';
-  const autoLabel = auto.map((i) => tracks[i]?.language || '?').join(' + ');
+  const kept = mode === 'all' ? tracks.map((t) => t.index) : mode === 'custom' && custom?.length ? custom : auto;
+  const toggle = (index: number, on: boolean) => {
+    const next = on ? [...new Set([...kept, index])].sort((a, b) => a - b) : kept.filter((i) => i !== index);
+    if (next.length) onChange(next);
+  };
+  const short = (i: number) => {
+    const t = tracks.find((x) => x.index === i);
+    if (!t) return '?';
+    return [(t.language || 'und').toUpperCase(), t.codec, t.channels && t.channels > 2 ? `${t.channels}ch` : ''].filter(Boolean).join(' ');
+  };
+  const summary = kept.length === tracks.length ? `all ${tracks.length}` : `${kept.slice(0, 2).map(short).join(' · ')}${kept.length > 2 ? ` +${kept.length - 2}` : ''}`;
+
   return (
-    <select
-      className="audioPick"
-      value={value}
-      title={tracks.map((t) => t.label).join('\n')}
-      onChange={(e) => onChange(e.target.value === 'all' ? tracks.map((t) => t.index) : e.target.value === 'auto' ? auto : [Number(e.target.value)])}
-    >
-      <option value="auto">Best per language ({autoLabel})</option>
-      <option value="all">All {tracks.length} tracks</option>
-      {tracks.map((t) => (
-        <option key={t.index} value={t.index}>
-          {t.label}
-        </option>
-      ))}
-    </select>
+    <div className="audioPick" ref={box}>
+      <button type="button" className="audioPickButton" onClick={() => setOpen((o) => !o)} title={kept.map((i) => tracks.find((t) => t.index === i)?.label).join('\n')}>
+        <span className="truncate">
+          {kept.length}/{tracks.length} · {summary}
+        </span>
+        <Icon.ChevronDown />
+      </button>
+      {open && (
+        <div className="audioPickMenu" style={{ top: at.top, left: at.left }}>
+          {tracks.map((t) => (
+            <label key={t.index} className="audioPickRow">
+              <input type="checkbox" checked={kept.includes(t.index)} onChange={(e) => toggle(t.index, e.target.checked)} />
+              <span className="truncate" title={t.label}>
+                {t.label}
+              </span>
+              {auto.includes(t.index) && <span className="badge sm outline green" title="Best track for this language">best</span>}
+            </label>
+          ))}
+          <div className="audioPickActions">
+            <button type="button" className="btn sm" onClick={() => onChange(auto)}>
+              Best per language
+            </button>
+            <button type="button" className="btn sm" onClick={() => onChange(tracks.map((t) => t.index))}>
+              All
+            </button>
+            <span className="spacer" />
+            <button type="button" className="btn sm primary" onClick={() => { onApplyAll(kept); setOpen(false); }} title="Use these tracks for every title on this disc">
+              Apply to all titles
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
