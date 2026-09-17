@@ -1035,3 +1035,12 @@ table.metaTags td.mono { word-break: break-word; }
 .ripEstimateBar .v { background: var(--themeBlue); }
 .ripEstimateBar .a { background: var(--purple); }
 .ripEstimateBar .s { background: var(--themeOrange, #e5a00d); }
+.audioPick { position: relative; max-width: 230px; }
+.audioPickButton { display: flex; align-items: center; gap: 6px; width: 100%; height: 26px; padding: 0 6px; border: 1px solid var(--inputBorderColor, var(--defaultBorderColor)); border-radius: 4px; background: var(--inputBackgroundColor); color: var(--textColor); font-size: var(--smallFontSize); cursor: pointer; }
+.audioPickButton .truncate { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audioPickButton svg { width: 12px; height: 12px; flex-shrink: 0; color: var(--helpTextColor); }
+.audioPickMenu { position: fixed; z-index: 60; width: 310px; padding: 6px; border: 1px solid var(--defaultBorderColor); border-radius: 4px; background: var(--menuBackgroundColor, var(--cardBackgroundColor)); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); }
+.audioPickRow { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 3px; cursor: pointer; }
+.audioPickRow:hover { background: var(--tableRowHoverBackgroundColor, rgba(255, 255, 255, 0.05)); }
+.audioPickRow .truncate { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audioPickActions { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--defaultBorderColor); }
