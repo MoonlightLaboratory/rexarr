@@ -12,12 +12,13 @@ import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import { promisify } from 'node:util';
 import { toolError } from '../spawnError.js';
-import type { DiscDrive, DiscTitle, DriveState, MakemkvInfo } from '../../../shared/types.js';
+import { codecRank } from './audio.js';
+import type { DiscAudioTrack, DiscDrive, DiscTitle, DriveState, MakemkvInfo } from '../../../shared/types.js';
 
 const run = promisify(execFile);
 
 // Attribute codes from MakeMKV's apdefs.h
-const A = { type: 1, name: 2, langCode: 3, codecShort: 6, codecLong: 7, chapters: 8, duration: 9, sizeBytes: 11, channels: 14, sourceFile: 16, videoSize: 19, frameRate: 21, outputFile: 27, volumeName: 32 } as const;
+const A = { type: 1, name: 2, langCode: 3, langName: 4, codecShort: 6, codecLong: 7, chapters: 8, duration: 9, sizeBytes: 11, bitrate: 13, channels: 14, sourceFile: 16, videoSize: 19, frameRate: 21, outputFile: 27, volumeName: 32, channelLayout: 40 } as const;
 
 const KNOWN_PATHS = ['/Applications/MakeMKV.app/Contents/MacOS/makemkvcon', '/usr/bin/makemkvcon', '/usr/local/bin/makemkvcon', 'C:\\Program Files (x86)\\MakeMKV\\makemkvcon64.exe', 'C:\\Program Files (x86)\\MakeMKV\\makemkvcon.exe'];
 
@@ -143,6 +144,7 @@ export function parseDiscInfo(stdout: string): DiscInfo {
   for (const [id, t] of titles) {
     const ts = streams.get(id) ?? new Map();
     const audio: string[] = [];
+    const audioTracks: DiscAudioTrack[] = [];
     const subs: string[] = [];
     let videoCodec: string | undefined;
     let resolution: string | undefined;
@@ -153,7 +155,24 @@ export function parseDiscInfo(stdout: string): DiscInfo {
         videoCodec = s[A.codecShort];
         resolution = s[A.videoSize];
         frameRate = s[A.frameRate];
-      } else if (kind === 'audio') audio.push([s[A.codecShort], s[A.channels] ? `${s[A.channels]}ch` : '', s[A.langCode]].filter(Boolean).join(' '));
+      } else if (kind === 'audio') {
+        const codec = s[A.codecShort] ?? s[A.codecLong] ?? 'audio';
+        const channels = Number(s[A.channels]) || undefined;
+        const kbps = Math.round(Number((s[A.bitrate] ?? '').replace(/[^\d.]/g, '')) || 0) || undefined;
+        const track: DiscAudioTrack = {
+          index: audioTracks.length,
+          codec,
+          language: (s[A.langCode] ?? '').toLowerCase(),
+          languageName: s[A.langName],
+          channels,
+          bitrateKbps: kbps,
+          name: s[A.name],
+          lossless: codecRank(codec).lossless,
+          label: [s[A.langName] || s[A.langCode] || 'Unknown', [codec, s[A.channelLayout] ?? (channels ? `${channels}ch` : ''), kbps ? `${kbps} kbps` : ''].filter(Boolean).join(' ')].filter(Boolean).join(' · '),
+        };
+        audioTracks.push(track);
+        audio.push([codec, channels ? `${channels}ch` : '', s[A.langCode]].filter(Boolean).join(' '));
+      }
       else if (kind === 'subtitles') subs.push([s[A.codecShort], s[A.langCode]].filter(Boolean).join(' '));
     }
     out.push({
@@ -168,6 +187,7 @@ export function parseDiscInfo(stdout: string): DiscInfo {
       resolution,
       frameRate,
       audio,
+      audioTracks,
       subtitles: subs,
     });
   }

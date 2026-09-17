@@ -17,6 +17,8 @@ import { detectMqa } from '../audio/mqa.js';
 import { proxiedImage } from '../routes/images.js';
 import { appEvents } from '../system.js';
 import { ejectDrive, labelToTitle, listDrives, listVirtualDrives, readDisc, resolveMakemkv, ripTitle, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
+import { audioSelectionFor, describeTracks } from './audio.js';
+import { keepAudioTracks } from './remux.js';
 
 /** Pre-filled details for a rip that did not come from a physical drive (e.g. a grabbed full-disc release). */
 export interface RipPreset {
@@ -335,7 +337,7 @@ export class DiscManager {
     rip.startedAt = new Date().toISOString();
     rip.finishedAt = undefined;
     const titles = rip.titles.filter((t) => rip.selectedTitleIds.includes(t.id)).sort((a, b) => a.id - b.id);
-    rip.progress = { percent: 0, step: '', titleIndex: 0, titleCount: titles.length };
+    rip.progress = { percent: 0, step: '', titleIndex: 0, titleCount: titles.length, startedAt: new Date().toISOString() };
     this.log(rip, `Ripping ${titles.length} track(s) with fre:ac to ${rip.outputDir}`);
     store.saveRips();
     this.emit(rip);
@@ -402,6 +404,17 @@ export class DiscManager {
         const name = `${String(t.id).padStart(2, '0')} - ${safeName(mt?.title ?? t.name)}.flac`;
         const dest = path.join(rip.outputDir!, name);
         await this.tagCdTrack(raw, dest, rip, t.id, titles.length, cover);
+        const keep = audioSelectionFor(t, rip.audioMode ?? store.settings.disc.audioMode ?? 'best', rip.selectedAudio?.[String(t.id)]);
+        if (keep.length && keep.length < (t.audioTracks?.length ?? 0)) {
+          rip.progress.step = 'Removing unwanted audio tracks';
+          this.emit(rip);
+          try {
+            await keepAudioTracks(store.settings.ffmpegPath, dest, keep);
+            this.log(rip, `Kept ${keep.length} of ${t.audioTracks!.length} audio track(s): ${describeTracks(t, keep)}`);
+          } catch (err) {
+            this.log(rip, `Could not drop the other audio tracks (all kept): ${(err as Error).message}`);
+          }
+        }
         const size = fs.statSync(dest).size;
         rip.files.push({ titleId: t.id, path: dest, sizeBytes: size });
         this.log(rip, `Ripped → ${name} (${(size / 1e6).toFixed(1)} MB)`);
@@ -576,7 +589,7 @@ export class DiscManager {
   }
 
   /** User overrides from the UI. */
-  update(id: string, patch: { media?: Partial<RipMedia>; selectedTitleIds?: number[]; episodeMap?: Record<number, number>; profileId?: string; options?: Partial<RipOptions> }) {
+  update(id: string, patch: { media?: Partial<RipMedia>; selectedTitleIds?: number[]; episodeMap?: Record<number, number>; profileId?: string; options?: Partial<RipOptions>; audioMode?: 'best' | 'all' | 'custom'; selectedAudio?: Record<string, number[]> }) {
     const rip = this.get(id);
     if (!rip) throw new Error('rip not found');
     if (patch.media) {
@@ -590,6 +603,11 @@ export class DiscManager {
       // No explicit mapping: number the selected titles sequentially from the (possibly new) first episode.
       const start = rip.media.episodeStart ?? 1;
       rip.episodeMap = Object.fromEntries(rip.selectedTitleIds.map((id, i) => [id, start + i]));
+    }
+    if (patch.audioMode) rip.audioMode = patch.audioMode;
+    if (patch.selectedAudio) {
+      rip.selectedAudio = { ...rip.selectedAudio, ...patch.selectedAudio };
+      rip.audioMode = 'custom';
     }
     if (patch.profileId) {
       const p = store.getProfile(patch.profileId);
@@ -656,6 +674,7 @@ export class DiscManager {
           (pct, step) => {
             rip.progress.percent = pct;
             rip.progress.step = step;
+            rip.progress.etaSeconds = ripEta(rip, i, pct);
             if (Date.now() - lastEmit > 1000) {
               lastEmit = Date.now();
               this.emit(rip);
@@ -682,6 +701,8 @@ export class DiscManager {
         this.emit(rip);
       }
       rip.progress.percent = 100;
+      rip.progress.etaSeconds = 0;
+      if (rip.progress.startedAt) rip.ripSeconds = Math.round((Date.now() - new Date(rip.progress.startedAt).getTime()) / 1000);
       if (rip.options.transcode) {
         rip.status = 'transcoding';
         this.log(rip, `Queuing ${rip.files.length} file(s) for transcoding with "${rip.profileName}"`);
@@ -970,3 +991,14 @@ export class DiscManager {
 }
 
 export const discs = new DiscManager();
+
+/** Seconds left for the whole rip, from how long the finished titles took plus progress on the current one. */
+function ripEta(rip: DiscRip, titleIndex: number, percent: number): number | undefined {
+  const started = rip.progress.startedAt ? new Date(rip.progress.startedAt).getTime() : 0;
+  if (!started) return undefined;
+  const elapsed = (Date.now() - started) / 1000;
+  const done = titleIndex + Math.min(100, Math.max(0, percent)) / 100;
+  if (done < 0.02 || elapsed < 5) return undefined;
+  const perTitle = elapsed / done;
+  return Math.max(0, Math.round(perTitle * (rip.progress.titleCount - done)));
+}

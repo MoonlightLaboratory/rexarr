@@ -345,6 +345,7 @@ export const DEFAULT_SETTINGS = {
     makemkvPath: 'makemkvcon',
     ripDirectory: '',
     minTitleSeconds: 600,
+    audioMode: 'best',
     pollIntervalSeconds: 15,
     autoRip: false,
     autoTranscode: true,

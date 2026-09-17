@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { discs } from '../disc/manager.js';
 import { makemkvInfo } from '../disc/makemkv.js';
 import { store } from '../store.js';
+import { estimateRip } from '../disc/estimate.js';
+import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 
 const mediaSchema = z.object({
   kind: z.enum(['movie', 'series', 'album', 'unknown']).optional(),
@@ -25,6 +27,8 @@ const patchSchema = z.object({
   episodeMap: z.record(z.string(), z.number().int().min(0)).optional(),
   profileId: z.string().optional(),
   options: z.object({ transcode: z.boolean().optional(), deliver: z.boolean().optional(), eject: z.boolean().optional(), keepRaw: z.boolean().optional() }).optional(),
+  audioMode: z.enum(['best', 'all', 'custom']).optional(),
+  selectedAudio: z.record(z.string(), z.array(z.number().int().min(0))).optional(),
 });
 
 export default async function discRoutes(app: FastifyInstance) {
@@ -95,6 +99,29 @@ export default async function discRoutes(app: FastifyInstance) {
     } catch (err) {
       return reply.code(400).send({ error: (err as Error).message });
     }
+  });
+
+  /** Estimated rip and transcode size. The body may carry a selection that has not been saved yet. */
+  app.post<{ Params: { id: string } }>('/api/disc/rips/:id/estimate', async (req, reply) => {
+    const saved = discs.get(req.params.id);
+    if (!saved) return reply.code(404).send({ error: 'rip not found' });
+    const body = patchSchema.safeParse(req.body ?? {});
+    if (!body.success) return reply.code(400).send({ error: 'invalid body' });
+    const rip = {
+      ...saved,
+      selectedTitleIds: body.data.selectedTitleIds ?? saved.selectedTitleIds,
+      audioMode: body.data.audioMode ?? saved.audioMode,
+      selectedAudio: { ...saved.selectedAudio, ...body.data.selectedAudio },
+      options: { ...saved.options, ...body.data.options },
+      profileId: body.data.profileId ?? saved.profileId,
+    };
+    const profile = rip.profileId ? store.getProfile(rip.profileId) : undefined;
+    const caps = await ffmpegCapabilities(store.settings.ffmpegPath);
+    return estimateRip(rip, profile, rip.audioMode ?? store.settings.disc.audioMode ?? 'best', {
+      anime: rip.media.seriesType === 'anime' || rip.media.kind === 'series',
+      hardware: store.settings.transcoding,
+      availableEncoders: caps.videoEncoders,
+    });
   });
 
   app.post<{ Params: { id: string } }>('/api/disc/rips/:id/start', async (req, reply) => {
