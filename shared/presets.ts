@@ -340,7 +340,8 @@ export const DEFAULT_SETTINGS = {
   },
   anidb: { enabled: false },
   disc: {
-    enabled: false,
+    // watching the drives costs nothing until a disc is inserted; ripping still waits for you unless autoRip is on
+    enabled: true,
     makemkvPath: 'makemkvcon',
     ripDirectory: '',
     minTitleSeconds: 600,

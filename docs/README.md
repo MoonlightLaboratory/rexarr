@@ -150,7 +150,8 @@ cached for a week, no API key. With it:
 | :---: | :---: |
 | ![Disc scanned and ready to rip](screenshots/disc-ready.jpg)<br>DVD scanned by MakeMKV, titles and tracks | ![Disc ripping in progress](screenshots/disc-ripping.jpg)<br>Ripping in progress |
 
-Enable **Settings → Disc ripping** and Rexarr behaves like ARM:
+**Settings → Disc ripping** is on by default (it does nothing until a disc is inserted, and needs MakeMKV), and
+Rexarr behaves like ARM:
 
 1. Insert a Blu-ray / DVD. Rexarr polls the drives through `makemkvcon` and creates an entry on the **Discs** page.
 2. The title list is read (titles shorter than *minimum title length* are skipped) and the disc label is looked
