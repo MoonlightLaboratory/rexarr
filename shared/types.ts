@@ -1,4 +1,4 @@
-// Types shared between the rexarr server and web client.
+// Types shared between the Rexarr server and web client.
 
 export type Container = 'mkv' | 'mp4' | 'webm' | 'mov' | 'flac' | 'mp3' | 'opus' | 'ogg' | 'wv' | 'ape';
 
@@ -240,7 +240,7 @@ export interface SlskdConnection {
   enabled: boolean;
   url: string;
   apiKey: string;
-  /** slskd's download folder as rexarr sees it; empty = use the path slskd reports (with path mappings). */
+  /** slskd's download folder as Rexarr sees it; empty = use the path slskd reports (with path mappings). */
   downloadsPath: string;
   /** Ignore peers with more queued uploads than this. */
   maxQueueLength: number;
@@ -366,7 +366,7 @@ export interface LidarrConnection extends ArrConnection {
 export interface PathMapping {
   /** Path prefix as reported by the *arr app (e.g. /data/media). */
   remote: string;
-  /** Equivalent path visible to rexarr (e.g. /mnt/media). */
+  /** Equivalent path visible to Rexarr (e.g. /mnt/media). */
   local: string;
   /** Only apply to one app (needed when two apps map different remote paths onto the same local folder). */
   app?: 'all' | 'radarr' | 'sonarr' | 'lidarr' | 'slskd';
@@ -671,7 +671,7 @@ export interface JobSource {
   seasonNumber?: number;
   /** Radarr movieFileId / Sonarr episodeFileId once known. */
   fileId?: number;
-  /** Release GUID the job was created from (if grabbed via rexarr). */
+  /** Release GUID the job was created from (if grabbed via Rexarr). */
   releaseGuid?: string;
   releaseTitle?: string;
   /** Path as known by the *arr app. */
@@ -724,7 +724,7 @@ export interface Job {
 /** Release family, from best to worst source for re-encoding. */
 export type ReleaseCategory = 'remux' | 'disc' | 'bluray' | 'web' | 'hdtv' | 'dvd' | 'other' | 'hires' | 'cd' | 'mqa' | 'lossy';
 
-/** A free-text search understood by rexarr (see server/src/search/query.ts). */
+/** A free-text search understood by Rexarr (see server/src/search/query.ts). */
 export interface SearchQuery {
   raw: string;
   /** What is left once ids, years, episodes and release words are taken out. */
@@ -1082,7 +1082,7 @@ export interface SystemInfo {
   node: string;
   platform: string;
   dataDir: string;
-  /** How rexarr was installed: a release package (runtime e.g. "linux-x64", "osx-arm64-app"), Docker, or undefined for source. */
+  /** How Rexarr was installed: a release package (runtime e.g. "linux-x64", "osx-arm64-app"), Docker, or undefined for source. */
   package?: { version: string; runtime: string; branch: string };
   uptimeSeconds: number;
   ffmpeg: FfmpegCapabilities;
@@ -1109,7 +1109,7 @@ export interface DiscDrive {
   available?: boolean;
   /** Set for real drives added by device path (Discs → Add drive). */
   manualId?: string;
-  /** false when MakeMKV did not list the drive and rexarr probed the device itself. */
+  /** false when MakeMKV did not list the drive and Rexarr probed the device itself. */
   detected?: boolean;
 }
 

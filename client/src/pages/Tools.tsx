@@ -56,9 +56,9 @@ export function ToolsPage() {
       {error && <div className="error">{error}</div>}
       <div className="card mb">
         <div className="card-b">
-          {welcome && <h2 className="toolsWelcome">Welcome to rexarr</h2>}
+          {welcome && <h2 className="toolsWelcome">Welcome to Rexarr</h2>}
           <p className="toolsIntro">
-            rexarr works with a few free programs that are installed separately. <strong>FFmpeg</strong> is needed for transcoding; the others add
+            Rexarr works with a few free programs that are installed separately. <strong>FFmpeg</strong> is needed for transcoding; the others add
             music, disc ripping and Soulseek. {data && <>Instructions are for <strong>{PLATFORM_LABEL[data.platform]}</strong>.</>}
           </p>
           {data && (
@@ -88,12 +88,12 @@ export function ToolsPage() {
       {data && (
         <div className="toolsFooter">
           <label className="check small">
-            <input type="checkbox" checked={!data.dismissed} onChange={(e) => setDismissed(!e.target.checked)} /> Show this page when rexarr starts
+            <input type="checkbox" checked={!data.dismissed} onChange={(e) => setDismissed(!e.target.checked)} /> Show this page when Rexarr starts
           </label>
           <span className="spacer" />
           {welcome && (
             <button className="btn primary" onClick={finish}>
-              {missing.some((t) => t.required) ? 'Skip for now' : 'Continue to rexarr'}
+              {missing.some((t) => t.required) ? 'Skip for now' : 'Continue to Rexarr'}
             </button>
           )}
         </div>

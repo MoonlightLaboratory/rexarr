@@ -1,5 +1,5 @@
 /*
- * rexarr design system – follows the *arr (Sonarr / Radarr) frontend conventions:
+ * Rexarr design system – follows the *arr (Sonarr / Radarr) frontend conventions:
  * 60px header, 210px sidebar, 60px per-page toolbar with icon+label buttons,
  * #202020 page body, #333 cards, filled labels, 4px radius buttons/inputs.
  * Token names mirror Sonarr's theme so the values are easy to compare.
@@ -206,6 +206,7 @@ svg { flex-shrink: 0; }
 .logoContainer { display: flex; align-items: center; flex: 0 0 var(--sidebarWidth); padding-left: 20px; }
 .logoLink { display: flex; align-items: center; gap: 10px; color: var(--white); line-height: 0; }
 .logoLink:hover { text-decoration: none; color: var(--white); }
+.appLogo { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; }
 .appName { font-size: 22px; font-weight: 300; letter-spacing: 0.5px; line-height: 1; color: var(--white); }
 .logoLink:hover .appName { color: var(--themeBlue); }
 .headerSearch { display: flex; align-items: center; margin-left: 8px; color: var(--white); }
@@ -802,6 +803,7 @@ mark.hl { padding: 0; background: transparent; color: var(--themeBlue); }
 }
 @media only screen and (max-width: 480px) {
   .appName { font-size: 18px; }
+  .appLogo { width: 22px; height: 22px; }
   .headerRight a.headerLink[title='Wiki'] { display: none; }
   .headerLink { width: 34px; }
 }
@@ -824,7 +826,6 @@ html, body { overflow: hidden; overscroll-behavior: none; }
 /* ---------- Resizable sidebar ---------- */
 .sidebar { position: relative; transition: flex-basis 0.18s ease, width 0.18s ease; }
 .logoContainer { transition: flex-basis 0.18s ease; min-width: 0; overflow: hidden; }
-.appName.short { display: none; }
 .sidebarResizer { position: absolute; top: 0; right: 0; bottom: 0; z-index: 5; width: 6px; cursor: col-resize; touch-action: none; }
 .sidebarResizer::after { content: ''; position: absolute; top: 0; bottom: 0; right: 0; width: 2px; background: transparent; transition: background 0.15s ease; }
 .sidebarResizer:hover::after, .sidebarResizer:focus-visible::after, body.resizingSidebar .sidebarResizer::after { background: var(--themeBlue); }
@@ -837,8 +838,6 @@ body.resizingSidebar .pageContent { pointer-events: none; }
 
 @media only screen and (min-width: 769px) {
   .sidebarCollapsed .logoContainer { justify-content: center; padding-left: 0; }
-  .sidebarCollapsed .appName:not(.short) { display: none; }
-  .sidebarCollapsed .appName.short { display: inline; font-weight: 400; }
   .sidebarCollapsed .nav a { position: relative; justify-content: center; padding-left: 0; padding-right: 0; }
   .sidebarCollapsed .nav .iconContainer { margin-right: 0; }
   .sidebarCollapsed .nav svg { width: 18px; height: 18px; }

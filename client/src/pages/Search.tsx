@@ -56,7 +56,7 @@ function pushRecent(q: string) {
   }
 }
 
-/** What rexarr understood from the search text, as Sonarr labels. */
+/** What Rexarr understood from the search text, as Sonarr labels. */
 function Understood({ q }: { q: SearchQuery }) {
   const labels: string[] = [];
   if (q.kind) labels.push(q.kind === 'movie' ? 'Movie' : 'Series');
@@ -533,7 +533,7 @@ export function SearchPage() {
         seasonNumber: target?.kind === 'series' && season !== '' ? season : undefined,
         episodeIds: episodeId !== '' ? [episodeId] : r.episodeIds,
       });
-      toast('info', res.note ?? `Grabbed. rexarr will encode it once ${r.source === 'radarr' ? 'Radarr' : r.source === 'lidarr' ? 'Lidarr' : 'Sonarr'} imports the download.`);
+      toast('info', res.note ?? `Grabbed. Rexarr will encode it once ${r.source === 'radarr' ? 'Radarr' : r.source === 'lidarr' ? 'Lidarr' : 'Sonarr'} imports the download.`);
     } catch (e) {
       toast('error', (e as Error).message);
     } finally {
@@ -723,7 +723,7 @@ export function SearchPage() {
       </div>
       {shown.some((r) => r.isDisc) && (
         <div className="info">
-          Disc releases are downloaded by {target?.kind === 'series' ? 'Sonarr' : 'Radarr'}, then ripped with MakeMKV, transcoded and imported. The download folder must be reachable by rexarr (path mappings).
+          Disc releases are downloaded by {target?.kind === 'series' ? 'Sonarr' : 'Radarr'}, then ripped with MakeMKV, transcoded and imported. The download folder must be reachable by Rexarr (path mappings).
         </div>
       )}
       {shown.length === 0 && all.length > 0 ? (
@@ -1009,7 +1009,7 @@ export function SearchPage() {
               <ProfileSelect profiles={profiles} value={profileId} onChange={setProfileId} />
             </div>
           </div>
-          <div className="info mt">Prowlarr grabs go straight to your download client and are not imported by Radarr / Sonarr, so rexarr cannot track them. For a tracked grab, search the title under All.</div>
+          <div className="info mt">Prowlarr grabs go straight to your download client and are not imported by Radarr / Sonarr, so Rexarr cannot track them. For a tracked grab, search the title under All.</div>
           {searching && <LoadingIndicator>Searching every indexer in Prowlarr…</LoadingIndicator>}
           {releasePanel}
         </>

@@ -157,7 +157,7 @@ async function start() {
       });
     });
   }
-  app.log.info(`rexarr ${APP_VERSION} listening on http://${bind}:${want.port}${want.urlBase}/${running.sslPort ? ` and https://${bind}:${running.sslPort}${want.urlBase}/` : ''} (config: ${CONFIG_DIR})`);
+  app.log.info(`Rexarr ${APP_VERSION} listening on http://${bind}:${want.port}${want.urlBase}/${running.sslPort ? ` and https://${bind}:${running.sslPort}${want.urlBase}/` : ''} (config: ${CONFIG_DIR})`);
 }
 
 onLogLevel((level) => {
@@ -187,7 +187,7 @@ onRestart(async () => {
   }, 300).unref();
 });
 
-/** --browser (the macOS app and Windows shortcuts): open the web UI once listening. Launched again while rexarr is
+/** --browser (the macOS app and Windows shortcuts): open the web UI once listening. Launched again while Rexarr is
  *  already running, it opens the running instance and exits before touching the queue. */
 const launchBrowser = process.argv.includes('--browser') && !process.env.REXARR_NO_BROWSER;
 if (launchBrowser) {
@@ -198,7 +198,7 @@ if (launchBrowser) {
     probe.listen(want.port, listenHost(want.bindAddress), () => probe.close(() => resolve(false)));
   });
   if (taken) {
-    console.log(`[rexarr] port ${want.port} is in use, probably by rexarr itself: opening it`);
+    console.log(`[Rexarr] port ${want.port} is in use, probably by Rexarr itself: opening it`);
     openBrowser(`http://localhost:${want.port}${want.urlBase}/`);
     await new Promise((r) => setTimeout(r, 1500));
     process.exit(0);
@@ -228,7 +228,7 @@ bus.on('event', (ev) => {
   }
 });
 const seenJobEvents = new Set<string>();
-appEvents.add('info', 'App', `rexarr ${APP_VERSION} started`);
+appEvents.add('info', 'App', `Rexarr ${APP_VERSION} started`);
 if (MIGRATED.length) appEvents.add('info', 'Storage', `Moved to the new storage layout: ${MIGRATED.join(', ')}`);
 
 // ---- scheduled tasks (System → Tasks)
@@ -267,7 +267,7 @@ onShutdown(() => void shutdown());
 try {
   await start();
 } catch (err) {
-  if ((err as NodeJS.ErrnoException).code === 'EADDRINUSE') console.error(`[rexarr] port ${effectiveHost(store.settings.general).port} is already in use (is rexarr already running?)`);
+  if ((err as NodeJS.ErrnoException).code === 'EADDRINUSE') console.error(`[Rexarr] port ${effectiveHost(store.settings.general).port} is already in use (is Rexarr already running?)`);
   throw err;
 }
 if (launchBrowser) openBrowser(`http://localhost:${running.port}${running.urlBase}/`);

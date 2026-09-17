@@ -57,7 +57,7 @@ interface RRelease {
   movieId?: number;
 }
 
-/** Cover art goes through rexarr's own image cache (Radarr's resized copy first, TMDB as fallback). */
+/** Cover art goes through Rexarr's own image cache (Radarr's resized copy first, TMDB as fallback). */
 function poster(images?: RMovie['images'], type: 'poster' | 'fanart' = 'poster') {
   return proxiedImage('radarr', images?.find((i) => i.coverType === type), type);
 }
@@ -193,7 +193,7 @@ export class Radarr {
     return this.http.get<{ id: number; path: string; freeSpace?: number }[]>('/rootfolder');
   }
 
-  /** Add a movie by TMDB id (monitored, no automatic search – rexarr searches explicitly). */
+  /** Add a movie by TMDB id (monitored, no automatic search – Rexarr searches explicitly). */
   async add(tmdbId: number, qualityProfileId?: number, rootFolderPath?: string): Promise<Movie> {
     const [lookup] = await this.http.get<RMovie[]>('/movie/lookup', { term: `tmdb:${tmdbId}` });
     if (!lookup) throw new Error(`TMDB id ${tmdbId} not found`);

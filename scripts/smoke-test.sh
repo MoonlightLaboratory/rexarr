@@ -12,8 +12,8 @@ native_config="$config"
 command -v cygpath > /dev/null && native_config="$(cygpath -w "$config")"
 export REXARR_CONFIG_DIR="$native_config" REXARR_PORT="$port" REXARR_NO_BROWSER=1
 
-if [ -d "$root/rexarr.app" ]; then
-  cmd=("$root/rexarr.app/Contents/MacOS/rexarr")
+if [ -d "$root/Rexarr.app" ]; then
+  cmd=("$root/Rexarr.app/Contents/MacOS/Rexarr")
 elif [ -f "$root/rexarr/runtime/node.exe" ]; then
   cmd=("$root/rexarr/runtime/node.exe" "$root/rexarr/server/dist/server/src/index.js")
 else
@@ -30,7 +30,7 @@ trap cleanup EXIT
 for _ in $(seq 1 60); do
   if curl -fsS "http://127.0.0.1:$port/api/health" > "$config/health.json" 2> /dev/null; then break; fi
   if ! kill -0 "$pid" 2> /dev/null; then
-    echo "rexarr exited early:"
+    echo "Rexarr exited early:"
     cat "$config/stdout.log"
     exit 1
   fi
@@ -43,8 +43,8 @@ curl -fsS "http://127.0.0.1:$port/" | grep -qi "<div id=\"root\"" || { echo "web
 curl -fsS "http://127.0.0.1:$port/api/system" | grep -q '"package":{' || { echo "package_info not detected"; exit 1; }
 curl -fsS -X POST "http://127.0.0.1:$port/api/system/shutdown" > /dev/null
 for _ in $(seq 1 15); do
-  kill -0 "$pid" 2> /dev/null || { trap - EXIT; echo "ok: rexarr $version served the API and UI and shut down"; exit 0; }
+  kill -0 "$pid" 2> /dev/null || { trap - EXIT; echo "ok: Rexarr $version served the API and UI and shut down"; exit 0; }
   sleep 1
 done
-echo "rexarr did not shut down"
+echo "Rexarr did not shut down"
 exit 1

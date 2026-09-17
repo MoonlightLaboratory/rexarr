@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository. Humans: see [CONTRIBUT
 
 ## Project
 
-rexarr is a Node.js / TypeScript web app: a Fastify API server and a React (Vite) client, sharing types.
+Rexarr is a Node.js / TypeScript web app: a Fastify API server and a React (Vite) client, sharing types.
 It orchestrates FFmpeg, fre:ac and MakeMKV and talks to Radarr / Sonarr / Lidarr / Prowlarr / slskd.
 Status: beta.
 

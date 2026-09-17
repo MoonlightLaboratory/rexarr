@@ -402,7 +402,7 @@ export function buildFfmpegArgs(requested: Profile, probe: ProbeResult, input: s
     });
     if (opts.metadata?.title) args.push('-metadata', `title=${opts.metadata.title}`);
     const sourceQuality = /remux/i.test(input) ? 'Blu-ray remux' : 'source';
-    args.push('-metadata', `comment=Encoded by rexarr from ${sourceQuality}: ${videoTrackTitle(description)}${description.audio ? `, ${description.audio.codec} ${description.audio.channels}` : ''} (${profile.name})`);
+    args.push('-metadata', `comment=Encoded by Rexarr from ${sourceQuality}: ${videoTrackTitle(description)}${description.audio ? `, ${description.audio.codec} ${description.audio.channels}` : ''} (${profile.name})`);
   }
   if (profile.container === 'mp4' || profile.container === 'mov') args.push('-movflags', '+faststart');
   args.push('-max_muxing_queue_size', '2048');

@@ -1,5 +1,5 @@
 #!/bin/sh
-# rexarr container entrypoint: LinuxServer-style PUID / PGID / UMASK handling.
+# Rexarr container entrypoint: LinuxServer-style PUID / PGID / UMASK handling.
 # Runs the app as an unprivileged user that owns /config and whatever it writes to your media shares.
 set -e
 PUID="${PUID:-1000}"

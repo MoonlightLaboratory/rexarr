@@ -162,7 +162,7 @@ function ImportFolderModal({ onClose }: { onClose: () => void }) {
         <label>Folder</label>
         <input autoFocus value={p} onChange={(e) => setP(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && p.trim() && go()} placeholder="/Volumes/Downloads/Artist - Album (FLAC+CUE)" className="mono" />
         <div className="help">
-          The folder as rexarr sees it (path mappings translate it for Lidarr). Albums that are one audio file with a <span className="mono">.cue</span> sheet are split into tagged FLAC tracks with fre:ac first, in <span className="mono">rexarr-split/</span> inside the folder; Lidarr moves the tracks into your library. Use this for downloads that already left Lidarr's queue – new downloads are split automatically.
+          The folder as Rexarr sees it (path mappings translate it for Lidarr). Albums that are one audio file with a <span className="mono">.cue</span> sheet are split into tagged FLAC tracks with fre:ac first, in <span className="mono">rexarr-split/</span> inside the folder; Lidarr moves the tracks into your library. Use this for downloads that already left Lidarr's queue – new downloads are split automatically.
         </div>
       </div>
     </Modal>

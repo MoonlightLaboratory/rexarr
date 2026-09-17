@@ -1,16 +1,16 @@
 # How to Contribute
 
-We're always looking for people to help make rexarr better. There are a few ways to contribute, from
+We're always looking for people to help make Rexarr better. There are a few ways to contribute, from
 reporting bugs to writing code.
 
 > [!NOTE]
-> rexarr is in **beta**. Expect larger changes than usual between releases; if you plan a big change, open an
+> Rexarr is in **beta**. Expect larger changes than usual between releases; if you plan a big change, open an
 > issue or discussion first so work does not collide.
 
 ## Reporting bugs and requesting features
 
 - Search the [existing issues](https://github.com/MoonlightLaboratory/rexarr/issues) first.
-- Use the issue templates. For bugs include your rexarr version (System → Status → *Report an issue* fills it in),
+- Use the issue templates. For bugs include your Rexarr version (System → Status → *Report an issue* fills it in),
   how you run it (Docker / source, OS), the profile involved and the relevant part of the log
   (System → Log Files, or the job log in Activity).
 - **Remove API keys, passwords, hostnames and personal paths** from logs and screenshots before posting.
@@ -67,6 +67,6 @@ All three must pass; CI builds the Docker image for every pull request.
 
 ## License of contributions
 
-rexarr is licensed under the [GNU GPL v3 or later](LICENSE.md). There is no separate contributor agreement: by
+Rexarr is licensed under the [GNU GPL v3 or later](LICENSE.md). There is no separate contributor agreement: by
 submitting a contribution you agree that it is licensed under the same terms as the project, and you confirm
 that you have the right to contribute it.

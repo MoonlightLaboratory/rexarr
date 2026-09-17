@@ -37,7 +37,7 @@ function packagedConfigDir(): string {
   return path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'rexarr');
 }
 
-/** Root of everything rexarr stores (the Docker /config volume). REXARR_DATA_DIR is accepted for compatibility. */
+/** Root of everything Rexarr stores (the Docker /config volume). REXARR_DATA_DIR is accepted for compatibility. */
 export const CONFIG_DIR = path.resolve(process.env.REXARR_CONFIG_DIR ?? process.env.REXARR_DATA_DIR ?? (PACKAGE_INFO ? packagedConfigDir() : path.join(process.cwd(), 'data')));
 export const LOG_LINES_KEPT = 400;
 
@@ -100,7 +100,7 @@ function migrateLayout() {
       moveSync(from, to);
       done.push(`${path.relative(CONFIG_DIR, from)} → ${path.relative(CONFIG_DIR, to) || to}`);
     } catch (err) {
-      console.error(`[rexarr] could not migrate ${from} to ${to}: ${(err as Error).message}`);
+      console.error(`[Rexarr] could not migrate ${from} to ${to}: ${(err as Error).message}`);
     }
   }
   for (const dir of Object.values(PATHS)) {
@@ -110,7 +110,7 @@ function migrateLayout() {
       /* reported on the System page */
     }
   }
-  if (done.length) console.log(`[rexarr] moved to the new storage layout: ${done.join(', ')}`);
+  if (done.length) console.log(`[Rexarr] moved to the new storage layout: ${done.join(', ')}`);
   return done;
 }
 export const MIGRATED = migrateLayout();

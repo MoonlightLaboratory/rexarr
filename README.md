@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="logo/rexarr.svg" alt="rexarr" width="128" height="128">
+  <img src="logo/rexarr-app.svg" alt="Rexarr" width="128" height="128">
 </p>
 
-<h1 align="center">rexarr</h1>
+<h1 align="center">Rexarr</h1>
 
 <p align="center">
   <a href="https://github.com/MoonlightLaboratory/rexarr/releases"><img src="https://img.shields.io/badge/status-beta-e5a00d" alt="Beta"></a>
@@ -12,12 +12,12 @@
 </p>
 
 > [!WARNING]
-> **rexarr is in beta.** It works day to day, but settings, file layout and the API can still change between
+> **Rexarr is in beta.** It works day to day, but settings, file layout and the API can still change between
 > releases, and some integrations (Lidarr, Soulseek, audio CD ripping) have seen little real-world use. Keep
 > backups (System → Backup), read the release notes before updating, and please
 > [report what breaks](https://github.com/MoonlightLaboratory/rexarr/issues).
 
-rexarr is a remux-first transcoding companion for Usenet and BitTorrent users of the \*arr stack. It sits next to
+Rexarr is a remux-first transcoding companion for Usenet and BitTorrent users of the \*arr stack. It sits next to
 Radarr, Sonarr and Lidarr, finds Blu-ray remux and full-disc releases for the titles you choose, and re-encodes what
 they import with FFmpeg – or fre:ac for music – using profiles you control. It can also rip discs with MakeMKV,
 split album images, and find media on your disks that none of the \*arr apps manage.
@@ -81,5 +81,5 @@ More in the [documentation](docs/README.md).
 - [GNU GPL v3](LICENSE.md)
 - Copyright 2026 MoonlightLaboratory, see [COPYRIGHT.md](COPYRIGHT.md)
 
-rexarr is an independent project and is not affiliated with Sonarr, Radarr, Lidarr, Prowlarr, slskd, MakeMKV,
+Rexarr is an independent project and is not affiliated with Sonarr, Radarr, Lidarr, Prowlarr, slskd, MakeMKV,
 fre:ac, FFmpeg, TMDb or MusicBrainz.

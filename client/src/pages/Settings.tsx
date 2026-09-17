@@ -229,7 +229,7 @@ function AutoCard({ auto, savedEnabled, defaults, profiles, dirty, onChange }: {
       </div>
       <div className="card-b">
         <p className="small dim" style={{ marginTop: 0 }}>
-          Every Blu-ray remux that appears in Radarr or Sonarr is queued automatically with the profile for its type – movie, TV or anime (Sonarr's anime type or AniDB). Files rexarr has already queued or written are remembered, so a transcode that Radarr / Sonarr re-import is never transcoded again.
+          Every Blu-ray remux that appears in Radarr or Sonarr is queued automatically with the profile for its type – movie, TV or anime (Sonarr's anime type or AniDB). Files Rexarr has already queued or written are remembered, so a transcode that Radarr / Sonarr re-import is never transcoded again.
         </p>
         <div className="grid-2">
           <div>
@@ -296,7 +296,7 @@ function AutoCard({ auto, savedEnabled, defaults, profiles, dirty, onChange }: {
               Preview: {shown.found} remux file(s) found · {shown.queued.length} would be queued now{shown.pending.length ? ` · ${shown.pending.length} in later scans` : ''} · {shown.skippedSeen} already handled
               {!status?.baselineAt && !auto.includeExisting ? ' · the first real scan only takes a baseline because “already in the library” is off' : ''}
             </div>
-            {shown.skippedMissing.length > 0 && <div className="warn small">{shown.skippedMissing.length} file(s) are not visible to rexarr (check path mappings), e.g. {shown.skippedMissing[0]}</div>}
+            {shown.skippedMissing.length > 0 && <div className="warn small">{shown.skippedMissing.length} file(s) are not visible to Rexarr (check path mappings), e.g. {shown.skippedMissing[0]}</div>}
             {shown.errors.map((e, i) => (
               <div key={i} className="error small">
                 {e}
@@ -389,7 +389,7 @@ function SlskdCard({ conn, onChange }: { conn: SlskdConnection; onChange: (c: Sl
       <div className="field">
         <label>Downloads path</label>
         <input type="text" value={conn.downloadsPath} onChange={(e) => onChange({ ...conn, downloadsPath: e.target.value })} placeholder="Empty = slskd's download folder (with path mappings)" />
-        <div className="help">Where rexarr sees slskd's finished downloads. Lidarr must see the same folder to import (add a Lidarr path mapping if the paths differ).</div>
+        <div className="help">Where Rexarr sees slskd's finished downloads. Lidarr must see the same folder to import (add a Lidarr path mapping if the paths differ).</div>
       </div>
       <div className="grid-2">
         <div className="field">
@@ -542,7 +542,7 @@ function LocalMediaCard({ value, onChange, dirty }: { value: LocalMediaSettings;
       </div>
       <div className="card-b">
         <p className="small dim" style={{ marginTop: 0 }}>
-          Not everything is added to the *arr apps. rexarr scans these folders for movies, series / anime and music albums (from folder and file names) and shows the ones no *arr app manages in search, marked <strong>Local</strong>, where they can be encoded like library files.
+          Not everything is added to the *arr apps. Rexarr scans these folders for movies, series / anime and music albums (from folder and file names) and shows the ones no *arr app manages in search, marked <strong>Local</strong>, where they can be encoded like library files.
         </p>
         <div className="grid-2">
           <label className="check mb">
@@ -709,7 +709,7 @@ export function SettingsPage() {
           <label className="check mt">
             <input type="checkbox" checked={s.lidarr.splitCueImages !== false} onChange={(e) => setS({ ...s, lidarr: { ...s.lidarr, splitCueImages: e.target.checked } })} /> Split “image + cue” downloads for Lidarr
           </label>
-          <div className="help">Lidarr cannot import an album that is one long FLAC / APE / WavPack file with a cue sheet. rexarr splits finished downloads into tagged FLAC tracks with fre:ac (Shift-JIS and other non-UTF-8 cue sheets included) and has Lidarr import them for the same download.</div>
+          <div className="help">Lidarr cannot import an album that is one long FLAC / APE / WavPack file with a cue sheet. Rexarr splits finished downloads into tagged FLAC tracks with fre:ac (Shift-JIS and other non-UTF-8 cue sheets included) and has Lidarr import them for the same download.</div>
         </ArrCard>
         <SlskdCard conn={s.slskd} onChange={(c) => setS({ ...s, slskd: c })} />
         <FreacCard path={s.freacPath} onChange={(p) => setS({ ...s, freacPath: p })} />
@@ -754,7 +754,7 @@ export function SettingsPage() {
               <div className="field">
                 <label>Import poll interval (s)</label>
                 <input type="number" min={10} max={3600} value={s.pollIntervalSeconds} onChange={(e) => setS({ ...s, pollIntervalSeconds: Number(e.target.value) })} />
-                <div className="help">How often rexarr asks Radarr/Sonarr whether a grabbed release has been imported.</div>
+                <div className="help">How often Rexarr asks Radarr/Sonarr whether a grabbed release has been imported.</div>
               </div>
             </div>
           </div>
@@ -820,7 +820,7 @@ export function SettingsPage() {
         </div>
         <div className="card-b">
           <p className="small dim" style={{ marginTop: 0 }}>
-            When enabled, rexarr watches your optical drives. Inserting a Blu-ray or DVD reads the title list, identifies it through Radarr / Sonarr, rips it with MakeMKV to a remux MKV, optionally transcodes it with the default profile, hands it to the *arr app for import and ejects the disc.
+            When enabled, Rexarr watches your optical drives. Inserting a Blu-ray or DVD reads the title list, identifies it through Radarr / Sonarr, rips it with MakeMKV to a remux MKV, optionally transcodes it with the default profile, hands it to the *arr app for import and ejects the disc.
           </p>
           <div className="grid-2">
             <div className="field">
@@ -900,7 +900,7 @@ export function SettingsPage() {
         </div>
         <div className="card-b">
           <p className="small dim" style={{ marginTop: 0 }}>
-            If Radarr/Sonarr run in Docker or on another machine, the paths they report will not exist here. Map the *arr prefix to the path rexarr can see, e.g. <code>/data/media</code> → <code>/mnt/media</code> (or <code>/Volumes/Media</code> for an SMB share mounted on a Mac). Longest prefix wins. Pick an app when Radarr and Sonarr use different paths for the same folder.
+            If Radarr/Sonarr run in Docker or on another machine, the paths they report will not exist here. Map the *arr prefix to the path Rexarr can see, e.g. <code>/data/media</code> → <code>/mnt/media</code> (or <code>/Volumes/Media</code> for an SMB share mounted on a Mac). Longest prefix wins. Pick an app when Radarr and Sonarr use different paths for the same folder.
           </p>
           {s.pathMappings.length === 0 && <div className="muted small">No mappings – paths are used exactly as reported by the *arr apps.</div>}
           {s.pathMappings.map((m, i) => (

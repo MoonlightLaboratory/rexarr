@@ -11,7 +11,7 @@ let shutdownHandler: (() => void) | null = null;
 export function onShutdown(fn: () => void) {
   shutdownHandler = fn;
 }
-/** Stop rexarr (System → Shutdown); the reply goes out first. */
+/** Stop Rexarr (System → Shutdown); the reply goes out first. */
 export function shutdown() {
   if (!shutdownHandler) throw new Error('shutdown is not available');
   setTimeout(shutdownHandler, 300).unref();

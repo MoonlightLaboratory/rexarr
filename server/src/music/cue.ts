@@ -2,10 +2,10 @@
  * CUE sheet + single-file album images ("FLAC+CUE", "APE+CUE", "image+cue").
  *
  * Lidarr cannot import an album that is one long audio file with a cue sheet: it sees one track and blocks the
- * download. rexarr finds such images in finished downloads, splits them into tracks with fre:ac (which reads cue
+ * download. Rexarr finds such images in finished downloads, splits them into tracks with fre:ac (which reads cue
  * sheets natively and tags every track from it) and hands the split folder back to Lidarr.
  *
- * fre:ac only reads UTF-8 cue sheets whose FILE entries match the file on disk, so rexarr first writes a normalised
+ * fre:ac only reads UTF-8 cue sheets whose FILE entries match the file on disk, so Rexarr first writes a normalised
  * copy: text decoded from Shift-JIS / GBK / Big5 / EUC-KR / Windows-1252 when it is not UTF-8, FILE entries resolved
  * to the real file (wrong extension, "CDImage.wav" next to a .flac, different case) as absolute paths.
  */

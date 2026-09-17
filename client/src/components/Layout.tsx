@@ -233,11 +233,11 @@ export function Layout({ children, jobs, rips, drives, health, connected, toasts
         </button>
         <div className="logoContainer">
           <Link to="/" className="logoLink" title="Rexarr" draggable={false}>
+            <img className="appLogo" src={`${URL_BASE}/favicon.svg`} alt="" width={26} height={26} draggable={false} />
             <span className="appName withTag">
               Rexarr
               <span className="betaTag">beta</span>
             </span>
-            <span className="appName short">R</span>
           </Link>
         </div>
         <HeaderSearch />
@@ -248,7 +248,7 @@ export function Layout({ children, jobs, rips, drives, health, connected, toasts
           <a className="headerLink" href={`${REPO_URL}#readme`} target="_blank" rel="noreferrer" title="Documentation">
             <Icon.Question />
           </a>
-          <a className="headerLink hideOnPhone" href={REPO_URL} target="_blank" rel="noreferrer" title="rexarr on GitHub">
+          <a className="headerLink hideOnPhone" href={REPO_URL} target="_blank" rel="noreferrer" title="Rexarr on GitHub">
             <Icon.GitHub />
           </a>
           <Link className="headerLink" to="/system" title="System">

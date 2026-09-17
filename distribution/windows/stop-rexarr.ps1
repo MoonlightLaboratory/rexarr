@@ -1,4 +1,4 @@
-# Stops rexarr processes started from this install (used by the installer on upgrade and uninstall).
+# Stops Rexarr processes started from this install (used by the installer on upgrade and uninstall).
 param([Parameter(Mandatory = $true)][string]$AppDir)
 
 $runtime = Join-Path $AppDir 'runtime'

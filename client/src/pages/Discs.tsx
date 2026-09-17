@@ -174,7 +174,7 @@ function AddDriveModal({ onClose, onAdded }: { onClose: () => void; onAdded: () 
         </div>
       )}
       <div className="info small">
-        Use this when MakeMKV does not list a drive on its own (USB enclosures, drives passed into Docker, or picking one of several). rexarr checks the tray itself and reads the disc through MakeMKV's <code>dev:</code> source. MakeMKV needs read access to the device (run as root or add the user to the <code>cdrom</code> / <code>optical</code> group).
+        Use this when MakeMKV does not list a drive on its own (USB enclosures, drives passed into Docker, or picking one of several). Rexarr checks the tray itself and reads the disc through MakeMKV's <code>dev:</code> source. MakeMKV needs read access to the device (run as root or add the user to the <code>cdrom</code> / <code>optical</code> group).
       </div>
     </Modal>
   );
@@ -190,7 +190,7 @@ function DriveRow({ d, onEject, onRemove, onReadCd, busy }: { d: DiscDrive; onEj
         <div style={{ fontWeight: 600 }}>{d.name || `Drive ${d.index}`}</div>
         <div className="small muted truncate" title={d.path}>
           {d.path}
-          {d.manualId && d.detected === false && d.available !== false && ' · checked by rexarr (not listed by MakeMKV)'}
+          {d.manualId && d.detected === false && d.available !== false && ' · checked by Rexarr (not listed by MakeMKV)'}
         </div>
       </div>
       {d.virtual && <span className="badge purple">{linked ? 'virtual' : 'folder'}</span>}
@@ -207,7 +207,7 @@ function DriveRow({ d, onEject, onRemove, onReadCd, busy }: { d: DiscDrive; onEj
         <Icon.Eject />
       </button>
       {onRemove && (
-        <button className="iconButton danger" onClick={onRemove} disabled={busy} title="Remove this drive from rexarr">
+        <button className="iconButton danger" onClick={onRemove} disabled={busy} title="Remove this drive from Rexarr">
           <Icon.Trash />
         </button>
       )}
@@ -811,7 +811,7 @@ export function DiscsPage() {
             onRemove={
               d.manualId
                 ? () => {
-                    if (!confirm(`Remove drive ${d.path} from rexarr? The drive itself is not affected.`)) return;
+                    if (!confirm(`Remove drive ${d.path} from Rexarr? The drive itself is not affected.`)) return;
                     api.removePhysicalDrive(d.manualId!)
                       .then(() => toast('info', 'Drive removed'))
                       .then(() => refresh(true))
@@ -842,7 +842,7 @@ export function DiscsPage() {
         <div className="card">
           <div className="empty">
             <h3>{tab === 'active' ? 'No disc in progress' : 'No rips yet'}</h3>
-            <p>{tab === 'active' ? 'Insert a Blu-ray or DVD. rexarr reads it, identifies it, rips it with MakeMKV, transcodes it with your profile and hands it to Radarr / Sonarr.' : 'Finished, failed and cancelled rips show up here.'}</p>
+            <p>{tab === 'active' ? 'Insert a Blu-ray or DVD. Rexarr reads it, identifies it, rips it with MakeMKV, transcodes it with your profile and hands it to Radarr / Sonarr.' : 'Finished, failed and cancelled rips show up here.'}</p>
           </div>
         </div>
       )}

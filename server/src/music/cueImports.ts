@@ -3,7 +3,7 @@
  * cannot import. Each one is split into FLAC tracks (fre:ac) inside the download folder under rexarr-split/, then
  * Lidarr is asked to import that folder for the same tracked download (DownloadedAlbumsScan + downloadClientId),
  * so the queue item completes as if the release had been split to begin with. Works for grabs made in Lidarr
- * itself as well as from rexarr's search. Soulseek downloads use splitFolderImages() before their import.
+ * itself as well as from Rexarr's search. Soulseek downloads use splitFolderImages() before their import.
  */
 import fs from 'node:fs';
 import path from 'node:path';

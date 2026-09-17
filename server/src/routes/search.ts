@@ -199,8 +199,8 @@ export default async function searchRoutes(app: FastifyInstance) {
         grabbed: true,
         job,
         note: d.release.source === 'soulseek'
-          ? `Downloading ${music?.files?.length} file(s) from ${music?.username}. rexarr imports the folder into Lidarr when slskd finishes${keep ? '' : ', then encodes it'}.`
-          : `Sent to Lidarr. rexarr ${keep ? 'tracks the import' : 'encodes the tracks once Lidarr imports them'}.`,
+          ? `Downloading ${music?.files?.length} file(s) from ${music?.username}. Rexarr imports the folder into Lidarr when slskd finishes${keep ? '' : ', then encodes it'}.`
+          : `Sent to Lidarr. Rexarr ${keep ? 'tracks the import' : 'encodes the tracks once Lidarr imports them'}.`,
       };
     }
     try {
@@ -217,8 +217,8 @@ export default async function searchRoutes(app: FastifyInstance) {
     if (d.release.isDisc) {
       const mk = await makemkvInfo(store.settings.disc.makemkvPath);
       discNote = mk.available
-        ? `Full-disc release grabbed. When ${d.release.source === 'radarr' ? 'Radarr' : 'Sonarr'} finishes downloading it, rexarr rips it with MakeMKV${d.release.source === 'radarr' ? ', transcodes the main title and imports it' : ' – confirm the episode order on the Discs page – then transcodes and imports the episodes'}.`
-        : 'Full-disc release grabbed, but MakeMKV was not found, so rexarr cannot rip it. Install MakeMKV (Settings → Disc ripping) before the download finishes.';
+        ? `Full-disc release grabbed. When ${d.release.source === 'radarr' ? 'Radarr' : 'Sonarr'} finishes downloading it, Rexarr rips it with MakeMKV${d.release.source === 'radarr' ? ', transcodes the main title and imports it' : ' – confirm the episode order on the Discs page – then transcodes and imports the episodes'}.`
+        : 'Full-disc release grabbed, but MakeMKV was not found, so Rexarr cannot rip it. Install MakeMKV (Settings → Disc ripping) before the download finishes.';
     }
     const job = queue.create({
       title: d.title,

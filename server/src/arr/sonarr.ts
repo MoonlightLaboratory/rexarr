@@ -78,7 +78,7 @@ const REMUX_CACHE_MS = 60_000;
 /** url -> seriesId -> per-season remux counts (Sonarr has no bulk episode-file endpoint). */
 const remuxCache = new Map<string, Map<number, { at: number; bySeason: Map<number, number> }>>();
 
-/** Cover art goes through rexarr's own image cache (Sonarr's resized copy first, TheTVDB as fallback). */
+/** Cover art goes through Rexarr's own image cache (Sonarr's resized copy first, TheTVDB as fallback). */
 function poster(images?: SSeries['images'], type: 'poster' | 'fanart' = 'poster') {
   return proxiedImage('sonarr', images?.find((i) => i.coverType === type), type);
 }

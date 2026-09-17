@@ -364,7 +364,7 @@ class JobQueue {
       }
       const local = toLocalPath(rec.outputPath, app);
       if (!fs.existsSync(local)) {
-        note(`Download finished at ${rec.outputPath}, but rexarr cannot see ${local}. Add a path mapping for the download folder (Settings → General → Path mappings).`);
+        note(`Download finished at ${rec.outputPath}, but Rexarr cannot see ${local}. Add a path mapping for the download folder (Settings → General → Path mappings).`);
         bus.notice('warn', `${job.title}: cannot reach the downloaded disc at ${local} – add a path mapping`);
         return;
       }
@@ -383,7 +383,7 @@ class JobQueue {
     const { discs } = await import('../disc/manager.js');
     const mk = await makemkvInfo(store.settings.disc.makemkvPath);
     if (!mk.available) {
-      note(`Downloaded ${found.length} disc(s), but MakeMKV was not found. Install it (Settings → Disc ripping); rexarr retries automatically.`);
+      note(`Downloaded ${found.length} disc(s), but MakeMKV was not found. Install it (Settings → Disc ripping); Rexarr retries automatically.`);
       return;
     }
 
@@ -466,7 +466,7 @@ class JobQueue {
       const base = store.settings.slskd.downloadsPath.trim() || (reported ? toLocalPath(reported, 'slskd') : '');
       const folder = path.join(base, splitSoulseekPath(sk.files[0].filename).folder);
       if (!base || !fs.existsSync(folder)) {
-        note(`Soulseek download finished, but rexarr cannot see ${folder || 'slskd\'s download folder'}. Set Settings → Soulseek → Downloads path (or a path mapping for slskd).`);
+        note(`Soulseek download finished, but Rexarr cannot see ${folder || 'slskd\'s download folder'}. Set Settings → Soulseek → Downloads path (or a path mapping for slskd).`);
         return;
       }
       if (!lidarr.configured) {

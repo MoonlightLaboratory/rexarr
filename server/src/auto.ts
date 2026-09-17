@@ -2,7 +2,7 @@
  * Auto-transcode: finds Blu-ray remux files in Radarr / Sonarr and queues them with the right profile.
  *
  * Runs on a schedule (System → Tasks) and immediately when Radarr / Sonarr call the webhook after an import.
- * Every file it has seen is remembered by path in data/auto.json, together with every file rexarr wrote,
+ * Every file it has seen is remembered by path in data/auto.json, together with every file Rexarr wrote,
  * so a transcode that Radarr / Sonarr re-import (still named "REMUX") is never picked up again.
  */
 import fs from 'node:fs';
@@ -135,7 +135,7 @@ async function candidates(): Promise<{ items: AutoScanItem[]; errors: string[] }
   return { items, errors };
 }
 
-/** Files rexarr produced (outputs of any job) must never be treated as new remuxes. */
+/** Files Rexarr produced (outputs of any job) must never be treated as new remuxes. */
 function knownOutputs(jobs: Job[]) {
   const out = new Set<string>();
   for (const j of jobs) if (j.outputPath) out.add(j.outputPath);
@@ -213,7 +213,7 @@ async function doScan(dryRun: boolean, reason: string): Promise<AutoScanResult> 
     state.lastScan = { ...result, pending: result.pending.slice(0, 50) };
     save();
     if (result.queued.length) appEvents.add('info', 'Auto transcode', `Queued ${result.queued.length} remux file(s)${result.pending.length ? `, ${result.pending.length} more next scan` : ''}`, result.queued.map((q) => `${q.title}${q.subtitle ? ` ${q.subtitle}` : ''}`).join(', '));
-    if (result.skippedMissing.length) appEvents.add('warning', 'Auto transcode', `${result.skippedMissing.length} remux file(s) are not visible to rexarr – check path mappings`, result.skippedMissing.slice(0, 5).join('\n'));
+    if (result.skippedMissing.length) appEvents.add('warning', 'Auto transcode', `${result.skippedMissing.length} remux file(s) are not visible to Rexarr – check path mappings`, result.skippedMissing.slice(0, 5).join('\n'));
     for (const e of errors) appEvents.add('error', 'Auto transcode', e);
   }
   return result;

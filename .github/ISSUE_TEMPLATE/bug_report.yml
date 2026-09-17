@@ -1,11 +1,11 @@
 name: Bug Report
-description: Something in rexarr is not working as it should
+description: Something in Rexarr is not working as it should
 labels: ["bug", "needs triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        rexarr is in **beta** – thanks for reporting. Please search [existing issues](https://github.com/MoonlightLaboratory/rexarr/issues) first.
+        Rexarr is in **beta** – thanks for reporting. Please search [existing issues](https://github.com/MoonlightLaboratory/rexarr/issues) first.
         **Remove API keys, passwords, hostnames and personal paths** from everything you paste.
         Security problems: report them privately, see SECURITY.md.
   - type: textarea
@@ -26,14 +26,14 @@ body:
   - type: input
     id: version
     attributes:
-      label: rexarr version
+      label: Rexarr version
       description: Shown in the sidebar and on System → Status (e.g. 0.1.4.2)
     validations:
       required: true
   - type: dropdown
     id: install
     attributes:
-      label: How do you run rexarr?
+      label: How do you run Rexarr?
       options:
         - Docker (ghcr.io/moonlightlaboratory/rexarr)
         - Docker (own build / MakeMKV image)

@@ -43,7 +43,7 @@ const INSTALL: Record<SetupPlatform, Record<SetupTool['id'], { steps: SetupStep[
         { label: 'Install with winget', command: 'winget install --id Gyan.FFmpeg -e' },
         { label: 'Or download a "release full" build, extract it and set Settings → FFmpeg path to its bin\\ffmpeg.exe', url: URLS.ffmpegWindows },
       ],
-      note: 'Restart rexarr after installing so it picks up the new PATH.',
+      note: 'Restart Rexarr after installing so it picks up the new PATH.',
     },
     freac: {
       steps: [
@@ -123,21 +123,21 @@ const INSTALL: Record<SetupPlatform, Record<SetupTool['id'], { steps: SetupStep[
   freebsd: {
     ffmpeg: { steps: [{ label: 'Install with pkg', command: 'pkg install ffmpeg' }] },
     freac: { steps: [{ label: 'Download freac-…-freebsd-x64.tar.gz', url: URLS.freac }] },
-    makemkv: { steps: [{ label: 'MakeMKV has no FreeBSD build; rip discs with rexarr on Windows, macOS or Linux', url: URLS.makemkv }] },
+    makemkv: { steps: [{ label: 'MakeMKV has no FreeBSD build; rip discs with Rexarr on Windows, macOS or Linux', url: URLS.makemkv }] },
     slskd: { steps: [{ label: 'Run slskd on another machine (Docker, Linux, Windows or macOS) and connect to it', url: URLS.slskdGuide }] },
   },
   docker: {
-    ffmpeg: { steps: [], note: 'Included in the rexarr image.' },
-    freac: { steps: [], note: 'Included in the rexarr image (without the WavPack and Monkey\'s Audio encoders).' },
+    ffmpeg: { steps: [], note: 'Included in the Rexarr image.' },
+    freac: { steps: [], note: 'Included in the Rexarr image (without the WavPack and Monkey\'s Audio encoders).' },
     makemkv: {
       steps: [
-        { label: 'Build the rexarr image with MakeMKV and pass your drive with --device /dev/sr0 --device /dev/sg0', command: 'docker build -f docker/Dockerfile.makemkv -t rexarr:makemkv .' },
+        { label: 'Build the Rexarr image with MakeMKV and pass your drive with --device /dev/sr0 --device /dev/sg0', command: 'docker build -f docker/Dockerfile.makemkv -t rexarr:makemkv .' },
         { label: 'MakeMKV beta key', url: URLS.makemkv },
       ],
     },
     slskd: {
       steps: [
-        { label: 'Run slskd next to rexarr', command: SLSKD_DOCKER },
+        { label: 'Run slskd next to Rexarr', command: SLSKD_DOCKER },
         { label: 'Setup guide', url: URLS.slskdGuide },
       ],
     },
@@ -173,7 +173,7 @@ export async function setupTools(refresh = false): Promise<SetupTools> {
     tools: [
       tool('ffmpeg', {
         name: 'FFmpeg',
-        purpose: 'Encodes video and audio, reads media details and makes previews. rexarr cannot transcode without it.',
+        purpose: 'Encodes video and audio, reads media details and makes previews. Rexarr cannot transcode without it.',
         required: true,
         available: ffmpeg.available,
         detail: ffmpeg.available ? ffmpeg.version : ffmpeg.error,
