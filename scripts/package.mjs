@@ -257,7 +257,7 @@ async function packageTarget(target, app) {
     if (t.os !== 'windows') fs.chmodSync(path.join(files, 'runtime', bin), 0o755);
   }
 
-  if (t.os === 'unix') write(path.join(files, 'Rexarr'), UNIX_LAUNCHER, 0o755);
+  if (t.os === 'unix') write(path.join(files, 'rexarr'), UNIX_LAUNCHER, 0o755);
   if (t.os === 'windows') {
     write(path.join(files, 'rexarr.cmd'), crlf(WIN_CMD));
     write(path.join(files, 'rexarr.vbs'), crlf(WIN_VBS));
@@ -269,6 +269,17 @@ async function packageTarget(target, app) {
     write(path.join(top, 'Contents/MacOS/Rexarr'), APP_LAUNCHER, 0o755);
     fs.copyFileSync(path.join(ROOT, 'logo/rexarr.icns'), path.join(top, 'Contents/Resources/Rexarr.icns'));
   } else if (t.os !== 'windows') fs.rmSync(path.join(files, 'rexarr.ico'));
+
+  // macOS ignores case, Linux does not: check the entry names exactly as they will be used
+  const expected = t.os === 'app' ? ['Contents/MacOS/Rexarr', 'Contents/Resources/rexarr/server/dist/server/src/index.js'] : t.os === 'windows' ? ['rexarr.cmd', 'rexarr.vbs'] : ['rexarr'];
+  for (const rel of expected) {
+    const parts = rel.split('/');
+    let dir = top;
+    for (const part of parts) {
+      if (!fs.readdirSync(dir).includes(part)) throw new Error(`${target}: ${rel} is missing from the package (wrong name or case)`);
+      dir = path.join(dir, part);
+    }
+  }
 
   const out = path.join(OUT, `rexarr.${BRANCH}.${VERSION}.${target}.${t.archive}`);
   fs.rmSync(out, { force: true });
