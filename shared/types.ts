@@ -383,6 +383,10 @@ export interface DiscSettings {
   minTitleSeconds: number;
   /** Which audio tracks a rip keeps: the best one per language, or every track on the disc. */
   audioMode: 'best' | 'all';
+  /** Also list and rip short titles – creditless OP / ED, OVAs, bonus episodes – as specials or extras. */
+  includeExtras: boolean;
+  /** Shortest title still listed as an extra, in seconds. */
+  extraMinSeconds: number;
   /** Seconds between drive polls. */
   pollIntervalSeconds: number;
   /** Start ripping as soon as a disc is identified, without confirmation. */
@@ -1155,6 +1159,16 @@ export interface DiscAudioTrack {
   label: string;
 }
 
+/** Name for a bonus title that is not an episode. "none" keeps the disc's own title name. */
+export type ExtraType = 'none' | 'op' | 'ed' | 'extra' | 'ova' | 'special' | 'custom';
+
+/**
+ * What a disc title is: an episode (number in `episodeMap`), a special imported as season 0 (S00Exx, when TVDB has
+ * it), or an extra – kept next to the show / movie in an Extras folder, because Sonarr and Radarr only import
+ * episodes and movies.
+ */
+export type TitleRole = { kind: 'episode' } | { kind: 'special'; episode: number } | { kind: 'extra'; type: ExtraType; name?: string };
+
 export interface DiscTitle {
   id: number;
   name: string;
@@ -1170,6 +1184,8 @@ export interface DiscTitle {
   audio: string[];
   audioTracks?: DiscAudioTrack[];
   subtitles: string[];
+  /** Shorter than the minimum title length: only listed because extras are included. */
+  short?: boolean;
 }
 
 export type RipStatus =
@@ -1250,6 +1266,10 @@ export interface DiscRip {
   /** Which audio tracks to keep: the best per language, all of them, or a hand-picked set per title id. */
   audioMode?: 'best' | 'all' | 'custom';
   selectedAudio?: Record<string, number[]>;
+  /** Minimum title length the disc was scanned with; the rip must use the same one (MakeMKV numbers titles after it). */
+  scanMinSeconds?: number;
+  /** Titles that are specials or extras rather than episodes (by title id); anything else is an episode. */
+  titleRoles?: Record<string, TitleRole>;
   /** Series: explicit title -> episode number mapping (falls back to episodeStart + order). */
   episodeMap?: Record<number, number>;
   /** Title ids that look like a "play all" title (duration ≈ sum of the others). */

@@ -346,6 +346,8 @@ export const DEFAULT_SETTINGS = {
     ripDirectory: '',
     minTitleSeconds: 600,
     audioMode: 'best',
+    includeExtras: false,
+    extraMinSeconds: 30,
     pollIntervalSeconds: 15,
     autoRip: false,
     autoTranscode: true,

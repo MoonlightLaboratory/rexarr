@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { MusicBrainzRelease, DriveCandidate, DiscAudioTrack, DiscDrive, DiscEstimate, DiscRip, DiscTitle, Episode, LookupResult, MakemkvInfo, RipMedia, RipOptions, RipStatus } from '@shared/types';
+import type { MusicBrainzRelease, DriveCandidate, DiscAudioTrack, DiscDrive, DiscEstimate, DiscRip, DiscTitle, Episode, ExtraType, LookupResult, MakemkvInfo, RipMedia, RipOptions, RipStatus, TitleRole } from '@shared/types';
 import { api, fmtAge, fmtBytes, fmtDuration, ripOverallPercent } from '../api';
 import { useApp } from '../App';
 import { Page, ToolbarButton } from '../components/Layout';
@@ -461,6 +461,8 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
   const [profileId, setProfileId] = useState(rip.profileId ?? '');
   const [options, setOptions] = useState<RipOptions>(rip.options);
   const [episodeMap, setEpisodeMap] = useState<Record<number, number>>(rip.episodeMap ?? {});
+  const [titleRoles, setTitleRoles] = useState<Record<string, TitleRole>>(rip.titleRoles ?? {});
+  const [specials, setSpecials] = useState<Episode[]>([]);
   const [audioMode, setAudioMode] = useState<'best' | 'all' | 'custom'>(rip.audioMode ?? 'best');
   const [selectedAudio, setSelectedAudio] = useState<Record<string, number[]>>(rip.selectedAudio ?? {});
   const [estimate, setEstimate] = useState<DiscEstimate | null>(null);
@@ -478,6 +480,9 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
     api.episodes(media.arrId, media.seasonNumber ?? 1)
       .then(setSonarrEpisodes)
       .catch(() => setSonarrEpisodes(null));
+    api.episodes(media.arrId, 0)
+      .then(setSpecials)
+      .catch(() => setSpecials([]));
   }, [isSeries, media.arrId, media.seasonNumber]);
 
   /** Sequential numbering from "first episode" for every selected title that has no explicit mapping. */
@@ -494,6 +499,7 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
     setProfileId(rip.profileId ?? '');
     setOptions(rip.options);
     setEpisodeMap(rip.episodeMap ?? {});
+    setTitleRoles(rip.titleRoles ?? {});
   }, [rip.id, rip.status, rip.titles.length, rip.media.externalId, rip.profileId]);
 
   const mediaType = media.kind === 'series' ? (media.seriesType === 'anime' ? 'anime' : 'tv') : 'movie';
@@ -510,7 +516,23 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
       setBusy(false);
     }
   };
-  const start = () => act(() => api.startRip(rip.id, { media, selectedTitleIds: selected, episodeMap: isSeries ? renumber(media.episodeStart ?? 1, selected, episodeMap) : undefined, profileId: profileId || undefined, options, audioMode, selectedAudio }), 'Rip started');
+  const onlyEpisodes = (ids: number[]) => ids.filter((id) => !titleRoles[String(id)] || titleRoles[String(id)].kind === 'episode');
+  const episodeIds = onlyEpisodes(selected);
+  const start = () => act(() => api.startRip(rip.id, { media, selectedTitleIds: selected, episodeMap: isSeries ? renumber(media.episodeStart ?? 1, episodeIds, episodeMap) : undefined, titleRoles, profileId: profileId || undefined, options, audioMode, selectedAudio }), 'Rip started');
+  const setRole = (id: number, role: TitleRole) => {
+    setTitleRoles((m) => {
+      const next = { ...m };
+      if (role.kind === 'episode') delete next[String(id)];
+      else next[String(id)] = role;
+      return next;
+    });
+    if (role.kind !== 'episode')
+      setEpisodeMap((m) => {
+        const next = { ...m };
+        delete next[id];
+        return next;
+      });
+  };
 
   // Estimated sizes for what is selected right now (nothing has been ripped yet, so this uses the disc's own stream list).
   const hasTitles = rip.titles.length > 0 && rip.discType !== 'cd';
@@ -538,16 +560,16 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
       if (m.kind && m.kind !== x.kind && rip.titles.length) {
         const sel = m.kind === 'series' ? rip.titles.filter((t) => !(rip.playAllTitleIds ?? []).includes(t.id)).map((t) => t.id) : [[...rip.titles].sort((a, b) => b.durationSeconds - a.durationSeconds)[0].id];
         setSelected(sel);
-        setEpisodeMap(renumber(next.episodeStart ?? 1, sel));
+        setEpisodeMap(renumber(next.episodeStart ?? 1, onlyEpisodes(sel)));
       }
-      if (m.episodeStart !== undefined && m.episodeStart !== x.episodeStart) setEpisodeMap(renumber(m.episodeStart, selected));
+      if (m.episodeStart !== undefined && m.episodeStart !== x.episodeStart) setEpisodeMap(renumber(m.episodeStart, onlyEpisodes(selected)));
       return next;
     });
   };
   const toggleTitle = (id: number, on: boolean) => {
     const sel = on ? [...selected, id].sort((a, b) => a - b) : selected.filter((x) => x !== id);
     setSelected(sel);
-    if (isSeries) setEpisodeMap((m) => renumber(media.episodeStart ?? 1, sel, on ? m : Object.fromEntries(Object.entries(m).filter(([k]) => Number(k) !== id))));
+    if (isSeries) setEpisodeMap((m) => renumber(media.episodeStart ?? 1, onlyEpisodes(sel), on ? m : Object.fromEntries(Object.entries(m).filter(([k]) => Number(k) !== id))));
   };
   const usedTwice = (ep: number) => selected.filter((id) => episodeMap[id] === ep).length > 1;
 
@@ -653,7 +675,7 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
                   <th>Length</th>
                   <th className="num">Size</th>
                   <th>Chapters</th>
-                  {isSeries && <th style={{ minWidth: 200 }}>Episode</th>}
+                  <th style={{ minWidth: 200 }}>{isSeries ? 'Episode / extra' : 'Type'}</th>
                   <th>Video</th>
                   <th style={{ minWidth: 190 }}>Audio</th>
                   <th>Subs</th>
@@ -671,30 +693,25 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
                       {(rip.playAllTitleIds ?? []).includes(t.id) && <span className="badge warning sm" style={{ marginLeft: 6 }} title="This title is as long as the other titles combined – usually a 'play all' compilation">play all</span>}
                       {t.sourceFile && <span className="small muted"> · {t.sourceFile}</span>}
                     </td>
-                    {isSeries && (
-                      <td>
-                        {selected.includes(t.id) ? (
-                          sonarrEpisodes && sonarrEpisodes.length ? (
-                            <select value={episodeMap[t.id] ?? ''} onChange={(e) => setEpisodeMap((m) => ({ ...m, [t.id]: Number(e.target.value) }))} style={{ height: 30, padding: '0 8px', minWidth: 240, borderColor: usedTwice(episodeMap[t.id]) ? 'var(--dangerColor)' : undefined }}>
-                              <option value="">—</option>
-                              {sonarrEpisodes.map((e) => (
-                                <option key={e.id} value={e.episodeNumber}>
-                                  E{String(e.episodeNumber).padStart(2, '0')} · {e.title}
-                                  {e.hasFile ? ' ✓' : ''}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <span className="inline" style={{ gap: 6 }}>
-                              <span className="small dim">{media.absoluteNumbering ? 'Ep.' : `S${String(media.seasonNumber ?? 1).padStart(2, '0')}E`}</span>
-                              <input type="number" min={0} style={{ width: 70, height: 30 }} value={episodeMap[t.id] ?? ''} onChange={(e) => setEpisodeMap((m) => ({ ...m, [t.id]: Number(e.target.value) }))} />
-                            </span>
-                          )
-                        ) : (
-                          <span className="muted small">skipped</span>
-                        )}
-                      </td>
-                    )}
+                    <td>
+                      {selected.includes(t.id) ? (
+                        <TitleRoleCell
+                          title={t}
+                          isSeries={isSeries}
+                          role={titleRoles[String(t.id)] ?? { kind: 'episode' }}
+                          episode={episodeMap[t.id]}
+                          episodes={sonarrEpisodes}
+                          specials={specials}
+                          seasonNumber={media.seasonNumber ?? 1}
+                          prefix={media.absoluteNumbering ? 'Ep.' : `S${String(media.seasonNumber ?? 1).padStart(2, '0')}E`}
+                          duplicate={(titleRoles[String(t.id)]?.kind ?? 'episode') === 'episode' && usedTwice(episodeMap[t.id])}
+                          onEpisode={(n) => setEpisodeMap((m) => ({ ...m, [t.id]: n }))}
+                          onRole={(r) => setRole(t.id, r)}
+                        />
+                      ) : (
+                        <span className="muted small">skipped</span>
+                      )}
+                    </td>
                     <td className="mono">{fmtDuration(t.durationSeconds)}</td>
                     <td className="num dim">{fmtBytes(t.sizeBytes)}</td>
                     <td className="dim">{t.chapters || '—'}</td>
@@ -785,6 +802,112 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
         </div>
       )}
     </div>
+  );
+}
+
+const EXTRA_OPTIONS: { type: ExtraType; label: string }[] = [
+  { type: 'none', label: 'Extra – keep disc name' },
+  { type: 'op', label: 'OP' },
+  { type: 'ed', label: 'ED' },
+  { type: 'extra', label: 'Extra' },
+  { type: 'ova', label: 'OVA' },
+  { type: 'special', label: 'Special' },
+  { type: 'custom', label: 'Custom name…' },
+];
+
+/**
+ * What a title is: an episode of the season, a special from season 0 (when TVDB lists specials), or an extra that is
+ * kept next to the show in an Extras folder (Sonarr only imports episodes).
+ */
+function TitleRoleCell({
+  title,
+  isSeries,
+  role,
+  episode,
+  episodes,
+  specials,
+  seasonNumber,
+  prefix,
+  duplicate,
+  onEpisode,
+  onRole,
+}: {
+  title: DiscTitle;
+  isSeries: boolean;
+  role: TitleRole;
+  episode?: number;
+  episodes: Episode[] | null;
+  specials: Episode[];
+  seasonNumber: number;
+  prefix: string;
+  duplicate: boolean;
+  onEpisode: (n: number) => void;
+  onRole: (r: TitleRole) => void;
+}) {
+  const value = role.kind === 'special' ? `sp:${role.episode}` : role.kind === 'extra' ? `x:${role.type}` : isSeries ? (episodes?.length ? `ep:${episode ?? ''}` : 'ep') : 'main';
+  const change = (v: string) => {
+    if (v === 'main' || v === 'ep') return onRole({ kind: 'episode' });
+    const [k, rest] = v.split(':');
+    if (k === 'ep') {
+      onRole({ kind: 'episode' });
+      if (rest) onEpisode(Number(rest));
+    } else if (k === 'sp') onRole({ kind: 'special', episode: Number(rest) });
+    else onRole({ kind: 'extra', type: rest as ExtraType, name: role.kind === 'extra' ? role.name : undefined });
+  };
+  return (
+    <span className="inline" style={{ gap: 6, flexWrap: 'nowrap' }}>
+      <select className="roleSelect" value={value} onChange={(e) => change(e.target.value)} style={{ borderColor: duplicate ? 'var(--dangerColor)' : undefined }} title={title.short ? 'Shorter than the minimum title length: probably an extra' : undefined}>
+        {isSeries ? (
+          episodes?.length ? (
+            <optgroup label={`Season ${seasonNumber}`}>
+              <option value="ep:">—</option>
+              {episodes.map((e) => (
+                <option key={e.id} value={`ep:${e.episodeNumber}`}>
+                  E{String(e.episodeNumber).padStart(2, '0')} · {e.title}
+                  {e.hasFile ? ' ✓' : ''}
+                </option>
+              ))}
+            </optgroup>
+          ) : (
+            <option value="ep">Episode</option>
+          )
+        ) : (
+          <option value="main">Movie</option>
+        )}
+        {isSeries && specials.length > 0 && (
+          <optgroup label="Specials (season 0)">
+            {specials.map((e) => (
+              <option key={e.id} value={`sp:${e.episodeNumber}`}>
+                S00E{String(e.episodeNumber).padStart(2, '0')} · {e.title}
+                {e.hasFile ? ' ✓' : ''}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        <optgroup label={isSeries ? 'Extra – kept next to the show' : 'Extra – kept next to the movie'}>
+          {EXTRA_OPTIONS.map((o) => (
+            <option key={o.type} value={`x:${o.type}`}>
+              {o.label}
+            </option>
+          ))}
+        </optgroup>
+      </select>
+      {isSeries && role.kind === 'episode' && !episodes?.length && (
+        <span className="inline" style={{ gap: 4, flexWrap: 'nowrap' }}>
+          <span className="small dim">{prefix}</span>
+          <input type="number" min={0} style={{ width: 64, height: 30 }} value={episode ?? ''} onChange={(e) => onEpisode(Number(e.target.value))} />
+        </span>
+      )}
+      {role.kind === 'extra' && role.type === 'custom' && (
+        <input type="text" placeholder="Name, e.g. Creditless OP 2" style={{ width: 170, height: 30 }} value={role.name ?? ''} onChange={(e) => onRole({ kind: 'extra', type: 'custom', name: e.target.value })} />
+      )}
+      {isSeries && role.kind === 'extra' && specials.length === 0 && <span className="small dim" title="TVDB lists no specials for this series">no specials on TVDB</span>}
+      {isSeries && role.kind === 'episode' && episodes?.length && !episodes.some((e) => e.episodeNumber === episode) ? (
+        <span className="small" style={{ color: 'var(--warningColor)', whiteSpace: 'nowrap' }} title={`Season ${seasonNumber} has ${episodes.length} episodes on TVDB: pick a special or an extra for this title`}>
+          special or extra?
+        </span>
+      ) : null}
+    </span>
   );
 }
 

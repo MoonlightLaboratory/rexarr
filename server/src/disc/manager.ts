@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { DiscDrive, DiscRip, Job, RipMedia, RipOptions, RipStatus, ServerEvent } from '../../../shared/types.js';
+import type { DiscDrive, DiscRip, Job, RipMedia, RipOptions, RipStatus, ServerEvent, TitleRole } from '../../../shared/types.js';
 import { PATHS, LOG_LINES_KEPT } from '../config.js';
 import { store } from '../store.js';
 import { bus } from '../events.js';
@@ -18,6 +18,8 @@ import { proxiedImage } from '../routes/images.js';
 import { appEvents } from '../system.js';
 import { ejectDrive, labelToTitle, listDrives, listVirtualDrives, readDisc, resolveMakemkv, ripTitle, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
 import { audioSelectionFor, describeTracks } from './audio.js';
+import { extraFileName, extraLabel, guessExtraRoles } from './extras.js';
+import { toLocalPath } from '../paths.js';
 import { matchLibrary, nameScore, splitSequel, type LibraryCandidate } from './identify.js';
 import { keepAudioTracks } from './remux.js';
 
@@ -223,12 +225,17 @@ export class DiscManager {
     this.log(rip, 'Reading disc structure with MakeMKV…');
     this.emit(rip);
     try {
-      const info = await readDisc(this.makemkv(), rip.source ?? `disc:${rip.driveIndex}`, store.settings.disc.minTitleSeconds);
+      const d = store.settings.disc;
+      // MakeMKV numbers titles after this filter, so the rip must use the same minimum as the scan
+      rip.scanMinSeconds = d.includeExtras ? Math.min(d.extraMinSeconds ?? 30, d.minTitleSeconds) : d.minTitleSeconds;
+      const info = await readDisc(this.makemkv(), rip.source ?? `disc:${rip.driveIndex}`, rip.scanMinSeconds);
+      for (const t of info.titles) if (t.durationSeconds < d.minTitleSeconds) t.short = true;
       rip.discType = info.type;
       rip.volumeName = info.volumeName;
       rip.titles = info.titles;
       if (!rip.label && info.name) rip.label = info.name;
-      this.log(rip, `${info.type} disc, ${info.titles.length} title(s) of at least ${store.settings.disc.minTitleSeconds}s`);
+      const shorts = info.titles.filter((t) => t.short).length;
+      this.log(rip, `${info.type} disc, ${info.titles.length - shorts} title(s) of at least ${d.minTitleSeconds}s${shorts ? ` and ${shorts} shorter extra(s)` : ''}`);
       if (!rip.media.title) {
         const g = labelToTitle(info.name || info.volumeName);
         rip.media = { ...rip.media, title: g.title, year: g.year, seasonNumber: g.season ?? rip.media.seasonNumber, kind: g.season ? 'series' : rip.media.kind, discNumber: g.disc ?? rip.media.discNumber };
@@ -649,16 +656,20 @@ export class DiscManager {
       return;
     }
     rip.playAllTitleIds = DiscManager.playAllTitles(rip.titles);
+    // Short titles (only listed when extras are included) start out as extras: creditless OP / ED, bonus clips.
+    rip.titleRoles = guessExtraRoles(rip.titles);
+    const extraIds = rip.titles.filter((t) => t.short).map((t) => t.id);
     if (rip.media.kind === 'series') {
-      // Episodes: every title except play-all compilations, in disc order.
-      rip.selectedTitleIds = rip.titles.filter((t) => !rip.playAllTitleIds!.includes(t.id)).map((t) => t.id);
+      // Episodes: every full-length title except play-all compilations, in disc order.
+      const episodes = rip.titles.filter((t) => !t.short && !rip.playAllTitleIds!.includes(t.id)).map((t) => t.id);
       // Multi-disc sets: disc N most likely starts after (N-1) × episodes-per-disc.
-      if (rip.media.discNumber && rip.media.discNumber > 1 && (rip.media.episodeStart ?? 1) === 1) rip.media.episodeStart = (rip.media.discNumber - 1) * rip.selectedTitleIds.length + 1;
+      if (rip.media.discNumber && rip.media.discNumber > 1 && (rip.media.episodeStart ?? 1) === 1) rip.media.episodeStart = (rip.media.discNumber - 1) * episodes.length + 1;
       rip.episodeMap = {};
-      rip.selectedTitleIds.forEach((id, i) => (rip.episodeMap![id] = (rip.media.episodeStart ?? 1) + i));
+      episodes.forEach((id, i) => (rip.episodeMap![id] = (rip.media.episodeStart ?? 1) + i));
+      rip.selectedTitleIds = [...episodes, ...extraIds];
     } else {
-      const longest = [...rip.titles].sort((a, b) => b.durationSeconds - a.durationSeconds)[0];
-      rip.selectedTitleIds = [longest.id];
+      const longest = [...rip.titles].filter((t) => !t.short).sort((a, b) => b.durationSeconds - a.durationSeconds)[0] ?? rip.titles[0];
+      rip.selectedTitleIds = [longest.id, ...extraIds.filter((id) => id !== longest.id)];
     }
     const mt = rip.media.kind === 'series' ? (rip.media.seriesType === 'anime' ? 'anime' : 'tv') : 'movie';
     // A profile picked when the release was grabbed wins over the defaults.
@@ -670,7 +681,7 @@ export class DiscManager {
   }
 
   /** User overrides from the UI. */
-  update(id: string, patch: { media?: Partial<RipMedia>; selectedTitleIds?: number[]; episodeMap?: Record<number, number>; profileId?: string; options?: Partial<RipOptions>; audioMode?: 'best' | 'all' | 'custom'; selectedAudio?: Record<string, number[]> }) {
+  update(id: string, patch: { media?: Partial<RipMedia>; selectedTitleIds?: number[]; episodeMap?: Record<number, number>; profileId?: string; options?: Partial<RipOptions>; audioMode?: 'best' | 'all' | 'custom'; selectedAudio?: Record<string, number[]>; titleRoles?: Record<string, TitleRole> }) {
     const rip = this.get(id);
     if (!rip) throw new Error('rip not found');
     if (patch.media) {
@@ -694,6 +705,11 @@ export class DiscManager {
       rip.episodeMap = Object.fromEntries(rip.selectedTitleIds.map((id, i) => [id, start + i]));
     }
     if (patch.audioMode) rip.audioMode = patch.audioMode;
+    if (patch.titleRoles) {
+      rip.titleRoles = Object.fromEntries(Object.entries(patch.titleRoles).filter(([k, r]) => r.kind !== 'episode' && rip.titles.some((t) => String(t.id) === k)));
+      // an episode number only belongs to titles that are episodes
+      if (rip.episodeMap) for (const k of Object.keys(rip.titleRoles)) delete rip.episodeMap[Number(k)];
+    }
     if (patch.selectedAudio) {
       rip.selectedAudio = { ...rip.selectedAudio, ...patch.selectedAudio };
       rip.audioMode = 'custom';
@@ -759,7 +775,7 @@ export class DiscManager {
           rip.source ?? `disc:${rip.driveIndex}`,
           t.id,
           work,
-          store.settings.disc.minTitleSeconds,
+          rip.scanMinSeconds ?? store.settings.disc.minTitleSeconds,
           (pct, step) => {
             rip.progress.percent = pct;
             rip.progress.step = step;
@@ -822,6 +838,19 @@ export class DiscManager {
   private fileNameFor(rip: DiscRip, t: DiscRip['titles'][number], seq: number) {
     const res = resolutionTag(t.resolution, rip.discType);
     const isDvd = rip.discType === 'dvd' || res === 'DVD';
+    const role = rip.titleRoles?.[String(t.id)];
+    if (role?.kind === 'special' && rip.media.kind === 'series') {
+      return `${safeName(rip.media.title || rip.label)} - S00E${String(role.episode).padStart(2, '0')} - ${isDvd ? 'DVD' : `Bluray-${res} Remux`}.mkv`;
+    }
+    if (role?.kind === 'extra') {
+      const label = extraLabel(role, t);
+      const same = rip.titles.filter((x) => rip.selectedTitleIds.includes(x.id)).filter((x) => {
+        const r = rip.titleRoles?.[String(x.id)];
+        return r?.kind === 'extra' && extraLabel(r, x) === label;
+      });
+      const show = rip.media.kind === 'series' ? safeName(rip.media.title || rip.label) : `${safeName(rip.media.title || rip.label)}${rip.media.year ? ` (${rip.media.year})` : ''}`;
+      return extraFileName(show, rip.media.kind === 'series' ? rip.media.seasonNumber : undefined, label, same.findIndex((x) => x.id === t.id) + 1, same.length);
+    }
     if (rip.media.kind === 'series') {
       const ep = rip.episodeMap?.[t.id] ?? (rip.media.episodeStart ?? 1) + seq;
       const q = isDvd ? 'DVD' : `Bluray-${res} Remux`;
@@ -831,7 +860,8 @@ export class DiscManager {
       return `${show} - S${s}E${String(ep).padStart(2, '0')} - ${q}.mkv`;
     }
     const base = `${safeName(rip.media.title || rip.label)}${rip.media.year ? ` (${rip.media.year})` : ''}`;
-    const extra = rip.selectedTitleIds.length > 1 ? ` - Title ${t.id}` : '';
+    const mains = rip.selectedTitleIds.filter((id) => rip.titleRoles?.[String(id)]?.kind !== 'extra');
+    const extra = mains.length > 1 ? ` - Title ${t.id}` : '';
     return `${base}${extra} ${isDvd ? 'DVD' : `Remux-${res}`}.mkv`;
   }
 
@@ -865,6 +895,52 @@ export class DiscManager {
     if (rip.files.every((f) => f.finalPath)) await this.deliver(rip);
   }
 
+  /**
+   * Extras are not episodes or movies, so Sonarr / Radarr would reject them: move them into an "Extras" folder next
+   * to the show or movie (Plex, Jellyfin and Emby pick them up there) before the import. Files that cannot be moved
+   * stay in the rip folder's Extras sub-folder.
+   */
+  private async deliverExtras(rip: DiscRip) {
+    const extras = rip.files.filter((f) => rip.titleRoles?.[String(f.titleId)]?.kind === 'extra');
+    if (!extras.length) return;
+    const { radarr, sonarr } = arr();
+    let target: string | null = null;
+    try {
+      if (rip.media.kind === 'series' && rip.media.arrId && sonarr.configured) {
+        const s = await sonarr.seriesById(rip.media.arrId);
+        target = path.join(toLocalPath(s.path, 'sonarr'), 'Extras');
+      } else if (rip.media.kind === 'movie' && rip.media.arrId && radarr.configured) {
+        const m = await radarr.movie(rip.media.arrId);
+        target = path.join(toLocalPath(m.path, 'radarr'), 'Extras');
+      }
+    } catch (err) {
+      this.log(rip, `Could not find the library folder for extras: ${(err as Error).message}`);
+    }
+    // the library folder must already exist here; otherwise keep extras out of the import in the rip folder
+    if (!target || !fs.existsSync(path.dirname(target))) target = path.join(rip.outputDir!, 'Extras');
+    fs.mkdirSync(target, { recursive: true });
+    for (const f of extras) {
+      const from = f.finalPath ?? f.path;
+      if (!fs.existsSync(from)) continue;
+      const to = path.join(target, path.basename(from).replace(/\.rexarr(?=\.\w+$)/, ''));
+      try {
+        try {
+          fs.renameSync(from, to);
+        } catch {
+          // another volume (local rip folder → NAS library): copy, then remove
+          fs.copyFileSync(from, to);
+          fs.unlinkSync(from);
+        }
+        f.finalPath = to;
+        this.log(rip, `Extra → ${to}`);
+      } catch (err) {
+        this.log(rip, `Could not move extra ${path.basename(from)}: ${(err as Error).message}`);
+      }
+    }
+    // Sonarr / Radarr scan the rip folder recursively but leave folders named "Extras" alone.
+    store.saveRips();
+  }
+
   /** Hand the folder to Radarr / Sonarr for import (DownloadedMoviesScan / DownloadedEpisodesScan), then eject. */
   private async deliver(rip: DiscRip) {
     rip.status = 'delivering';
@@ -879,6 +955,7 @@ export class DiscManager {
       } else if (rip.options.deliver && rip.media.kind !== 'unknown' && rip.media.externalId) {
         const { radarr, sonarr } = arr();
         const dir = rip.outputDir!;
+        await this.deliverExtras(rip);
         if (rip.media.kind === 'movie' && radarr.configured) {
           if (!rip.media.arrId) {
             const m = await radarr.add(rip.media.externalId);

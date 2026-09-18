@@ -1,5 +1,5 @@
 import { withBase } from './base';
-import type { DiscEstimate, AnidbInfo, AutoScanResult, AutoStatus, AppEvent, StoragePath, HwDevices, HwTestResult, TranscodingSettings, BackupInfo, DiscDrive, DiscRip, LogFileInfo, ScheduledTask, VirtualDrive, Episode, FfmpegCapabilities, HealthCheck, Job, LookupResult, MakemkvInfo, Movie, Profile, Release, RipMedia, RipOptions, Series, Settings, SystemInfo, SmartSearchResult, HostRuntime, DriveCandidate, PhysicalDrive, Artist, Album, Track, MqaInfo, MusicBrainzRelease, LocalItem, LocalFile, LocalScanStatus, LocalMeta, LocalMetaCandidate, SizeEstimateResult, SetupTools } from '@shared/types';
+import type { DiscEstimate, TitleRole, AnidbInfo, AutoScanResult, AutoStatus, AppEvent, StoragePath, HwDevices, HwTestResult, TranscodingSettings, BackupInfo, DiscDrive, DiscRip, LogFileInfo, ScheduledTask, VirtualDrive, Episode, FfmpegCapabilities, HealthCheck, Job, LookupResult, MakemkvInfo, Movie, Profile, Release, RipMedia, RipOptions, Series, Settings, SystemInfo, SmartSearchResult, HostRuntime, DriveCandidate, PhysicalDrive, Artist, Album, Track, MqaInfo, MusicBrainzRelease, LocalItem, LocalFile, LocalScanStatus, LocalMeta, LocalMetaCandidate, SizeEstimateResult, SetupTools } from '@shared/types';
 
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(withBase(url), {
@@ -43,6 +43,7 @@ export interface RipPatch {
   options?: Partial<RipOptions>;
   audioMode?: 'best' | 'all' | 'custom';
   selectedAudio?: Record<string, number[]>;
+  titleRoles?: Record<string, TitleRole>;
 }
 
 export interface MediaMetadata {
