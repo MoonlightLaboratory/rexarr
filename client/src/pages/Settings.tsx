@@ -840,6 +840,19 @@ export function SettingsPage() {
               <div className="help">Skips trailers and menus. 600 for movies, 1200 for hour-long episodes, lower for short anime episodes.</div>
             </div>
             <div className="field">
+              <label className="check">
+                <input type="checkbox" checked={s.disc.includeExtras ?? false} onChange={(e) => setS({ ...s, disc: { ...s.disc, includeExtras: e.target.checked } })} /> Include extras and specials
+              </label>
+              <div className="help">
+                Also rip titles shorter than the minimum: creditless OP / ED, OVAs, specials, bonus clips. Each one can be named on the Discs page – a Sonarr special (season 0, when TVDB lists it) or an extra (OP, ED, Extra, OVA, Special or your own name), which goes into an <code>Extras</code> folder next to the show.
+              </div>
+            </div>
+            <div className="field">
+              <label>Shortest extra (seconds)</label>
+              <input type="number" min={0} value={s.disc.extraMinSeconds ?? 30} disabled={!s.disc.includeExtras} onChange={(e) => setS({ ...s, disc: { ...s.disc, extraMinSeconds: Number(e.target.value) } })} />
+              <div className="help">Menus and logos are shorter than this. A creditless OP / ED runs about 90 seconds.</div>
+            </div>
+            <div className="field">
               <label>Drive poll interval (seconds)</label>
               <input type="number" min={5} value={s.disc.pollIntervalSeconds} onChange={(e) => setS({ ...s, disc: { ...s.disc, pollIntervalSeconds: Number(e.target.value) } })} />
             </div>

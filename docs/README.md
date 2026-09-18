@@ -216,6 +216,21 @@ Requirements: MakeMKV (Blu-ray ISOs need a registered or beta key), a path mappi
 (e.g. `/downloads` → `/mnt/downloads`), and a rip folder the \*arr apps can reach. Prowlarr grabs are untracked; open
 the finished ISO with **Discs → Virtual drive**. If Radarr imports an `.iso` itself, Rexarr rips that file instead.
 
+### Specials and extras
+
+Discs often carry more than the season's episodes: an OVA, a recap, creditless openings and endings. In the
+**Episode / extra** column every title can be
+
+- an **episode** of the season (numbers beyond the season's last episode are flagged *special or extra?*),
+- a **special** from season 0 – listed when TVDB has specials for the show – imported by Sonarr as `S00Exx`,
+- an **extra**: *OP*, *ED*, *Extra*, *OVA*, *Special*, a **custom** name, or the disc's own title name. Sonarr and
+  Radarr only import episodes and movies, so extras go into an `Extras` folder next to the show or movie (Plex,
+  Jellyfin and Emby show them there), named like `My Teen Romantic Comedy SNAFU - S02 - OP.mkv`.
+
+Short titles (creditless OP / ED run about 90 seconds) are skipped by the minimum title length. Tick
+**Settings → Disc ripping → Include extras and specials** to list them too, down to *Shortest extra* (30 s by
+default); they start out as extras, with 60–150 s titles guessed as OP then ED.
+
 ### Audio tracks
 
 Discs often carry the same language several times – DTS 5.1, Dolby Digital 5.1 and a stereo track. **Best audio per

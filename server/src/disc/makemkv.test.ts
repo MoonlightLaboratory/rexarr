@@ -7,6 +7,7 @@ import { findDiscImages, labelToTitle, listVirtualDrives, parseDiscInfo, parseDr
 import { audioSelectionFor, bestAudioPerLanguage, codecRank } from './audio.js';
 import type { DiscAudioTrack } from '../../../shared/types.js';
 import { matchLibrary, splitSequel, type LibraryCandidate } from './identify.js';
+import { extraFileName, extraLabel, guessExtraRoles } from './extras.js';
 
 test('splitRobot handles quoted fields with commas and escaped quotes', () => {
   assert.deepEqual(splitRobot('0,2,999,12,"BD-RE HL-DT-ST, WH16NS40","BLADE_RUNNER","/dev/sr0"'), ['0', '2', '999', '12', 'BD-RE HL-DT-ST, WH16NS40', 'BLADE_RUNNER', '/dev/sr0']);
@@ -277,4 +278,16 @@ test('a season title such as "SNAFU Too" finds its season', () => {
   assert.equal(matchLibrary(labelToTitle('SNAFU_TOO_DISC_1').title!, library)?.season, 2);
   assert.equal(matchLibrary('Snafu Climax', library)?.season, 3);
   assert.equal(matchLibrary('Snafu 2', library)?.season, 2);
+});
+
+test('short titles become extras, named OP / ED / custom', () => {
+  const t = (id: number, secs: number, short = false) => ({ id, name: `Title ${id}`, durationSeconds: secs, sizeBytes: 1, chapters: 1, fileName: `t${id}.mkv`, audio: [], subtitles: [], short });
+  const titles = [t(0, 1512), t(1, 1512), t(2, 91, true), t(3, 91, true), t(4, 400, true)];
+  const roles = guessExtraRoles(titles);
+  assert.deepEqual(roles, { '2': { kind: 'extra', type: 'op' }, '3': { kind: 'extra', type: 'ed' }, '4': { kind: 'extra', type: 'extra' } });
+  assert.equal(extraLabel({ kind: 'extra', type: 'custom', name: 'Creditless OP 2' }, titles[2]), 'Creditless OP 2');
+  assert.equal(extraLabel({ kind: 'extra', type: 'none' }, titles[4]), 'Title 4');
+  assert.equal(extraFileName('My Teen Romantic Comedy SNAFU', 2, 'OP', 1, 1), 'My Teen Romantic Comedy SNAFU - S02 - OP.mkv');
+  assert.equal(extraFileName('Your Name. (2016)', undefined, 'Special', 2, 3), 'Your Name. (2016) - Special 2.mkv');
+  assert.equal(extraFileName('Show', 1, 'a/b: c', 1, 1), 'Show - S01 - a b c.mkv');
 });

@@ -32,6 +32,16 @@ const patchSchema = z.object({
   profileId: z.string().optional(),
   options: z.object({ transcode: z.boolean().optional(), deliver: z.boolean().optional(), eject: z.boolean().optional(), keepRaw: z.boolean().optional() }).optional(),
   audioMode: z.enum(['best', 'all', 'custom']).optional(),
+  titleRoles: z
+    .record(
+      z.string(),
+      z.discriminatedUnion('kind', [
+        z.object({ kind: z.literal('episode') }),
+        z.object({ kind: z.literal('special'), episode: z.number().int().min(0) }),
+        z.object({ kind: z.literal('extra'), type: z.enum(['none', 'op', 'ed', 'extra', 'ova', 'special', 'custom']), name: z.string().max(120).optional() }),
+      ]),
+    )
+    .optional(),
   selectedAudio: z.record(z.string(), z.array(z.number().int().min(0))).optional(),
 });
 
