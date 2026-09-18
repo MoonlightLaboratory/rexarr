@@ -212,8 +212,9 @@ export async function unmountForDirectAccess(devicePath: string): Promise<string
   return ok ? `Unmounted ${dev} so MakeMKV can read the disc directly (macOS keeps DVDs mounted)` : `Could not unmount ${dev}; MakeMKV may fail to open the disc`;
 }
 
-export async function readDisc(makemkv: string, source: string, minLengthSeconds: number): Promise<DiscInfo> {
-  const { stdout } = await run(makemkv, ['-r', '--cache=1', `--minlength=${Math.max(0, Math.floor(minLengthSeconds))}`, 'info', source], { timeout: 15 * 60_000, maxBuffer: 64 * 1024 * 1024 }).catch((e: { stdout?: string; message?: string }) => {
+export async function readDisc(makemkv: string, source: string, minLengthSeconds: number, signal?: AbortSignal): Promise<DiscInfo> {
+  const { stdout } = await run(makemkv, ['-r', '--cache=1', `--minlength=${Math.max(0, Math.floor(minLengthSeconds))}`, 'info', source], { timeout: 15 * 60_000, maxBuffer: 64 * 1024 * 1024, signal }).catch((e: { stdout?: string; message?: string; name?: string }) => {
+    if (signal?.aborted) throw new Error('Scan cancelled');
     if (e.stdout) return { stdout: e.stdout };
     throw new Error(e.message ?? 'makemkvcon failed');
   });
