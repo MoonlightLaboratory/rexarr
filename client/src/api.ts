@@ -132,6 +132,7 @@ export const api = {
 
   discStatus: (refresh = false) => req<{ makemkv: MakemkvInfo; drives: DiscDrive[]; driveError?: string; enabled: boolean }>('GET', `/api/disc/status${refresh ? '?refresh=1' : ''}`),
   rips: () => req<DiscRip[]>('GET', '/api/disc/rips'),
+  checkRipDirectory: () => req<{ dir: string; localOk: boolean; apps: { app: 'radarr' | 'sonarr'; path: string; visible: boolean | null; error?: string }[] }>('GET', '/api/disc/rip-directory/check'),
   estimateRip: (id: string, body: { selectedTitleIds?: number[]; profileId?: string; options?: Partial<RipOptions>; audioMode?: 'best' | 'all' | 'custom'; selectedAudio?: Record<string, number[]> }) =>
     req<DiscEstimate>('POST', `/api/disc/rips/${id}/estimate`, body),
   detectDiscs: () => req<{ created: DiscRip[] }>('POST', '/api/disc/detect'),

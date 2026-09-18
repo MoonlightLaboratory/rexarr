@@ -3,7 +3,11 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { discs } from '../disc/manager.js';
 import { makemkvInfo } from '../disc/makemkv.js';
+import fs from 'node:fs';
 import { store } from '../store.js';
+import { arr } from '../arr/index.js';
+import { toArrPath } from '../paths.js';
+import { PATHS } from '../config.js';
 import { estimateRip } from '../disc/estimate.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 
@@ -99,6 +103,31 @@ export default async function discRoutes(app: FastifyInstance) {
     } catch (err) {
       return reply.code(400).send({ error: (err as Error).message });
     }
+  });
+
+  /**
+   * Can Radarr and Sonarr see the rip folder? Asks each app's own file browser for the folder as it would be sent
+   * to them (after path mappings); delivery only works when they can.
+   */
+  app.get('/api/disc/rip-directory/check', async () => {
+    const dir = store.settings.disc.ripDirectory?.trim() || PATHS.rips;
+    const { radarr, sonarr } = arr();
+    const out: { dir: string; localOk: boolean; apps: { app: 'radarr' | 'sonarr'; path: string; visible: boolean | null; error?: string }[] } = {
+      dir,
+      localOk: fs.existsSync(dir),
+      apps: [],
+    };
+    for (const [app, client] of [['radarr', radarr], ['sonarr', sonarr]] as const) {
+      if (!client.configured) continue;
+      const remote = toArrPath(dir, app);
+      try {
+        const res = await client.http.get<{ directories?: unknown[]; parent?: string }>('/filesystem', { path: remote.endsWith('/') ? remote : `${remote}/`, includeFiles: 'false' }, 15_000);
+        out.apps.push({ app, path: remote, visible: Array.isArray(res.directories) });
+      } catch (err) {
+        out.apps.push({ app, path: remote, visible: false, error: (err as Error).message });
+      }
+    }
+    return out;
   });
 
   /** Estimated rip and transcode size. The body may carry a selection that has not been saved yet. */

@@ -479,7 +479,8 @@ docker compose up -d --build  # or build locally from ./Dockerfile
 - **Media**: mount at the **same path Radarr / Sonarr see it** (for example `/data/media` in all three) and no
   path mapping is needed; otherwise add one under **Settings → Path mappings**. The health check on the
   **System** page tells you when a file the *arr app reports is not visible to rexarr.
-- **Rips**: point *Settings → Disc ripping → Rip directory* at a roomy mounted volume (`/data/rips`).
+- **Rips**: point *Settings → Disc ripping → Rip directory* at a roomy mounted volume (`/data/rips`) that Radarr / Sonarr
+  can see; *Check import access* asks both apps whether they can reach it (after path mappings).
 - **Hardware encoding**: pass `/dev/dri` for Intel QuickSync / VAAPI (`LIBVA_DRIVER_NAME=iHD` is preset; the Intel
   drivers are included on amd64). AMD VAAPI needs mesa, which adds about 200 MB, so build with
   `--build-arg WITH_AMD_VAAPI=1` if you want it.
