@@ -1046,3 +1046,5 @@ table.metaTags td.mono { word-break: break-word; }
 .audioPickActions { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--defaultBorderColor); }
 .ripDirCheck { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 .roleSelect { height: 30px; padding: 0 8px; width: 360px; max-width: 100%; }
+.queueLimit { display: inline-flex; align-items: center; gap: 6px; margin-right: 14px; font-size: var(--smallFontSize); color: var(--helpTextColor); white-space: nowrap; }
+.queueLimit select { height: 26px; padding: 0 6px; }

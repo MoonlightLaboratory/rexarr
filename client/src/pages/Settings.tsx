@@ -748,8 +748,9 @@ export function SettingsPage() {
             </div>
             <div className="grid-2">
               <div className="field">
-                <label>Simultaneous encodes</label>
+                <label>Encodes at a time</label>
                 <input type="number" min={1} max={16} value={s.concurrency} onChange={(e) => setS({ ...s, concurrency: Number(e.target.value) })} />
+                <div className="help">The rest wait in the queue. 1 suits most CPUs – x265 and SVT-AV1 already use every core; raise it for many cores or hardware encoding. Also on the Activity page.</div>
               </div>
               <div className="field">
                 <label>Import poll interval (s)</label>

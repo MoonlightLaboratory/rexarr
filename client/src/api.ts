@@ -106,6 +106,7 @@ export const api = {
 
   estimate: (items: { localPath?: string; arrPath?: string; arr?: 'radarr' | 'sonarr' | 'lidarr'; size?: number; anime?: boolean }[], profileIds?: string[]) => req<SizeEstimateResult>('POST', '/api/estimate', { items, profileIds }),
   pauseQueue: (paused: boolean) => req<{ paused: boolean }>('POST', '/api/queue/pause', { paused }),
+  setQueueLimit: (limit: number) => req<{ limit: number }>('POST', '/api/queue/limit', { limit }),
   retryFailedJobs: () => req<{ retried: number }>('POST', '/api/jobs/retry-failed'),
   localSearch: (q: string) => req<LookupResult[]>('GET', `/api/search/local?q=${encodeURIComponent(q)}`),
   smart: (q: string, scope: 'all' | 'movie' | 'series' | 'music', online: boolean) => req<SmartSearchResult>('GET', `/api/search/smart?scope=${scope}&online=${online ? 1 : 0}&q=${encodeURIComponent(q)}`),
