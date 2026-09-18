@@ -831,7 +831,8 @@ export function SettingsPage() {
             <div className="field">
               <label>Rip directory</label>
               <input type="text" value={s.disc.ripDirectory} onChange={(e) => setS({ ...s, disc: { ...s.disc, ripDirectory: e.target.value } })} placeholder="Empty = <data dir>/rips" />
-              <div className="help">Needs space for a full disc (up to 100 GB for UHD). Should be visible to Radarr / Sonarr for import.</div>
+              <div className="help">Needs space for a full disc (up to 100 GB for UHD). Radarr / Sonarr must be able to see it to import the rips (add a path mapping if they see it under another path).</div>
+              <RipDirectoryCheck saved={settings?.disc.ripDirectory ?? ''} current={s.disc.ripDirectory} />
             </div>
             <div className="field">
               <label>Minimum title length (seconds)</label>
@@ -926,5 +927,40 @@ export function SettingsPage() {
       <div className="legend">Local media</div>
       <LocalMediaCard value={s.localMedia} onChange={(localMedia) => setS({ ...s, localMedia })} dirty={JSON.stringify(s.localMedia) !== JSON.stringify(settings?.localMedia)} />
     </Page>
+  );
+}
+
+/** Asks Radarr and Sonarr whether they can see the (saved) rip folder, through their own file browsers. */
+function RipDirectoryCheck({ saved, current }: { saved: string; current: string }) {
+  const [result, setResult] = useState<Awaited<ReturnType<typeof api.checkRipDirectory>> | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = () => {
+    setBusy(true);
+    setError(null);
+    api
+      .checkRipDirectory()
+      .then(setResult)
+      .catch((e) => setError(e.message))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <div className="ripDirCheck">
+      <button type="button" className="btn sm" onClick={run} disabled={busy || saved !== current} title={saved !== current ? 'Save first' : undefined}>
+        {busy ? <span className="spinner" /> : <Icon.Check />} Check import access
+      </button>
+      {error && <span className="small danger">{error}</span>}
+      {result && (
+        <span className="inline small" style={{ gap: 6 }}>
+          {!result.localOk && <span className="badge red">not found here</span>}
+          {result.apps.map((a) => (
+            <span key={a.app} className={`badge ${a.visible ? 'green' : 'red'}`} title={a.error ?? a.path}>
+              {a.app === 'sonarr' ? 'Sonarr' : 'Radarr'} {a.visible ? 'sees' : 'cannot see'} {a.path}
+            </span>
+          ))}
+          {!result.apps.length && <span className="dim">Radarr / Sonarr are not connected</span>}
+        </span>
+      )}
+    </div>
   );
 }
