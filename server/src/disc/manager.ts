@@ -64,6 +64,8 @@ export class DiscManager {
   private timer: NodeJS.Timeout | null = null;
   private polling = false;
   private running = new Map<string, RipHandle>();
+  /** Scans in progress, so cancelling or removing a disc stops MakeMKV instead of leaving it holding the drive. */
+  private scans = new Map<string, AbortController>();
   drives: DiscDrive[] = [];
   private lastDriveError = '';
 
@@ -157,6 +159,10 @@ export class DiscManager {
         const label = d.discLabel ?? '';
         const active = store.rips.find((r) => r.drivePath === d.path && r.label === label && ACTIVE.includes(r.status));
         if (active) continue;
+        // A drive holds one disc. Right after it is (re)connected the label can read blank for a moment – that is the
+        // same disc, not a new one – and a disc that is still being scanned or ripped must not get a second entry.
+        const busy = store.rips.find((r) => r.drivePath === d.path && ['inserted', 'scanning', 'ripping'].includes(r.status));
+        if (busy || !label) continue;
         // A disc that already finished (or failed) and is still in the tray is not ripped again until it is swapped.
         const recent = store.rips.find((r) => r.drivePath === d.path && r.label === label && r.finishedAt && Date.now() - new Date(r.finishedAt).getTime() < 6 * 3600_000);
         if (recent) continue;
@@ -228,7 +234,10 @@ export class DiscManager {
       const d = store.settings.disc;
       // MakeMKV numbers titles after this filter, so the rip must use the same minimum as the scan
       rip.scanMinSeconds = d.includeExtras ? Math.min(d.extraMinSeconds ?? 30, d.minTitleSeconds) : d.minTitleSeconds;
-      const info = await readDisc(this.makemkv(), rip.source ?? `disc:${rip.driveIndex}`, rip.scanMinSeconds);
+      const abort = new AbortController();
+      this.scans.set(rip.id, abort);
+      const info = await readDisc(this.makemkv(), rip.source ?? `disc:${rip.driveIndex}`, rip.scanMinSeconds, abort.signal).finally(() => this.scans.delete(rip.id));
+      if ((rip.status as RipStatus) === 'cancelled') return;
       for (const t of info.titles) if (t.durationSeconds < d.minTitleSeconds) t.short = true;
       rip.discType = info.type;
       rip.volumeName = info.volumeName;
@@ -244,6 +253,7 @@ export class DiscManager {
       this.applyDefaultSelection(rip);
       rip.status = 'ready';
     } catch (err) {
+      if ((rip.status as RipStatus) === 'cancelled') return;
       rip.status = 'failed';
       rip.error = (err as Error).message;
       this.log(rip, `Scan failed: ${rip.error}`);
@@ -1027,6 +1037,7 @@ export class DiscManager {
     const rip = this.get(id);
     if (!rip) return;
     this.running.get(id)?.cancel();
+    this.scans.get(id)?.abort();
     for (const f of rip.files) if (f.jobId) queue.cancel(f.jobId);
     if (ACTIVE.includes(rip.status)) {
       rip.status = 'cancelled';
@@ -1040,7 +1051,7 @@ export class DiscManager {
   remove(id: string) {
     const rip = this.get(id);
     if (!rip) return;
-    if (this.running.has(id)) this.cancel(id);
+    if (this.running.has(id) || this.scans.has(id)) this.cancel(id);
     store.setRips(store.rips.filter((r) => r.id !== id));
     bus.publish({ type: 'rip-removed', id });
   }
