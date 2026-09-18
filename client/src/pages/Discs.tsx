@@ -672,10 +672,10 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
                   </th>
                   <th>#</th>
                   <th>Title</th>
+                  <th style={{ minWidth: 380 }}>{isSeries ? 'Episode / extra' : 'Type'}</th>
                   <th>Length</th>
                   <th className="num">Size</th>
                   <th>Chapters</th>
-                  <th style={{ minWidth: 200 }}>{isSeries ? 'Episode / extra' : 'Type'}</th>
                   <th>Video</th>
                   <th style={{ minWidth: 190 }}>Audio</th>
                   <th>Subs</th>
@@ -712,8 +712,8 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
                         <span className="muted small">skipped</span>
                       )}
                     </td>
-                    <td className="mono">{fmtDuration(t.durationSeconds)}</td>
-                    <td className="num dim">{fmtBytes(t.sizeBytes)}</td>
+                    <td className="mono" style={{ whiteSpace: 'nowrap' }}>{fmtDuration(t.durationSeconds)}</td>
+                    <td className="num dim" style={{ whiteSpace: 'nowrap' }}>{fmtBytes(t.sizeBytes)}</td>
                     <td className="dim">{t.chapters || '—'}</td>
                     <td className="dim small">
                       {t.videoCodec} {t.resolution}
@@ -899,7 +899,7 @@ function TitleRoleCell({
         </span>
       )}
       {role.kind === 'extra' && role.type === 'custom' && (
-        <input type="text" placeholder="Name, e.g. Creditless OP 2" style={{ width: 170, height: 30 }} value={role.name ?? ''} onChange={(e) => onRole({ kind: 'extra', type: 'custom', name: e.target.value })} />
+        <input type="text" placeholder="Name, e.g. Creditless OP 2" style={{ width: 240, height: 30 }} value={role.name ?? ''} onChange={(e) => onRole({ kind: 'extra', type: 'custom', name: e.target.value })} />
       )}
       {isSeries && role.kind === 'extra' && specials.length === 0 && <span className="small dim" title="TVDB lists no specials for this series">no specials on TVDB</span>}
       {isSeries && role.kind === 'episode' && episodes?.length && !episodes.some((e) => e.episodeNumber === episode) ? (

@@ -1045,4 +1045,4 @@ table.metaTags td.mono { word-break: break-word; }
 .audioPickRow .truncate { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .audioPickActions { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--defaultBorderColor); }
 .ripDirCheck { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
-.roleSelect { height: 30px; padding: 0 8px; min-width: 220px; max-width: 280px; }
+.roleSelect { height: 30px; padding: 0 8px; width: 360px; max-width: 100%; }
