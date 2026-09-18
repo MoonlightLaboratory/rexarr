@@ -173,7 +173,14 @@ function LogModal({ job, onClose }: { job: Job; onClose: () => void }) {
 }
 
 export function ActivityPage() {
-  const { jobs, toast, queuePaused } = useApp();
+  const { jobs, toast, queuePaused, settings, reloadSettings } = useApp();
+  const limit = settings?.concurrency ?? 1;
+  const setLimit = (n: number) =>
+    api
+      .setQueueLimit(n)
+      .then(() => reloadSettings())
+      .then(() => toast('info', `${n} encode${n > 1 ? 's' : ''} at a time`))
+      .catch((e) => toast('error', e.message));
   const [tab, setTab] = useState<'queue' | 'history'>('queue');
   const [logJob, setLogJob] = useState<Job | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -205,10 +212,22 @@ export function ActivityPage() {
         </>
       }
       toolbarRight={
-        <ToolbarText>
-          {encoding ? `${encoding} encoding · ` : ''}
-          {queue.length - encoding} queued · {history.length} finished{saved > 0 ? ` · ${fmtBytes(saved)} saved` : ''}
-        </ToolbarText>
+        <>
+          <label className="queueLimit" title="How many encodes run at once; the rest wait in the queue. Lowering it lets running encodes finish.">
+            At a time
+            <select value={limit} onChange={(e) => setLimit(Number(e.target.value))}>
+              {[1, 2, 3, 4, 6, 8].concat(limit > 8 || ![1, 2, 3, 4, 6, 8].includes(limit) ? [limit] : []).sort((a, b) => a - b).map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <ToolbarText>
+            {encoding ? `${encoding} of ${limit} encoding · ` : ''}
+            {queue.length - encoding} queued · {history.length} finished{saved > 0 ? ` · ${fmtBytes(saved)} saved` : ''}
+          </ToolbarText>
+        </>
       }
     >
       {queuePaused && (

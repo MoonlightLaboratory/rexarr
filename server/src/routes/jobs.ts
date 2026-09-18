@@ -4,6 +4,8 @@ import { queue } from '../jobs/queue.js';
 import { bus } from '../events.js';
 import { discs } from '../disc/manager.js';
 import type { ServerEvent } from '../../../shared/types.js';
+import { appEvents } from '../system.js';
+import { store } from '../store.js';
 
 export default async function jobRoutes(app: FastifyInstance) {
   app.get('/api/jobs', async () => queue.list());
@@ -93,7 +95,15 @@ export default async function jobRoutes(app: FastifyInstance) {
     return { ok: true };
   });
   /** Queue: pause (running encodes finish, nothing new starts) / resume, and retry every failed job. */
-  app.get('/api/queue', async () => ({ paused: queue.paused }));
+  app.get('/api/queue', async () => ({ paused: queue.paused, limit: store.settings.concurrency }));
+  /** Encodes at a time (Settings → concurrency). Lowering it lets running encodes finish; nothing is stopped. */
+  app.post<{ Body: { limit?: number } }>('/api/queue/limit', async (req, reply) => {
+    const limit = Number(req.body?.limit);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 16) return reply.code(400).send({ error: 'limit must be 1–16' });
+    store.saveSettings({ ...store.settings, concurrency: limit });
+    appEvents.add('info', 'Queue', `Encodes at a time: ${limit}`);
+    return { limit };
+  });
   app.post<{ Body: { paused?: boolean } }>('/api/queue/pause', async (req) => {
     queue.setPaused(req.body?.paused !== false);
     return { paused: queue.paused };

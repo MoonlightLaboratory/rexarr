@@ -63,6 +63,8 @@ function freeBytes(p: string): number {
 
 class JobQueue {
   private running = new Map<string, RunHandle>();
+  /** Jobs started by the queue that have not finished yet, including their probing phase. */
+  private launched = new Set<string>();
   private pausedState = (() => {
     try {
       return Boolean((JSON.parse(fs.readFileSync(QUEUE_STATE_FILE, 'utf8')) as { paused?: boolean }).paused);
@@ -236,12 +238,20 @@ class JobQueue {
         // finished "image + cue" downloads Lidarr cannot import (also grabs made in Lidarr itself)
         await checkLidarrCueImages().catch((err: Error) => console.error('[cue] Lidarr queue check failed:', err.message));
       }
-      const active = [...this.running.keys()].length;
+      // A job counts from the moment it is launched: it spends its first seconds probing the file and checking disk
+      // space before ffmpeg (and this.running) starts, and must not let another job into its slot meanwhile.
+      const active = new Set([...this.running.keys(), ...this.launched]).size;
       const slots = Math.max(1, settings.concurrency) - active;
       if (slots > 0 && !this.pausedState) {
         // Oldest queued first (jobs are stored newest-first).
-        const queued = [...store.jobs].reverse().filter((j) => j.status === 'queued' && !this.running.has(j.id)).slice(0, slots);
-        for (const j of queued) void this.run(j);
+        const queued = [...store.jobs].reverse().filter((j) => j.status === 'queued' && !this.running.has(j.id) && !this.launched.has(j.id)).slice(0, slots);
+        for (const j of queued) {
+          this.launched.add(j.id);
+          void this.run(j).finally(() => {
+            this.launched.delete(j.id);
+            void this.tick();
+          });
+        }
       }
     } catch (err) {
       console.error('[queue] tick failed', err);
