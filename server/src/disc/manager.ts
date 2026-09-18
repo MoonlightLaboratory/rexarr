@@ -18,6 +18,7 @@ import { proxiedImage } from '../routes/images.js';
 import { appEvents } from '../system.js';
 import { ejectDrive, labelToTitle, listDrives, listVirtualDrives, readDisc, resolveMakemkv, ripTitle, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
 import { audioSelectionFor, describeTracks } from './audio.js';
+import { matchLibrary, nameScore, splitSequel, type LibraryCandidate } from './identify.js';
 import { keepAudioTracks } from './remux.js';
 
 /** Pre-filled details for a rip that did not come from a physical drive (e.g. a grabbed full-disc release). */
@@ -483,7 +484,28 @@ export class DiscManager {
   }
 
   /** Look the label up in Radarr (movies) and Sonarr (series); keep the best guess. */
+  /** The season's own name from AniDB, shown next to "Season N" (series only). */
+  private nameSeason(rip: DiscRip) {
+    rip.media.seasonTitle = undefined;
+    if (rip.media.kind !== 'series' || !rip.media.externalId || !rip.media.seasonNumber || !anidb.enabled) return;
+    const seasons = anidb.seasonTitles(rip.media.externalId);
+    // a season name only helps when the series has more than one season in AniDB
+    if (seasons.length < 2) return;
+    const s = seasons.find((x) => x.seasonNumber === rip.media.seasonNumber);
+    if (s) rip.media.seasonTitle = s.english ?? s.titles[0];
+  }
+
   private async identify(rip: DiscRip) {
+    await this.identifyMedia(rip);
+    try {
+      this.nameSeason(rip);
+      if (rip.media.seasonTitle) this.log(rip, `Season ${rip.media.seasonNumber} is "${rip.media.seasonTitle}"`);
+    } catch {
+      /* season names are cosmetic */
+    }
+  }
+
+  private async identifyMedia(rip: DiscRip) {
     if (rip.media.externalId) return;
     const term = rip.media.title;
     if (!term) return;
@@ -516,15 +538,60 @@ export class DiscManager {
       }
     }
     const preferSeries = rip.media.kind === 'series';
+
+    // Your own library first: a disc is usually for something you already have, and its label is often a nickname
+    // ("SNAFU 2") that a TVDB / TMDB search gets wrong.
+    try {
+      const candidates: LibraryCandidate[] = [];
+      if (sonarr.configured) {
+        const anidbReady = anidb.enabled && (await anidb.ensure().then(() => true, () => false));
+        for (const s of await sonarr.series()) {
+          const fromAnidb = anidbReady ? anidb.seasonTitles(s.tvdbId).flatMap((x) => x.titles.map((title) => ({ title, seasonNumber: x.seasonNumber }))) : [];
+          candidates.push({ kind: 'series', id: s.id, externalId: s.tvdbId, title: s.title, year: s.year, alternateTitles: s.alternateTitles, seasonTitles: [...(s.seasonTitles ?? []), ...fromAnidb], seasons: s.seasons.map((x) => x.seasonNumber) });
+        }
+      }
+      if (radarr.configured) {
+        for (const m of await radarr.movies()) candidates.push({ kind: 'movie', id: m.id, externalId: m.tmdbId, title: m.title, year: m.year, alternateTitles: m.alternateTitles });
+      }
+      const lib = matchLibrary(term, candidates, { preferSeries });
+      if (lib) {
+        const r = (lib.item.kind === 'series' ? await sonarr.lookup(`tvdb:${lib.item.externalId}`) : await radarr.lookup(`tmdb:${lib.item.externalId}`))[0];
+        if (r) {
+          rip.media =
+            lib.item.kind === 'series'
+              ? { ...rip.media, kind: 'series', title: r.title, year: r.year, externalId: r.externalId, arrId: r.arrId, poster: r.poster, seriesType: r.seriesType as RipMedia['seriesType'], seasonNumber: lib.season ?? rip.media.seasonNumber ?? 1, episodeStart: rip.media.episodeStart ?? 1 }
+              : { ...rip.media, kind: 'movie', title: r.title, year: r.year, externalId: r.externalId, arrId: r.arrId, poster: r.poster };
+          this.log(rip, `Identified from your library as ${lib.item.kind}: ${r.title} (${r.year ?? '?'})${lib.season ? `, season ${lib.season}` : ''} – matched "${lib.via}"`);
+          return;
+        }
+      }
+    } catch (err) {
+      this.log(rip, `Library match failed: ${(err as Error).message}`);
+    }
+
+    // Search results are scored against the disc title; the first hit is not trusted blindly.
+    const sequel = splitSequel(term);
+    const bestOf = <T extends { title: string; alternateTitles?: string[] }>(list: T[], q: string) =>
+      list
+        .map((r) => ({ r, score: Math.max(nameScore(q, r.title), ...(r.alternateTitles ?? []).map((a) => nameScore(q, a))) }))
+        .sort((a, b) => b.score - a.score)[0];
     const tryMovie = async (): Promise<RipMedia | null> => {
       if (!radarr.configured) return null;
-      const r = (await radarr.lookup(term))[0];
-      return r ? { kind: 'movie', title: r.title, year: r.year, externalId: r.externalId, arrId: r.arrId, poster: r.poster } : null;
+      const hit = bestOf(await radarr.lookup(term), term);
+      return hit && hit.score >= 0.6 ? { kind: 'movie', title: hit.r.title, year: hit.r.year, externalId: hit.r.externalId, arrId: hit.r.arrId, poster: hit.r.poster } : null;
     };
     const trySeries = async (): Promise<RipMedia | null> => {
       if (!sonarr.configured) return null;
-      const r = (await sonarr.lookup(term))[0];
-      return r ? { kind: 'series', title: r.title, year: r.year, externalId: r.externalId, arrId: r.arrId, poster: r.poster, seriesType: r.seriesType as RipMedia['seriesType'], seasonNumber: rip.media.seasonNumber ?? 1, episodeStart: 1 } : null;
+      let hit = bestOf(await sonarr.lookup(term), term);
+      let season = rip.media.seasonNumber;
+      if ((!hit || hit.score < 0.6) && sequel) {
+        const base = bestOf(await sonarr.lookup(sequel.base), sequel.base);
+        if (base && base.score >= 0.6) {
+          hit = base;
+          season = sequel.season;
+        }
+      }
+      return hit && hit.score >= 0.6 ? { kind: 'series', title: hit.r.title, year: hit.r.year, externalId: hit.r.externalId, arrId: hit.r.arrId, poster: hit.r.poster, seriesType: hit.r.seriesType as RipMedia['seriesType'], seasonNumber: season ?? 1, episodeStart: 1 } : null;
     };
     try {
       const hit = preferSeries ? (await trySeries()) ?? (await tryMovie()) : (await tryMovie()) ?? (await trySeries());
@@ -535,6 +602,20 @@ export class DiscManager {
     } catch (err) {
       this.log(rip, `Lookup failed: ${(err as Error).message}`);
     }
+  }
+
+  /** Forget the current match and identify the disc again from its label (after a wrong automatic match). */
+  async reidentify(id: string) {
+    const rip = this.get(id);
+    if (!rip) throw new Error('rip not found');
+    const g = labelToTitle(rip.label || rip.volumeName);
+    rip.media = { kind: g.season ? 'series' : rip.media.kind === 'series' ? 'series' : 'unknown', title: g.title, year: g.year, seasonNumber: g.season, episodeStart: 1, discNumber: g.disc ?? rip.media.discNumber };
+    this.log(rip, `Matching "${g.title}" again`);
+    await this.identify(rip);
+    if (rip.titles.length) this.applyDefaultSelection(rip);
+    store.saveRips();
+    this.emit(rip);
+    return rip;
   }
 
   /** Titles whose duration is roughly the sum of the other titles are "play all" compilations. */
@@ -594,8 +675,16 @@ export class DiscManager {
     if (!rip) throw new Error('rip not found');
     if (patch.media) {
       const kindChanged = patch.media.kind && patch.media.kind !== rip.media.kind;
+      const seasonChanged = patch.media.seasonNumber !== undefined || patch.media.externalId !== undefined;
       rip.media = { ...rip.media, ...patch.media };
       if (kindChanged) this.applyDefaultSelection(rip);
+      if (seasonChanged) {
+        try {
+          this.nameSeason(rip);
+        } catch {
+          /* cosmetic */
+        }
+      }
     }
     if (patch.selectedTitleIds) rip.selectedTitleIds = patch.selectedTitleIds.filter((t) => rip.titles.some((x) => x.id === t));
     if (patch.episodeMap) rip.episodeMap = Object.fromEntries(Object.entries(patch.episodeMap).map(([k, v]) => [Number(k), Number(v)]));

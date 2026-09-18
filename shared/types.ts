@@ -912,6 +912,8 @@ export interface Series {
   titleKanji?: string;
   /** Other titles Sonarr knows (scene names, translations) – used by search. */
   alternateTitles?: string[];
+  /** Alternate titles Sonarr ties to one season, e.g. "… Zoku" for season 2. */
+  seasonTitles?: { title: string; seasonNumber: number }[];
   statistics: { episodeFileCount: number; episodeCount: number; sizeOnDisk: number; remuxFileCount: number };
 }
 
@@ -1182,6 +1184,8 @@ export type RipStatus =
   | 'cancelled';
 
 export interface RipMedia {
+  /** The season's own name, when it has one (AniDB), e.g. "My Teen Romantic Comedy SNAFU Too!" for season 2. */
+  seasonTitle?: string;
   kind: 'movie' | 'series' | 'album' | 'unknown';
   title: string;
   /** Audio CDs: album artist. */

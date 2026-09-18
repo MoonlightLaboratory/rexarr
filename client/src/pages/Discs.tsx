@@ -218,6 +218,8 @@ function DriveRow({ d, onEject, onRemove, onReadCd, busy }: { d: DiscDrive; onEj
 function IdentifyBox({ media, discType, onChange }: { media: RipMedia; discType: string; onChange: (m: Partial<RipMedia>) => void }) {
   const { settings } = useApp();
   const [q, setQ] = useState(media.title);
+  // follow the rip when it is matched again (or identified by the server)
+  useEffect(() => setQ(media.title), [media.title]);
   const [results, setResults] = useState<LookupResult[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -277,6 +279,12 @@ function IdentifyBox({ media, discType, onChange }: { media: RipMedia; discType:
               <div style={{ fontWeight: 600 }}>
                 {media.title} {media.year ? <span className="dim">({media.year})</span> : null} {media.seriesType === 'anime' && <span className="badge purple">Anime</span>}
               </div>
+              {media.kind === 'series' && media.seasonNumber ? (
+                <div className="small">
+                  Season {media.seasonNumber}
+                  {media.seasonTitle && media.seasonTitle !== media.title ? <span className="dim"> · {media.seasonTitle}</span> : null}
+                </div>
+              ) : null}
               <div className="small dim">
                 {media.kind === 'movie' ? 'TMDB' : 'TVDB'} {media.externalId} · {media.arrId ? 'already in library' : 'will be added on import'} · {discType}
               </div>
@@ -624,6 +632,15 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
       {editable && rip.discType !== 'cd' && rip.titles.length > 0 && (
         <div className="card-b">
           <IdentifyBox media={media} discType={rip.discType} onChange={changeMedia} />
+          {rip.label && (
+            <div className="small dim mt" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              Wrong match?
+              <button className="btn sm" disabled={busy} onClick={() => act(() => api.reidentifyRip(rip.id), 'Matched again')} title="Forget the current match and identify the disc again from its label, checking your library first">
+                <Icon.Refresh /> Match again from “{rip.label}”
+              </button>
+              <span>or search above.</span>
+            </div>
+          )}
           <div className="tbl-wrap mt">
             <table className="tbl">
               <thead>

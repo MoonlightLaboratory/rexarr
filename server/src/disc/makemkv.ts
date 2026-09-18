@@ -205,7 +205,10 @@ export async function unmountForDirectAccess(devicePath: string): Promise<string
   if (!dev.startsWith('/dev/')) return null;
   const info = await run('diskutil', ['info', dev], { timeout: 10_000 }).then((r) => r.stdout, () => '');
   if (!/^\s*Mounted:\s*Yes/im.test(info)) return null;
-  const ok = await run('diskutil', ['unmount', dev], { timeout: 30_000 }).then(() => true, () => false);
+  // Finder, Spotlight or a player may still hold the volume; a read-only disc is safe to force off
+  const ok =
+    (await run('diskutil', ['unmount', dev], { timeout: 30_000 }).then(() => true, () => false)) ||
+    (await run('diskutil', ['unmount', 'force', dev], { timeout: 30_000 }).then(() => true, () => false));
   return ok ? `Unmounted ${dev} so MakeMKV can read the disc directly (macOS keeps DVDs mounted)` : `Could not unmount ${dev}; MakeMKV may fail to open the disc`;
 }
 

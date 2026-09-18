@@ -6,6 +6,7 @@ import path from 'node:path';
 import { findDiscImages, labelToTitle, listVirtualDrives, parseDiscInfo, parseDrives, parseDurationSeconds, splitRobot } from './makemkv.js';
 import { audioSelectionFor, bestAudioPerLanguage, codecRank } from './audio.js';
 import type { DiscAudioTrack } from '../../../shared/types.js';
+import { matchLibrary, splitSequel, type LibraryCandidate } from './identify.js';
 
 test('splitRobot handles quoted fields with commas and escaped quotes', () => {
   assert.deepEqual(splitRobot('0,2,999,12,"BD-RE HL-DT-ST, WH16NS40","BLADE_RUNNER","/dev/sr0"'), ['0', '2', '999', '12', 'BD-RE HL-DT-ST, WH16NS40', 'BLADE_RUNNER', '/dev/sr0']);
@@ -221,4 +222,59 @@ test('parseDiscInfo reads the audio streams of a title', () => {
   assert.equal(t.audioTracks?.[1].label, 'Japanese · DTS 5.1 768 kbps');
   // one track per language, so both are kept
   assert.deepEqual(audioSelectionFor(t, 'best'), [0, 1]);
+});
+
+test('disc titles match the library by nickname, alternate title and sequel number', () => {
+  const library: LibraryCandidate[] = [
+    {
+      kind: 'series',
+      id: 359,
+      title: 'My Teen Romantic Comedy SNAFU',
+      alternateTitles: ['Yahari Ore no Seishun Love Come wa Machigatteiru.', 'Oregairu'],
+      seasonTitles: [{ title: 'Yahari Ore no Seishun Love Come wa Machigatteiru Zoku', seasonNumber: 2 }, { title: 'My Teen Romantic Comedy SNAFU Too!', seasonNumber: 2 }],
+      seasons: [0, 1, 2, 3],
+    },
+    { kind: 'series', id: 86, title: 'Saekano: How to Raise a Boring Girlfriend', alternateTitles: ['Saekano', 'Saekano S2'], seasons: [1, 2] },
+    { kind: 'series', id: 234, title: 'Naruto', seasons: [1, 2, 3] },
+    // matched "Snafu 2" through the "s" of "World's" before the fix
+    { kind: 'series', id: 77, title: "Arifureta: From Commonplace to World's Strongest", alternateTitles: ["Arifureta - From Commonplace to World's Strongest Season 2"], seasons: [1, 2, 3] },
+    { kind: 'movie', id: 12, title: 'Toy Story 2' },
+    { kind: 'movie', id: 13, title: 'Toy Story' },
+  ];
+  // the disc from the bug report: "SNAFU_2_DISC_1" was matched to Saekano, season 1
+  const snafu = matchLibrary(labelToTitle('SNAFU_2_DISC_1').title!, library, { preferSeries: true });
+  assert.equal(snafu?.item.id, 359);
+  assert.equal(snafu?.season, 2);
+  assert.equal(matchLibrary('Snafu Too', library)?.season, 2);
+  assert.equal(matchLibrary('Oregairu S2', library)?.item.id, 359);
+  assert.equal(matchLibrary('Oregairu S2', library)?.season, 2);
+  assert.equal(matchLibrary('Naruto', library)?.item.id, 234);
+  // a movie sequel keeps its number
+  assert.equal(matchLibrary('Toy Story 2', library)?.item.id, 12);
+  // nothing close: no guess at all rather than a wrong one
+  assert.equal(matchLibrary('Clannad', library), null);
+  assert.deepEqual(splitSequel('Fate Zero Season 2'), { base: 'Fate Zero', season: 2 });
+  assert.deepEqual(splitSequel('Title II'), { base: 'Title', season: 2 });
+  assert.equal(splitSequel('Naruto'), null);
+});
+
+test('a season title such as "SNAFU Too" finds its season', () => {
+  const library: LibraryCandidate[] = [
+    {
+      kind: 'series',
+      id: 359,
+      title: 'My Teen Romantic Comedy SNAFU',
+      // what AniDB contributes: one anime per season
+      seasonTitles: [
+        { title: 'My Teen Romantic Comedy SNAFU', seasonNumber: 1 },
+        { title: 'My Teen Romantic Comedy SNAFU Too!', seasonNumber: 2 },
+        { title: 'Yahari Ore no Seishun Lovecome wa Machigatte Iru. Zoku', seasonNumber: 2 },
+        { title: 'My Teen Romantic Comedy SNAFU Climax!', seasonNumber: 3 },
+      ],
+      seasons: [0, 1, 2, 3],
+    },
+  ];
+  assert.equal(matchLibrary(labelToTitle('SNAFU_TOO_DISC_1').title!, library)?.season, 2);
+  assert.equal(matchLibrary('Snafu Climax', library)?.season, 3);
+  assert.equal(matchLibrary('Snafu 2', library)?.season, 2);
 });

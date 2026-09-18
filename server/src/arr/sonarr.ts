@@ -146,6 +146,7 @@ export class Sonarr {
       tvdbId: s.tvdbId,
       title: s.title,
       alternateTitles: s.alternateTitles?.length ? [...new Set(s.alternateTitles.map((a) => a.title))].slice(0, 20) : undefined,
+      seasonTitles: s.alternateTitles?.filter((a) => (a.seasonNumber ?? -1) > 0).map((a) => ({ title: a.title, seasonNumber: a.seasonNumber! })),
       year: s.year,
       overview: s.overview ?? '',
       poster: poster(s.images),
