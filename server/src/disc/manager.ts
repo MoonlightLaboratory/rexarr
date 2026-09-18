@@ -66,6 +66,7 @@ export class DiscManager {
   private running = new Map<string, RipHandle>();
   /** Scans in progress, so cancelling or removing a disc stops MakeMKV instead of leaving it holding the drive. */
   private scans = new Map<string, AbortController>();
+  private refreshing: Promise<DiscDrive[]> | null = null;
   drives: DiscDrive[] = [];
   private lastDriveError = '';
 
@@ -110,13 +111,27 @@ export class DiscManager {
     return store.settings.disc.ripDirectory?.trim() || PATHS.rips;
   }
 
+  /** One drive check at a time: callers during a check share its result instead of starting another MakeMKV. */
   async refreshDrives(): Promise<DiscDrive[]> {
+    if (!this.refreshing) this.refreshing = this.readDrives().finally(() => (this.refreshing = null));
+    return this.refreshing;
+  }
+
+  private async readDrives(): Promise<DiscDrive[]> {
     let real: DiscDrive[] = [];
-    try {
-      real = await listDrives(this.makemkv());
-      this.lastDriveError = '';
-    } catch (err) {
-      this.lastDriveError = (err as Error).message;
+    // Listing drives makes MakeMKV query every drive, which slows down (or upsets) a scan or rip that is using one.
+    // While MakeMKV is busy with a disc, keep the drives we already know about.
+    const busy = this.scans.size > 0 || [...this.running.keys()].some((id) => !this.get(id)?.virtual);
+    // MakeMKV drives have small indexes; linked virtual drives start at 3000 and probed manual drives at 4000
+    const known = this.drives.filter((d) => !d.virtual && d.index < 3000);
+    if (busy && known.length) real = known;
+    else {
+      try {
+        real = await listDrives(this.makemkv());
+        this.lastDriveError = '';
+      } catch (err) {
+        this.lastDriveError = (err as Error).message;
+      }
     }
     let virtual: DiscDrive[] = [];
     try {
