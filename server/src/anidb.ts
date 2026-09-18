@@ -229,6 +229,19 @@ class AniDb {
   forTvdb(tvdbId: number): AnidbMapping[] {
     return this.byTvdb.get(tvdbId) ?? [];
   }
+  /** Names AniDB gives each TVDB season of a series: one anime per season for most shows. */
+  seasonTitles(tvdbId: number): { seasonNumber: number; titles: string[]; english?: string }[] {
+    const out: { seasonNumber: number; titles: string[]; english?: string }[] = [];
+    for (const mp of this.forTvdb(tvdbId)) {
+      if (!mp.defaultSeason || mp.defaultSeason < 1 || mp.episodeOffset) continue;
+      const e = this.entries.get(mp.aid);
+      if (!e) continue;
+      const titles = [...new Set([e.english, e.main, e.romaji, ...e.synonyms].filter((t): t is string => Boolean(t)))];
+      out.push({ seasonNumber: mp.defaultSeason, titles, english: e.english });
+    }
+    return out;
+  }
+
   forTmdb(tmdbId: number) {
     return this.byTmdb.get(tmdbId);
   }
