@@ -69,7 +69,16 @@ export async function importIntoSonarr(
 
   const episodesBySeries = new Map<number, SonarrEpisode[]>();
   const episodesOf = async (seriesId: number) => {
-    if (!episodesBySeries.has(seriesId)) episodesBySeries.set(seriesId, await sonarr.http.get<SonarrEpisode[]>('/episode', { seriesId }));
+    if (!episodesBySeries.has(seriesId)) {
+      let list = await sonarr.http.get<SonarrEpisode[]>('/episode', { seriesId });
+      // a show added moments ago has no episodes until Sonarr has fetched them from TVDB
+      for (let i = 0; !list.length && i < 30; i++) {
+        if (i === 0) await sonarr.http.post('/command', { name: 'RefreshSeries', seriesId }).catch(() => undefined);
+        await new Promise((r) => setTimeout(r, 2000));
+        list = await sonarr.http.get<SonarrEpisode[]>('/episode', { seriesId });
+      }
+      episodesBySeries.set(seriesId, list);
+    }
     return episodesBySeries.get(seriesId)!;
   };
   // DVD rips: Sonarr guesses "Bluray-576p" from the resolution; say what they are

@@ -355,6 +355,8 @@ export const DEFAULT_SETTINGS = {
     autoEject: true,
     keepRaw: false,
     autoImport: true,
+    addMissing: true,
+    addMonitored: false,
     virtualDriveDirectory: '',
     virtualDrives: [],
     physicalDrives: [],

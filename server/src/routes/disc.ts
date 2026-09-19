@@ -172,6 +172,18 @@ export default async function discRoutes(app: FastifyInstance) {
     });
   });
 
+  /** Add the disc's show / movie to Sonarr / Radarr now (it is otherwise added when the rip starts). */
+  app.post<{ Params: { id: string } }>('/api/disc/rips/:id/add-to-library', async (req, reply) => {
+    const rip = discs.get(req.params.id);
+    if (!rip) return reply.code(404).send({ error: 'rip not found' });
+    try {
+      await discs.addToLibrary(rip);
+      return discs.get(req.params.id);
+    } catch (err) {
+      return reply.code(400).send({ error: (err as Error).message });
+    }
+  });
+
   app.post<{ Params: { id: string } }>('/api/disc/rips/:id/identify', async (req, reply) => {
     try {
       return await discs.reidentify(req.params.id);

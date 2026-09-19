@@ -21,6 +21,7 @@ import { audioSelectionFor, describeTracks } from './audio.js';
 import { extraFileName, extraLabel, guessExtraRoles } from './extras.js';
 import { toLocalPath } from '../paths.js';
 import { folderIsSettled, importIntoSonarr, type ImportOutcome, type KnownEpisode } from './sonarrImport.js';
+import { pickAddTarget } from './addTarget.js';
 import { matchLibrary, nameScore, splitSequel, type LibraryCandidate } from './identify.js';
 import { keepAudioTracks } from './remux.js';
 
@@ -766,6 +767,14 @@ export class DiscManager {
     if (!rip.selectedTitleIds.length) throw new Error('No titles selected');
     if (rip.discType === 'cd') return this.startCdRip(rip);
     if (rip.options.transcode && !rip.profileId) throw new Error('Pick an encoding profile or disable transcoding');
+    // Not in Sonarr / Radarr yet: add it now, so it is there (with its episode list) by the time the rip is imported
+    if (store.settings.disc.addMissing !== false && rip.options.deliver && !rip.media.arrId && rip.media.externalId && (rip.media.kind === 'series' || rip.media.kind === 'movie')) {
+      try {
+        await this.addToLibrary(rip);
+      } catch (err) {
+        this.log(rip, `Could not add ${rip.media.title} yet: ${(err as Error).message} – trying again at import`);
+      }
+    }
     rip.status = 'ripping';
     rip.error = undefined;
     rip.files = [];
@@ -926,6 +935,59 @@ export class DiscManager {
     if (rip.files.every((f) => f.finalPath)) await this.deliver(rip);
   }
 
+  /**
+   * Add the disc's show or movie to Sonarr / Radarr: into the root folder and quality profile the library uses for that
+   * kind of title (or the ones set in Settings), unmonitored unless Settings say otherwise, so adding a show to import
+   * one disc never starts downloading the rest of it.
+   */
+  async addToLibrary(rip: DiscRip): Promise<void> {
+    if (rip.media.arrId || !rip.media.externalId) return;
+    const { radarr, sonarr } = arr();
+    const d = store.settings.disc;
+    // anime: AniDB knows nearly every anime by its TVDB / TMDB id, even when TVDB calls the show "standard"
+    let anime = rip.media.seriesType === 'anime';
+    if (!anime && anidb.enabled) {
+      await anidb.ensure().catch(() => undefined);
+      anime = rip.media.kind === 'series' ? anidb.forTvdb(rip.media.externalId).length > 0 : Boolean(anidb.forTmdb(rip.media.externalId));
+    }
+    const monitored = d.addMonitored === true;
+    if (rip.media.kind === 'series') {
+      if (!sonarr.configured) throw new Error('Sonarr is not connected');
+      const [roots, profiles, series] = await Promise.all([sonarr.rootFolders(), sonarr.qualityProfiles(), sonarr.http.get<{ path: string; seriesType: string; qualityProfileId: number }[]>('/series')]);
+      const target = pickAddTarget({
+        anime,
+        roots: roots.map((r) => r.path),
+        profiles,
+        library: series.map((s) => ({ path: s.path, animeType: s.seriesType === 'anime', profileId: s.qualityProfileId })),
+        exclude: [toArrPath(this.ripRoot(), 'sonarr')],
+        ...d.addTargets?.[anime ? 'anime' : 'series'],
+      });
+      if (!target) throw new Error('Sonarr has no root folder or quality profile');
+      const s = await sonarr.add(rip.media.externalId, anime ? 'anime' : (rip.media.seriesType ?? 'standard'), target.qualityProfileId, target.rootFolderPath, monitored);
+      rip.media.arrId = s.id;
+      const profile = profiles.find((p) => p.id === target.qualityProfileId)?.name;
+      this.log(rip, `Added ${s.title} to Sonarr: ${target.rootFolderPath}, ${profile} (${target.why})${monitored ? '' : ', not monitored – nothing is downloaded'}`);
+    } else if (rip.media.kind === 'movie') {
+      if (!radarr.configured) throw new Error('Radarr is not connected');
+      const [roots, profiles, movies] = await Promise.all([radarr.rootFolders(), radarr.qualityProfiles(), radarr.http.get<{ path: string; qualityProfileId: number }[]>('/movie')]);
+      const target = pickAddTarget({
+        anime,
+        roots: roots.map((r) => r.path),
+        profiles,
+        library: movies.map((m) => ({ path: m.path, profileId: m.qualityProfileId })),
+        exclude: [toArrPath(this.ripRoot(), 'radarr')],
+        ...d.addTargets?.[anime ? 'animeMovie' : 'movie'],
+      });
+      if (!target) throw new Error('Radarr has no root folder or quality profile');
+      const m = await radarr.add(rip.media.externalId, target.qualityProfileId, target.rootFolderPath, monitored);
+      rip.media.arrId = m.id;
+      const profile = profiles.find((p) => p.id === target.qualityProfileId)?.name;
+      this.log(rip, `Added ${m.title} to Radarr: ${target.rootFolderPath}, ${profile} (${target.why})${monitored ? '' : ', not monitored – nothing is downloaded'}`);
+    }
+    store.saveRips();
+    this.emit(rip);
+  }
+
   /** The episodes Rexarr assigned to each ripped file, by file name, for Sonarr's Manual Import. */
   private knownEpisodes(rip: DiscRip): Map<string, KnownEpisode> {
     const out = new Map<string, KnownEpisode>();
@@ -1060,19 +1122,11 @@ export class DiscManager {
         const dir = rip.outputDir!;
         await this.deliverExtras(rip);
         if (rip.media.kind === 'movie' && radarr.configured) {
-          if (!rip.media.arrId) {
-            const m = await radarr.add(rip.media.externalId);
-            rip.media.arrId = m.id;
-            this.log(rip, `Added ${m.title} to Radarr`);
-          }
+          if (!rip.media.arrId) await this.addToLibrary(rip);
           await radarr.http.post('/command', { name: 'DownloadedMoviesScan', path: toArrPath(dir, 'radarr'), importMode: 'Move' });
           this.log(rip, `Asked Radarr to import ${toArrPath(dir, 'radarr')}`);
         } else if (rip.media.kind === 'series' && sonarr.configured) {
-          if (!rip.media.arrId) {
-            const s = await sonarr.add(rip.media.externalId, rip.media.seriesType ?? 'standard');
-            rip.media.arrId = s.id;
-            this.log(rip, `Added ${s.title} to Sonarr`);
-          }
+          if (!rip.media.arrId) await this.addToLibrary(rip);
           // explicit series and episodes: a folder scan would guess the series from "Show (Year) - Disc 1" and skip it
           const outcomes = await importIntoSonarr(sonarr, dir, { seriesId: rip.media.arrId, known: this.knownEpisodes(rip), dvd: rip.discType === 'dvd', log: (l) => this.log(rip, l) });
           this.reportImport(rip, outcomes);

@@ -401,6 +401,12 @@ export interface DiscSettings {
   keepRaw: boolean;
   /** Every 10 minutes, import finished episodes still in the rip folder into Sonarr (failed or hand-copied ones). */
   autoImport: boolean;
+  /** Add a show / movie to Sonarr / Radarr when its disc starts ripping, if it is not there yet. */
+  addMissing: boolean;
+  /** Let Sonarr / Radarr monitor what was added (download missing episodes, upgrade the rip). Off: nothing is downloaded. */
+  addMonitored: boolean;
+  /** Where added titles go; empty = like the library (the folder and profile most titles of that kind use). */
+  addTargets?: Partial<Record<'series' | 'anime' | 'movie' | 'animeMovie', { root?: string; profileId?: number }>>;
   /**
    * Testing aid: a folder of .iso files or DVD / Blu-ray folders (VIDEO_TS, BDMV). Each one shows up as a
    * loaded virtual drive and is ripped through makemkvcon's iso:/file: sources. Empty = off.

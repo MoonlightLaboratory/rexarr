@@ -9,6 +9,7 @@ import type { DiscAudioTrack } from '../../../shared/types.js';
 import { matchLibrary, splitSequel, type LibraryCandidate } from './identify.js';
 import { extraFileName, extraLabel, guessExtraRoles } from './extras.js';
 import { isInsideFolder } from './sonarrImport.js';
+import { pickAddTarget } from './addTarget.js';
 
 test('splitRobot handles quoted fields with commas and escaped quotes', () => {
   assert.deepEqual(splitRobot('0,2,999,12,"BD-RE HL-DT-ST, WH16NS40","BLADE_RUNNER","/dev/sr0"'), ['0', '2', '999', '12', 'BD-RE HL-DT-ST, WH16NS40', 'BLADE_RUNNER', '/dev/sr0']);
@@ -301,4 +302,36 @@ test('rip-folder imports only touch files inside that folder', () => {
   assert.equal(isInsideFolder(rips, '/Volumes/Media/Anime/Naruto (2002)/Naruto (2002) - S03E38.mkv'), false);
   assert.equal(isInsideFolder(rips, '/Volumes/Media/Rips/Naruto (2002) - Disc 10/x.mkv'), false);
   assert.equal(isInsideFolder(rips, rips), false);
+});
+
+test('titles are added where the library keeps that kind of title', () => {
+  const roots = ['/anime', '/media/TV Shows', '/downloads/temp', '/media/Rips'];
+  const profiles = [
+    { id: 1, name: 'Any' },
+    { id: 4, name: 'HD-1080p' },
+    { id: 7, name: 'Blu Ray Quality (1080p) - Anime' },
+  ];
+  // like the real library: most anime in /anime are typed "standard" in Sonarr; the folders tell them apart
+  const library = [
+    { path: '/anime/Naruto (2002)', animeType: true, profileId: 7 },
+    { path: '/anime/Bleach (2004)', animeType: false, profileId: 7 },
+    { path: '/anime/My Teen Romantic Comedy SNAFU (2013)', animeType: false, profileId: 7 },
+    { path: '/media/TV Shows/Severance (2022)', animeType: false, profileId: 4 },
+    { path: '/media/TV Shows/Andor (2022)', animeType: false, profileId: 4 },
+  ];
+  // before: roots[0] and profiles[0] – a TV show into /anime with "Any"
+  assert.deepEqual(pickAddTarget({ anime: false, roots, profiles, library, exclude: ['/media/Rips'] }), { rootFolderPath: '/media/TV Shows', qualityProfileId: 4, why: 'like your other titles' });
+  assert.deepEqual(pickAddTarget({ anime: true, roots, profiles, library, exclude: ['/media/Rips'] }), { rootFolderPath: '/anime', qualityProfileId: 7, why: 'like your other anime' });
+  // Radarr: every movie went into "Anime Movies", the first root
+  const movieRoots = ['/takidrive/Media/Anime Movies', '/takidrive/Media/Movies'];
+  assert.equal(pickAddTarget({ anime: false, roots: movieRoots, profiles, library: [] })?.rootFolderPath, '/takidrive/Media/Movies');
+  assert.equal(pickAddTarget({ anime: true, roots: movieRoots, profiles, library: [] })?.rootFolderPath, '/takidrive/Media/Anime Movies');
+  // the rip folder and download folders are never libraries
+  assert.equal(pickAddTarget({ anime: false, roots: ['/downloads/temp', '/media/Rips', '/tv'], profiles, library: [], exclude: ['/media/Rips'] })?.rootFolderPath, '/tv');
+  // Settings win
+  assert.deepEqual(pickAddTarget({ anime: false, roots, profiles, library, root: '/anime', profileId: 1 }), { rootFolderPath: '/anime', qualityProfileId: 1, why: 'set in Settings' });
+  // without anime / TV folders, Sonarr's series type is used
+  const flat = [{ path: '/tv/A', animeType: true, profileId: 7 }, { path: '/tv/B', animeType: false, profileId: 4 }];
+  assert.equal(pickAddTarget({ anime: true, roots: ['/tv'], profiles, library: flat })?.qualityProfileId, 7);
+  assert.equal(pickAddTarget({ anime: false, roots: ['/tv'], profiles, library: flat })?.qualityProfileId, 4);
 });

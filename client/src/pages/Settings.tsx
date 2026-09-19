@@ -847,6 +847,15 @@ export function SettingsPage() {
               </label>
               <div className="help">Every 10 minutes, episodes still in the rip folder – an import that failed, files you copied there – are handed to Sonarr with their series and episode numbers.</div>
               <ImportRipsNow />
+              <label className="check mt">
+                <input type="checkbox" checked={s.disc.addMissing !== false} onChange={(e) => setS({ ...s, disc: { ...s.disc, addMissing: e.target.checked } })} /> Add shows and movies to Sonarr / Radarr when their disc is ripped
+              </label>
+              <div className="help">A disc for something that is not in Sonarr / Radarr yet is added when the rip starts, so it can be imported. It goes into the root folder and quality profile your library uses for that kind of title, unless you pick them below.</div>
+              <label className="check mt">
+                <input type="checkbox" checked={s.disc.addMonitored === true} disabled={s.disc.addMissing === false} onChange={(e) => setS({ ...s, disc: { ...s.disc, addMonitored: e.target.checked } })} /> Monitor what is added
+              </label>
+              <div className="help">Off (recommended): Sonarr / Radarr keep the title for imports but download nothing. On: they may download the episodes you did not rip, and look for upgrades of the rip.</div>
+              {s.disc.addMissing !== false && <AddTargets value={s.disc.addTargets ?? {}} onChange={(addTargets) => setS({ ...s, disc: { ...s.disc, addTargets } })} />}
             </div>
             <div className="field">
               <label>Minimum title length (seconds)</label>
@@ -1024,6 +1033,54 @@ function ImportRipsNow() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+type AddKind = 'series' | 'anime' | 'movie' | 'animeMovie';
+const ADD_KINDS: { kind: AddKind; label: string; app: 'sonarr' | 'radarr' }[] = [
+  { kind: 'series', label: 'TV shows', app: 'sonarr' },
+  { kind: 'anime', label: 'Anime', app: 'sonarr' },
+  { kind: 'movie', label: 'Movies', app: 'radarr' },
+  { kind: 'animeMovie', label: 'Anime movies', app: 'radarr' },
+];
+
+/** Root folder and quality profile for titles added from a disc; "Automatic" follows the library. */
+function AddTargets({ value, onChange }: { value: Partial<Record<AddKind, { root?: string; profileId?: number }>>; onChange: (v: Partial<Record<AddKind, { root?: string; profileId?: number }>>) => void }) {
+  const [opts, setOpts] = useState<Awaited<ReturnType<typeof api.arrOptions>> | null>(null);
+  useEffect(() => {
+    api.arrOptions().then(setOpts).catch(() => setOpts({}));
+  }, []);
+  if (!opts) return null;
+  const set = (kind: AddKind, patch: { root?: string; profileId?: number }) => onChange({ ...value, [kind]: { ...value[kind], ...patch } });
+  return (
+    <div className="addTargets">
+      <div className="addTargetRow small dim">
+        <span />
+        <span>Root folder</span>
+        <span>Quality profile</span>
+      </div>
+      {ADD_KINDS.filter((k) => opts[k.app]).map((k) => (
+        <div key={k.kind} className="addTargetRow">
+          <span className="addTargetLabel">{k.label}</span>
+          <select value={value[k.kind]?.root ?? ''} onChange={(e) => set(k.kind, { root: e.target.value || undefined })}>
+            <option value="">Automatic</option>
+            {opts[k.app].rootFolders.map((r) => (
+              <option key={r.id} value={r.path}>
+                {r.path}
+              </option>
+            ))}
+          </select>
+          <select value={value[k.kind]?.profileId ?? ''} onChange={(e) => set(k.kind, { profileId: e.target.value ? Number(e.target.value) : undefined })}>
+            <option value="">Automatic</option>
+            {opts[k.app].qualityProfiles.map((q) => (
+              <option key={q.id} value={q.id}>
+                {q.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ))}
     </div>
   );
 }

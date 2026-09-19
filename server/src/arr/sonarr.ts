@@ -299,7 +299,7 @@ export class Sonarr {
     return this.http.get<{ id: number; path: string }[]>('/rootfolder');
   }
 
-  async add(tvdbId: number, seriesType: 'standard' | 'anime' | 'daily' = 'standard', qualityProfileId?: number, rootFolderPath?: string): Promise<Series> {
+  async add(tvdbId: number, seriesType: 'standard' | 'anime' | 'daily' = 'standard', qualityProfileId?: number, rootFolderPath?: string, monitored = true): Promise<Series> {
     const [lookup] = await this.http.get<SSeries[]>('/series/lookup', { term: `tvdb:${tvdbId}` });
     if (!lookup) throw new Error(`TVDB id ${tvdbId} not found`);
     const profiles = await this.qualityProfiles();
@@ -309,9 +309,10 @@ export class Sonarr {
       seriesType,
       qualityProfileId: qualityProfileId ?? profiles[0]?.id,
       rootFolderPath: rootFolderPath ?? roots[0]?.path,
-      monitored: true,
+      monitored,
       seasonFolder: true,
-      addOptions: { searchForMissingEpisodes: false, monitor: 'all' },
+      // unmonitored: Sonarr keeps the show for imports but never downloads episodes by itself
+      addOptions: { searchForMissingEpisodes: false, monitor: monitored ? 'all' : 'none' },
     };
     return this.mapSeries(await this.http.post<SSeries>('/series', body));
   }

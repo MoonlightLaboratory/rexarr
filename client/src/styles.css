@@ -1048,3 +1048,8 @@ table.metaTags td.mono { word-break: break-word; }
 .roleSelect { height: 30px; padding: 0 8px; width: 360px; max-width: 100%; }
 .queueLimit { display: inline-flex; align-items: center; gap: 6px; margin-right: 14px; font-size: var(--smallFontSize); color: var(--helpTextColor); white-space: nowrap; }
 .queueLimit select { height: 26px; padding: 0 6px; }
+.addTargets { display: grid; gap: 6px; margin-top: 8px; }
+.addTargetRow { display: grid; grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: center; }
+.addTargetRow select { height: 30px; }
+.addTargetLabel { font-size: var(--smallFontSize); color: var(--helpTextColor); }
+@media (max-width: 700px) { .addTargetRow { grid-template-columns: 1fr; } }

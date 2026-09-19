@@ -194,7 +194,7 @@ export class Radarr {
   }
 
   /** Add a movie by TMDB id (monitored, no automatic search – Rexarr searches explicitly). */
-  async add(tmdbId: number, qualityProfileId?: number, rootFolderPath?: string): Promise<Movie> {
+  async add(tmdbId: number, qualityProfileId?: number, rootFolderPath?: string, monitored = true): Promise<Movie> {
     const [lookup] = await this.http.get<RMovie[]>('/movie/lookup', { term: `tmdb:${tmdbId}` });
     if (!lookup) throw new Error(`TMDB id ${tmdbId} not found`);
     const profiles = await this.qualityProfiles();
@@ -203,9 +203,9 @@ export class Radarr {
       ...lookup,
       qualityProfileId: qualityProfileId ?? profiles[0]?.id,
       rootFolderPath: rootFolderPath ?? roots[0]?.path,
-      monitored: true,
+      monitored,
       minimumAvailability: 'released',
-      addOptions: { searchForMovie: false, monitor: 'movieOnly' },
+      addOptions: { searchForMovie: false, monitor: monitored ? 'movieOnly' : 'none' },
     };
     return mapMovie(await this.http.post<RMovie>('/movie', body));
   }

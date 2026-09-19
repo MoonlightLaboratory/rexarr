@@ -286,7 +286,7 @@ function IdentifyBox({ media, discType, onChange }: { media: RipMedia; discType:
                 </div>
               ) : null}
               <div className="small dim">
-                {media.kind === 'movie' ? 'TMDB' : 'TVDB'} {media.externalId} · {media.arrId ? 'already in library' : 'will be added on import'} · {discType}
+                {media.kind === 'movie' ? 'TMDB' : 'TVDB'} {media.externalId} · {media.arrId ? 'already in library' : `not in ${media.kind === 'movie' ? 'Radarr' : 'Sonarr'} yet`} · {discType}
               </div>
             </>
           ) : (
@@ -455,7 +455,7 @@ function CdBody({ rip, busy, act }: { rip: DiscRip; busy: boolean; act: (fn: () 
 }
 
 function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) {
-  const { profiles, toast } = useApp();
+  const { profiles, settings, toast } = useApp();
   const [media, setMedia] = useState<RipMedia>(rip.media);
   const [selected, setSelected] = useState<number[]>(rip.selectedTitleIds);
   const [profileId, setProfileId] = useState(rip.profileId ?? '');
@@ -654,6 +654,17 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
       {editable && rip.discType !== 'cd' && rip.titles.length > 0 && (
         <div className="card-b">
           <IdentifyBox media={media} discType={rip.discType} onChange={changeMedia} />
+          {media.externalId && !media.arrId && (media.kind === 'series' || media.kind === 'movie') && (
+            <div className="small mt" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span className="dim">
+                Not in {media.kind === 'movie' ? 'Radarr' : 'Sonarr'} yet – {settings?.disc.addMissing !== false ? 'it is added when the rip starts' : 'adding is off in Settings, so it will not be imported'}
+                {media.kind === 'series' ? '. Add it now to pick episodes by name.' : '.'}
+              </span>
+              <button className="btn sm" disabled={busy} onClick={() => act(() => api.addRipToLibrary(rip.id), `Added to ${media.kind === 'movie' ? 'Radarr' : 'Sonarr'}`)}>
+                <Icon.Plus /> Add to {media.kind === 'movie' ? 'Radarr' : 'Sonarr'} now
+              </button>
+            </div>
+          )}
           {rip.label && (
             <div className="small dim mt" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               Wrong match?
