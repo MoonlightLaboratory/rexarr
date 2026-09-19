@@ -119,6 +119,15 @@ export default async function discRoutes(app: FastifyInstance) {
    * Can Radarr and Sonarr see the rip folder? Asks each app's own file browser for the folder as it would be sent
    * to them (after path mappings); delivery only works when they can.
    */
+  /** Import what is left in the rip folder into Sonarr now (also a scheduled task). */
+  app.post('/api/disc/import-rips', async (_req, reply) => {
+    try {
+      return await discs.importRipFolder();
+    } catch (err) {
+      return reply.code(400).send({ error: (err as Error).message });
+    }
+  });
+
   app.get('/api/disc/rip-directory/check', async () => {
     const dir = store.settings.disc.ripDirectory?.trim() || PATHS.rips;
     const { radarr, sonarr } = arr();

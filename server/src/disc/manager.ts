@@ -20,6 +20,7 @@ import { ejectDrive, labelToTitle, listDrives, listVirtualDrives, readDisc, reso
 import { audioSelectionFor, describeTracks } from './audio.js';
 import { extraFileName, extraLabel, guessExtraRoles } from './extras.js';
 import { toLocalPath } from '../paths.js';
+import { folderIsSettled, importIntoSonarr, type ImportOutcome, type KnownEpisode } from './sonarrImport.js';
 import { matchLibrary, nameScore, splitSequel, type LibraryCandidate } from './identify.js';
 import { keepAudioTracks } from './remux.js';
 
@@ -920,6 +921,78 @@ export class DiscManager {
     if (rip.files.every((f) => f.finalPath)) await this.deliver(rip);
   }
 
+  /** The episodes Rexarr assigned to each ripped file, by file name, for Sonarr's Manual Import. */
+  private knownEpisodes(rip: DiscRip): Map<string, KnownEpisode> {
+    const out = new Map<string, KnownEpisode>();
+    for (const f of rip.files) {
+      const name = path.basename(f.finalPath ?? f.path);
+      const role = rip.titleRoles?.[String(f.titleId)];
+      if (role?.kind === 'extra') continue;
+      if (role?.kind === 'special') out.set(name, { season: 0, episodes: [role.episode] });
+      else {
+        const ep = rip.episodeMap?.[f.titleId];
+        if (ep) out.set(name, { season: rip.media.seasonNumber ?? 1, episodes: [ep], absolute: rip.media.absoluteNumbering });
+      }
+    }
+    return out;
+  }
+
+  private reportImport(rip: DiscRip, outcomes: ImportOutcome[]) {
+    const ok = outcomes.filter((o) => o.imported);
+    const failed = outcomes.filter((o) => !o.imported);
+    if (!outcomes.length) this.log(rip, 'Sonarr found nothing to import in the rip folder');
+    if (ok.length) this.log(rip, `Sonarr imported ${ok.length} file(s)`);
+    for (const f of failed) this.log(rip, `Not imported: ${f.file} – ${f.detail}`);
+    if (failed.length) appEvents.add('warning', 'Disc ripping', `${failed.length} ripped file(s) of ${rip.media.title || rip.label} were not imported by Sonarr`, failed.map((f) => `${f.file}: ${f.detail}`).join('\n'));
+  }
+
+  /**
+   * Import what is left in the rip folder: episodes whose import failed or was never asked for, files copied there by
+   * hand. Folders that are still being ripped or encoded are skipped. Runs as a scheduled task and from Settings.
+   */
+  async importRipFolder(): Promise<{ folder: string; outcomes: ImportOutcome[] }[]> {
+    const { sonarr } = arr();
+    if (!sonarr.configured) throw new Error('Sonarr is not connected');
+    const root = this.ripRoot();
+    if (!fs.existsSync(root)) return [];
+    const busy = new Set(store.rips.filter((r) => ['ripping', 'transcoding', 'delivering'].includes(r.status) && r.outputDir).map((r) => path.resolve(r.outputDir!)));
+    const results: { folder: string; outcomes: ImportOutcome[] }[] = [];
+    for (const e of fs.readdirSync(root, { withFileTypes: true })) {
+      if (!e.isDirectory() || e.name.startsWith('.')) continue;
+      const dir = path.join(root, e.name);
+      if (busy.has(path.resolve(dir)) || !folderIsSettled(dir)) continue;
+      // the rip that made this folder knows the series and episodes; without one, Sonarr matches each file itself
+      const rip = store.rips.find((r) => r.outputDir && path.resolve(r.outputDir) === path.resolve(dir) && r.media.kind === 'series' && r.media.arrId);
+      try {
+        const outcomes = await importIntoSonarr(sonarr, dir, rip ? { seriesId: rip.media.arrId, known: this.knownEpisodes(rip), dvd: rip.discType === 'dvd' } : {});
+        if (!outcomes.length) {
+          this.tidyRipFolder(dir);
+          continue;
+        }
+        results.push({ folder: e.name, outcomes });
+        if (rip) this.reportImport(rip, outcomes);
+        this.tidyRipFolder(dir);
+      } catch (err) {
+        results.push({ folder: e.name, outcomes: [{ file: e.name, imported: false, detail: (err as Error).message }] });
+      }
+    }
+    return results;
+  }
+
+  /** Remove a rip folder once only Rexarr's own leftovers remain (empty work folders, .DS_Store). */
+  private tidyRipFolder(dir: string) {
+    try {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory() && e.name.startsWith('.rexarr-rip-') && !fs.readdirSync(p).length) fs.rmdirSync(p);
+        else if (e.name === '.DS_Store') fs.rmSync(p, { force: true });
+      }
+      if (!fs.readdirSync(dir).length) fs.rmdirSync(dir);
+    } catch {
+      /* leave it */
+    }
+  }
+
   /**
    * Extras are not episodes or movies, so Sonarr / Radarr would reject them: move them into an "Extras" folder next
    * to the show or movie (Plex, Jellyfin and Emby pick them up there) before the import. Files that cannot be moved
@@ -995,8 +1068,9 @@ export class DiscManager {
             rip.media.arrId = s.id;
             this.log(rip, `Added ${s.title} to Sonarr`);
           }
-          await sonarr.http.post('/command', { name: 'DownloadedEpisodesScan', path: toArrPath(dir, 'sonarr'), importMode: 'Move' });
-          this.log(rip, `Asked Sonarr to import ${toArrPath(dir, 'sonarr')}`);
+          // explicit series and episodes: a folder scan would guess the series from "Show (Year) - Disc 1" and skip it
+          const outcomes = await importIntoSonarr(sonarr, dir, { seriesId: rip.media.arrId, known: this.knownEpisodes(rip), dvd: rip.discType === 'dvd', log: (l) => this.log(rip, l) });
+          this.reportImport(rip, outcomes);
         } else this.log(rip, 'No matching *arr app configured; files left in the rip folder');
       } else this.log(rip, `Files left in ${rip.outputDir}`);
       if (rip.arrQueue && rip.options.deliver) {

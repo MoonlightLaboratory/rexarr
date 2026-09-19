@@ -8,6 +8,7 @@ import { audioSelectionFor, bestAudioPerLanguage, codecRank } from './audio.js';
 import type { DiscAudioTrack } from '../../../shared/types.js';
 import { matchLibrary, splitSequel, type LibraryCandidate } from './identify.js';
 import { extraFileName, extraLabel, guessExtraRoles } from './extras.js';
+import { isInsideFolder } from './sonarrImport.js';
 
 test('splitRobot handles quoted fields with commas and escaped quotes', () => {
   assert.deepEqual(splitRobot('0,2,999,12,"BD-RE HL-DT-ST, WH16NS40","BLADE_RUNNER","/dev/sr0"'), ['0', '2', '999', '12', 'BD-RE HL-DT-ST, WH16NS40', 'BLADE_RUNNER', '/dev/sr0']);
@@ -290,4 +291,14 @@ test('short titles become extras, named OP / ED / custom', () => {
   assert.equal(extraFileName('My Teen Romantic Comedy SNAFU', 2, 'OP', 1, 1), 'My Teen Romantic Comedy SNAFU - S02 - OP.mkv');
   assert.equal(extraFileName('Your Name. (2016)', undefined, 'Special', 2, 3), 'Your Name. (2016) - Special 2.mkv');
   assert.equal(extraFileName('Show', 1, 'a/b: c', 1, 1), 'Show - S01 - a b c.mkv');
+});
+
+test('rip-folder imports only touch files inside that folder', () => {
+  const rips = '/Volumes/Media/Rips/Naruto (2002) - Disc 1';
+  assert.equal(isInsideFolder(rips, `${rips}/Naruto - 001 - DVD.mkv`), true);
+  assert.equal(isInsideFolder(rips, `${rips}/sub/Naruto - 002 - DVD.mkv`), true);
+  // what Sonarr listed when it was given the series id: files in the library, not the rip folder
+  assert.equal(isInsideFolder(rips, '/Volumes/Media/Anime/Naruto (2002)/Naruto (2002) - S03E38.mkv'), false);
+  assert.equal(isInsideFolder(rips, '/Volumes/Media/Rips/Naruto (2002) - Disc 10/x.mkv'), false);
+  assert.equal(isInsideFolder(rips, rips), false);
 });

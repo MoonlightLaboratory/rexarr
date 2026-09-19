@@ -399,6 +399,8 @@ export interface DiscSettings {
   autoEject: boolean;
   /** Keep the raw MakeMKV rip after a successful transcode. */
   keepRaw: boolean;
+  /** Every 10 minutes, import finished episodes still in the rip folder into Sonarr (failed or hand-copied ones). */
+  autoImport: boolean;
   /**
    * Testing aid: a folder of .iso files or DVD / Blu-ray folders (VIDEO_TS, BDMV). Each one shows up as a
    * loaded virtual drive and is ripped through makemkvcon's iso:/file: sources. Empty = off.

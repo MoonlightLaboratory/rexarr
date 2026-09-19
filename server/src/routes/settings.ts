@@ -95,6 +95,7 @@ export const settingsSchema = z.object({
     autoDeliver: z.boolean(),
     autoEject: z.boolean(),
     keepRaw: z.boolean(),
+    autoImport: z.boolean().default(true),
     virtualDriveDirectory: z.string().default(''),
     virtualDrives: z.array(z.object({ id: z.string(), path: z.string(), label: z.string().optional(), addedAt: z.string() })).default([]),
     physicalDrives: z.array(z.object({ id: z.string(), path: z.string(), label: z.string().optional(), addedAt: z.string() })).default([]),

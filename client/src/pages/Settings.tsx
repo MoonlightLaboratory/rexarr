@@ -834,6 +834,11 @@ export function SettingsPage() {
               <input type="text" value={s.disc.ripDirectory} onChange={(e) => setS({ ...s, disc: { ...s.disc, ripDirectory: e.target.value } })} placeholder="Empty = <data dir>/rips" />
               <div className="help">Needs space for a full disc (up to 100 GB for UHD). Radarr / Sonarr must be able to see it to import the rips (add a path mapping if they see it under another path).</div>
               <RipDirectoryCheck saved={settings?.disc.ripDirectory ?? ''} current={s.disc.ripDirectory} />
+              <label className="check mt">
+                <input type="checkbox" checked={s.disc.autoImport !== false} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoImport: e.target.checked } })} /> Import finished rips into Sonarr automatically
+              </label>
+              <div className="help">Every 10 minutes, episodes still in the rip folder – an import that failed, files you copied there – are handed to Sonarr with their series and episode numbers.</div>
+              <ImportRipsNow />
             </div>
             <div className="field">
               <label>Minimum title length (seconds)</label>
@@ -974,6 +979,42 @@ function RipDirectoryCheck({ saved, current }: { saved: string; current: string 
           ))}
           {!result.apps.length && <span className="dim">Radarr / Sonarr are not connected</span>}
         </span>
+      )}
+    </div>
+  );
+}
+
+/** Import what is in the rip folder right now and show what Sonarr did with each file. */
+function ImportRipsNow() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<Awaited<ReturnType<typeof api.importRips>> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const run = () => {
+    setBusy(true);
+    setError(null);
+    api
+      .importRips()
+      .then(setResult)
+      .catch((e) => setError(e.message))
+      .finally(() => setBusy(false));
+  };
+  const all = result?.flatMap((r) => r.outcomes.map((o) => ({ ...o, folder: r.folder }))) ?? [];
+  return (
+    <div className="ripDirCheck">
+      <button type="button" className="btn sm" onClick={run} disabled={busy}>
+        {busy ? <span className="spinner" /> : <Icon.Download />} Import rip folder now
+      </button>
+      {error && <span className="small danger">{error}</span>}
+      {result && !all.length && <span className="small dim">Nothing to import</span>}
+      {all.length > 0 && (
+        <div className="small" style={{ width: '100%' }}>
+          {all.map((o, i) => (
+            <div key={i}>
+              <span className={`badge sm ${o.imported ? 'green' : 'red'}`}>{o.imported ? 'imported' : 'not imported'}</span> {o.file}
+              {!o.imported && <span className="dim"> – {o.detail}</span>}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

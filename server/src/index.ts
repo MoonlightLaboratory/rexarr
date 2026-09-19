@@ -234,6 +234,16 @@ if (MIGRATED.length) appEvents.add('info', 'Storage', `Moved to the new storage 
 // ---- scheduled tasks (System → Tasks)
 tasks.register({ id: 'check-health', name: 'Check health', interval: () => 300, run: async () => { const r = await runHealthChecks(); return r.length ? `${r.length} issue(s)` : 'no issues'; } });
 tasks.register({ id: 'poll-drives', name: 'Check optical drives', interval: () => (store.settings.disc.enabled ? store.settings.disc.pollIntervalSeconds : 0), run: async () => { const d = await discs.refreshDrives(); if (store.settings.disc.enabled) await discs.poll(); return `${d.length} drive(s)`; } });
+tasks.register({
+  id: 'import-rips',
+  name: 'Import finished rips into Sonarr',
+  interval: () => (store.settings.disc.autoImport !== false && store.settings.sonarr.enabled ? 600 : 0),
+  run: async () => {
+    const r = await discs.importRipFolder();
+    const all = r.flatMap((x) => x.outcomes);
+    return all.length ? `${all.filter((o) => o.imported).length} imported, ${all.filter((o) => !o.imported).length} not imported` : 'nothing to import';
+  },
+});
 tasks.register({ id: 'poll-imports', name: 'Check *arr imports for waiting jobs', interval: () => store.settings.pollIntervalSeconds, run: async () => { const n = queue.list().filter((j) => j.status === 'waiting').length; await queue.pollNow(); return `${n} waiting job(s) checked`; } });
 tasks.register({ id: 'refresh-anidb', name: 'Refresh AniDB data', interval: () => (store.settings.anidb.enabled ? 7 * 24 * 3600 : 0), run: async () => { if (!store.settings.anidb.enabled) return 'disabled'; await anidb.ensure(true); const s = anidb.status(); return s.error ?? `${s.animeCount} anime, ${s.mappingCount} mappings`; } });
 tasks.register({ id: 'detect-ffmpeg', name: 'Detect FFmpeg encoders', interval: () => 6 * 3600, run: async () => { const c = await ffmpegCapabilities(store.settings.ffmpegPath, true); return c.available ? `ffmpeg ${c.version}, ${c.videoEncoders.length - 1} video encoders` : c.error; } });
