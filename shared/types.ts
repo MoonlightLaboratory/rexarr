@@ -621,6 +621,8 @@ export interface Settings {
   transcoding: TranscodingSettings;
   /** Fail an encode that makes no progress for this many minutes (e.g. a stalled network share); 0 = never. */
   stallTimeoutMinutes?: number;
+  /** Keep the computer from going to sleep while a disc is ripped or a file encoded. */
+  preventSleep?: boolean;
   /** Where ffmpeg writes while encoding: the Transcodes folder (default) or next to the final output. */
   transcodeTemp: 'transcodes' | 'output';
   auto: AutoTranscodeSettings;
@@ -1102,6 +1104,8 @@ export interface SystemInfo {
   dataDir: string;
   /** How Rexarr was installed: a release package (runtime e.g. "linux-x64", "osx-arm64-app"), Docker, or undefined for source. */
   package?: { version: string; runtime: string; branch: string };
+  /** Keeping the computer awake while working (not in Docker). */
+  power?: { supported: boolean; method?: string; active: boolean; reason?: string; error?: string };
   uptimeSeconds: number;
   ffmpeg: FfmpegCapabilities;
   /** fre:ac (freaccmd): music encodes and CD ripping. */

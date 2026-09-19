@@ -743,6 +743,14 @@ export function SettingsPage() {
               <div className="help">An encode whose source stops delivering data (a network share that hung, a disk that went away) otherwise waits forever. The job fails with an explanation and can be retried.</div>
             </div>
             <div className="field">
+              <label className="check">
+                <input type="checkbox" checked={s.preventSleep !== false} onChange={(e) => setS({ ...s, preventSleep: e.target.checked })} /> Keep this computer awake while ripping or encoding
+              </label>
+              <div className="help">
+                A laptop or desktop that sleeps after a few idle minutes freezes a rip or an encode halfway. While a disc is scanned or ripped, or a file encoded, Rexarr asks the system to stay awake, and lets it sleep again as soon as nothing is running. Closing a laptop lid or choosing Sleep still sleeps it. Not used in Docker.
+              </div>
+            </div>
+            <div className="field">
               <label>ffprobe binary</label>
               <input type="text" value={s.ffprobePath} onChange={(e) => setS({ ...s, ffprobePath: e.target.value })} />
             </div>

@@ -200,6 +200,19 @@ export function SystemPage() {
                   </span>
                 </div>
                 <div className="field row"><label>Node</label><span>{info.node}</span></div>
+                {info.power && (
+                  <div className="field row">
+                    <label>Sleep</label>
+                    <span title={info.power.error}>
+                      {!info.power.supported
+                        ? 'Not managed here (Docker or no systemd)'
+                        : info.power.active
+                          ? `Kept awake – ${info.power.reason} (${info.power.method})`
+                          : `Allowed – kept awake only while ripping or encoding (${info.power.method})`}
+                      {info.power.error && <span className="badge red sm" style={{ marginLeft: 6 }}>error</span>}
+                    </span>
+                  </div>
+                )}
                 <div className="field row"><label>Platform</label><span>{info.platform}</span></div>
                 <div className="field row"><label>Uptime</label><span>{fmtDuration(info.uptimeSeconds)}</span></div>
                 <div className="field row"><label>Config directory</label><code style={{ wordBreak: 'break-all' }}>{info.dataDir}</code></div>

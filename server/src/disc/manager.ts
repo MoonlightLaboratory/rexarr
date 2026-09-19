@@ -98,6 +98,11 @@ export class DiscManager {
     this.timer = setTimeout(() => void this.poll().finally(() => this.schedule()), Math.max(5, s.pollIntervalSeconds) * 1000);
   }
 
+  /** What the drives are busy with right now ("ripping Naruto_D2"), or nothing. */
+  get activity(): string[] {
+    return store.rips.filter((r) => r.status === 'ripping' || r.status === 'scanning').map((r) => `${r.status} ${r.label || r.media.title || 'a disc'}`);
+  }
+
   list(): DiscRip[] {
     return store.rips;
   }

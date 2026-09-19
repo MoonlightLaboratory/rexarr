@@ -70,6 +70,7 @@ export const settingsSchema = z.object({
     .default({ hardwareAcceleration: 'none', device: '', hardwareDecoding: true, fallbackToSoftware: true }),
   transcodeTemp: z.enum(['transcodes', 'output']).default('transcodes'),
   stallTimeoutMinutes: z.number().int().min(0).max(1440).default(10),
+  preventSleep: z.boolean().default(true),
   auto: z
     .object({
       enabled: z.boolean(),

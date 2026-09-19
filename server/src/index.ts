@@ -10,6 +10,7 @@ import { registerAuth } from './auth.js';
 import { effectiveHost, listenHost } from './general.js';
 import { onLogLevel, onRestart, onShutdown, running, sslFingerprint } from './runtime.js';
 import { openBrowser } from './browser.js';
+import { keepAwake } from './power.js';
 import { store } from './store.js';
 import { queue } from './jobs/queue.js';
 import settingsRoutes from './routes/settings.js';
@@ -229,6 +230,17 @@ bus.on('event', (ev) => {
 });
 const seenJobEvents = new Set<string>();
 appEvents.add('info', 'App', `Rexarr ${APP_VERSION} started`);
+
+// Keep the computer awake while something is being ripped or encoded (laptops and desktops sleep when idle).
+const updateSleep = () => {
+  const encoding = queue.list().filter((j) => ['probing', 'encoding', 'finalizing'].includes(j.status)).length;
+  const work = [...discs.activity, ...(encoding ? [`encoding ${encoding} file${encoding > 1 ? 's' : ''}`] : [])];
+  keepAwake(store.settings.preventSleep !== false && work.length > 0, work.join(', '));
+};
+setInterval(updateSleep, 10_000).unref();
+bus.on('event', (ev) => {
+  if (ev.type === 'job' || ev.type === 'rip') updateSleep();
+});
 if (MIGRATED.length) appEvents.add('info', 'Storage', `Moved to the new storage layout: ${MIGRATED.join(', ')}`);
 
 // ---- scheduled tasks (System → Tasks)
@@ -262,6 +274,7 @@ const shutdown = async () => {
   app?.log.info('shutting down');
   queue.stop();
   discs.stop();
+  keepAwake(false);
   store.flushAll();
   // Never hang on lingering connections: exit regardless after a short grace period.
   setTimeout(() => process.exit(0), 3000).unref();
