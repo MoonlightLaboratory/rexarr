@@ -188,9 +188,9 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
   if (s.disc.enabled) {
     const mk = await makemkvInfo(s.disc.makemkvPath);
     if (!mk.available) out.push({ type: 'error', source: 'Disc ripping', message: `${mk.error ?? `makemkvcon was not found at "${mk.path}"`}. Disc ripping is enabled but cannot run.`, link: '/settings' });
-    const ripDir = s.disc.ripDirectory?.trim() || PATHS.rips;
-    const free = freeSpace(ripDir);
-    if (free && free < 60 * 1024 ** 3) out.push({ type: 'warning', source: 'Disc ripping', message: `Only ${fmtBytes(free)} free for rips in "${ripDir}". A UHD Blu-ray can need up to 100 GB.`, link: '/settings' });
+    // raw rips and their encodes are written to the local cache; only finished files go to the rip folder
+    const free = freeSpace(PATHS.rips);
+    if (free && free < 60 * 1024 ** 3) out.push({ type: 'warning', source: 'Disc ripping', message: `Only ${fmtBytes(free)} free in the cache (${PATHS.rips}), where discs are ripped and encoded before they go to the rip folder. A UHD Blu-ray can need up to 100 GB.`, link: '/system' });
   }
 
   if (s.anidb.enabled) {

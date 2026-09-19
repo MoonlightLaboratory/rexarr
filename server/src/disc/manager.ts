@@ -783,7 +783,10 @@ export class DiscManager {
     const base = rip.media.title ? `${safeName(rip.media.title)}${rip.media.year ? ` (${rip.media.year})` : ''}` : safeName(rip.label || `disc-${rip.id.slice(0, 8)}`);
     // Multi-disc sets get a folder per disc, so one disc's import never picks up another disc's half-finished files.
     const folder = rip.media.discNumber ? `${base} - Disc ${rip.media.discNumber}` : base;
-    rip.outputDir = path.join(this.ripRoot(), folder);
+    // Raw rips and encodes stay in the local cache, where Sonarr / Radarr cannot see them; only finished files are
+    // moved to the rip folder they import from.
+    rip.outputDir = path.join(PATHS.rips, folder);
+    rip.deliveryDir = path.join(this.ripRoot(), folder);
     fs.mkdirSync(rip.outputDir, { recursive: true });
     const titles = rip.titles.filter((t) => rip.selectedTitleIds.includes(t.id)).sort((a, b) => a.id - b.id);
     rip.progress = { percent: 0, step: '', titleIndex: 0, titleCount: titles.length };
@@ -865,7 +868,10 @@ export class DiscManager {
         store.saveRips();
         this.emit(rip);
       } else {
-        for (const f of rip.files) f.finalPath = f.path;
+        for (const f of rip.files) {
+          f.finalPath = f.path;
+          await this.moveToDelivery(rip, f);
+        }
         await this.deliver(rip);
       }
     } catch (err) {
@@ -930,9 +936,43 @@ export class DiscManager {
         this.log(rip, `Could not remove raw rip: ${(err as Error).message}`);
       }
     }
+    try {
+      await this.moveToDelivery(rip, file);
+    } catch (err) {
+      return this.fail(rip, `Could not move ${path.basename(file.finalPath)} to the rip folder: ${(err as Error).message}`);
+    }
     store.saveRips();
     this.emit(rip);
-    if (rip.files.every((f) => f.finalPath)) await this.deliver(rip);
+    // every file encoded and in the rip folder (two encodes can finish together: only one of them delivers)
+    if (rip.status === 'transcoding' && rip.files.every((f) => f.finalPath && (!rip.deliveryDir || path.dirname(f.finalPath) === rip.deliveryDir))) await this.deliver(rip);
+  }
+
+  /**
+   * Put a finished file into the rip folder. Across volumes (local cache → NAS) it is copied under a hidden temporary
+   * name and renamed when complete, so Sonarr / Radarr never see a half-copied file.
+   */
+  private async moveToDelivery(rip: DiscRip, file: DiscRip['files'][number]) {
+    const from = file.finalPath ?? file.path;
+    if (!rip.deliveryDir || path.dirname(from) === rip.deliveryDir || !fs.existsSync(from)) return;
+    await fs.promises.mkdir(rip.deliveryDir, { recursive: true });
+    const name = path.basename(from);
+    const to = path.join(rip.deliveryDir, name);
+    try {
+      await fs.promises.rename(from, to);
+    } catch {
+      const part = path.join(rip.deliveryDir, `.${name}.part`);
+      await fs.promises.copyFile(from, part);
+      await fs.promises.rename(part, to);
+      await fs.promises.unlink(from);
+    }
+    file.finalPath = to;
+    this.log(rip, `Moved ${name} to ${rip.deliveryDir}`);
+    // the work folder is done with once nothing is left in it
+    try {
+      if (rip.outputDir && rip.outputDir !== rip.deliveryDir && !rip.options.keepRaw && !(await fs.promises.readdir(rip.outputDir)).some((f) => !f.startsWith('.'))) await fs.promises.rm(rip.outputDir, { recursive: true, force: true });
+    } catch {
+      /* cleaned up later */
+    }
   }
 
   /**
@@ -1022,14 +1062,14 @@ export class DiscManager {
     if (!sonarr.configured) throw new Error('Sonarr is not connected');
     const root = this.ripRoot();
     if (!fs.existsSync(root)) return [];
-    const busy = new Set(store.rips.filter((r) => ['ripping', 'transcoding', 'delivering'].includes(r.status) && r.outputDir).map((r) => path.resolve(r.outputDir!)));
+    const busy = new Set(store.rips.filter((r) => ['ripping', 'transcoding', 'delivering'].includes(r.status)).flatMap((r) => [r.outputDir, r.deliveryDir].filter((d): d is string => Boolean(d)).map((d) => path.resolve(d))));
     const results: { folder: string; outcomes: ImportOutcome[] }[] = [];
     for (const e of fs.readdirSync(root, { withFileTypes: true })) {
       if (!e.isDirectory() || e.name.startsWith('.')) continue;
       const dir = path.join(root, e.name);
       if (busy.has(path.resolve(dir)) || !folderIsSettled(dir)) continue;
       // the rip that made this folder knows the series and episodes; without one, Sonarr matches each file itself
-      const rip = store.rips.find((r) => r.outputDir && path.resolve(r.outputDir) === path.resolve(dir) && r.media.kind === 'series' && r.media.arrId);
+      const rip = store.rips.find((r) => (r.deliveryDir ?? r.outputDir) && path.resolve((r.deliveryDir ?? r.outputDir)!) === path.resolve(dir) && r.media.kind === 'series' && r.media.arrId);
       try {
         const outcomes = await importIntoSonarr(sonarr, dir, rip ? { seriesId: rip.media.arrId, known: this.knownEpisodes(rip), dvd: rip.discType === 'dvd' } : {});
         if (!outcomes.length) {
@@ -1082,7 +1122,7 @@ export class DiscManager {
       this.log(rip, `Could not find the library folder for extras: ${(err as Error).message}`);
     }
     // the library folder must already exist here; otherwise keep extras out of the import in the rip folder
-    if (!target || !fs.existsSync(path.dirname(target))) target = path.join(rip.outputDir!, 'Extras');
+    if (!target || !fs.existsSync(path.dirname(target))) target = path.join(rip.deliveryDir ?? rip.outputDir!, 'Extras');
     fs.mkdirSync(target, { recursive: true });
     for (const f of extras) {
       const from = f.finalPath ?? f.path;
@@ -1119,7 +1159,7 @@ export class DiscManager {
         } else this.log(rip, `Album left in ${rip.outputDir}${lidarr.configured ? '' : ' (Lidarr is not connected)'}`);
       } else if (rip.options.deliver && rip.media.kind !== 'unknown' && rip.media.externalId) {
         const { radarr, sonarr } = arr();
-        const dir = rip.outputDir!;
+        const dir = rip.deliveryDir ?? rip.outputDir!;
         await this.deliverExtras(rip);
         if (rip.media.kind === 'movie' && radarr.configured) {
           if (!rip.media.arrId) await this.addToLibrary(rip);
@@ -1131,7 +1171,7 @@ export class DiscManager {
           const outcomes = await importIntoSonarr(sonarr, dir, { seriesId: rip.media.arrId, known: this.knownEpisodes(rip), dvd: rip.discType === 'dvd', log: (l) => this.log(rip, l) });
           this.reportImport(rip, outcomes);
         } else this.log(rip, 'No matching *arr app configured; files left in the rip folder');
-      } else this.log(rip, `Files left in ${rip.outputDir}`);
+      } else this.log(rip, `Files left in ${rip.deliveryDir ?? rip.outputDir}`);
       if (rip.arrQueue && rip.options.deliver) {
         // Clear the stuck "no files eligible for import" download from the *arr queue; the download client keeps it.
         const others = store.rips.some((r) => r.id !== rip.id && r.arrQueue?.id === rip.arrQueue!.id && r.arrQueue.arr === rip.arrQueue!.arr && r.status !== 'done' && r.status !== 'failed' && r.status !== 'cancelled');

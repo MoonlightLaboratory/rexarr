@@ -1289,7 +1289,10 @@ export interface DiscRip {
   profileId?: string;
   profileName?: string;
   options: RipOptions;
+  /** Local work folder (the cache) for the raw rip and the encode. */
   outputDir?: string;
+  /** Where finished files go – the rip folder Sonarr / Radarr import from. Only compressed, finished files land here. */
+  deliveryDir?: string;
   files: RippedFile[];
   progress: { percent: number; step: string; titleIndex: number; titleCount: number; startedAt?: string; etaSeconds?: number };
   /** How long the rip itself took, once it has finished. */
