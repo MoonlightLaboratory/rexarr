@@ -36,8 +36,14 @@ export async function makemkvInfo(configured: string, force = false): Promise<Ma
   let info: MakemkvInfo;
   try {
     // "info" with an invalid source still prints the version banner in robot mode.
-    const { stdout } = await run(path, ['-r', '--cache=1', 'info', 'disc:9999'], { timeout: 60_000, maxBuffer: 8 * 1024 * 1024 }).catch((e: { stdout?: string }) => ({ stdout: e.stdout ?? '' }));
+    const { stdout } = await run(path, ['-r', '--cache=1', 'info', 'disc:9999'], { timeout: 60_000, maxBuffer: 8 * 1024 * 1024 }).catch((e: { stdout?: string; code?: string | number; killed?: boolean; signal?: string }) => {
+      // An invalid disc can exit non-zero after printing the banner. Launch errors,
+      // timeouts and unrelated programs must still fail the availability probe.
+      if (typeof e.code === 'number' && !e.killed && !e.signal && /MakeMKV v?([\d.]+)/.test(e.stdout ?? '')) return { stdout: e.stdout! };
+      throw e;
+    });
     const ver = stdout.match(/MakeMKV v?([\d.]+)/)?.[1];
+    if (!ver) throw new Error(`${path} did not report a MakeMKV version`);
     info = { available: true, path, version: ver };
   } catch (err) {
     info = { available: false, path, error: toolError(err, path) };
