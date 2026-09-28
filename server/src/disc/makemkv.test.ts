@@ -6,9 +6,9 @@ import path from 'node:path';
 import { findDiscImages, labelToTitle, listVirtualDrives, parseDiscInfo, parseDrives, parseDurationSeconds, splitRobot } from './makemkv.js';
 import { audioSelectionFor, bestAudioPerLanguage, codecRank } from './audio.js';
 import type { DiscAudioTrack } from '../../../shared/types.js';
-import { matchLibrary, splitSequel, type LibraryCandidate } from './identify.js';
+import { matchLibrary, nameScore, splitSequel, type LibraryCandidate } from './identify.js';
 import { extraFileName, extraLabel, guessExtraRoles } from './extras.js';
-import { isInsideFolder } from './sonarrImport.js';
+import { canSeeFolder, deliveryProblem, isInsideFolder } from './arrImport.js';
 import { pickAddTarget } from './addTarget.js';
 
 test('splitRobot handles quoted fields with commas and escaped quotes', () => {
@@ -334,4 +334,46 @@ test('titles are added where the library keeps that kind of title', () => {
   const flat = [{ path: '/tv/A', animeType: true, profileId: 7 }, { path: '/tv/B', animeType: false, profileId: 4 }];
   assert.equal(pickAddTarget({ anime: true, roots: ['/tv'], profiles, library: flat })?.qualityProfileId, 7);
   assert.equal(pickAddTarget({ anime: false, roots: ['/tv'], profiles, library: flat })?.qualityProfileId, 4);
+});
+
+test('a delivery that imported nothing is reported, not called done', () => {
+  const dir = '/data/rips/Movie (2024)';
+  const remote = '/mnt/rips/Movie (2024)';
+  // the reported issue: Radarr's scan command completes, but the mapped folder does not exist for it
+  assert.match(deliveryProblem('Radarr', dir, remote, [])!, /found nothing to import in \/mnt\/rips/);
+  assert.match(deliveryProblem('Radarr', dir, remote, [{ file: 'a.mkv', imported: false, detail: 'Radarr did not import it' }])!, /imported 0 of 1 file\(s\): a\.mkv/);
+  assert.match(deliveryProblem('Sonarr', dir, remote, [
+    { file: 'a.mkv', imported: true, detail: 'imported' },
+    { file: 'b.mkv', imported: false, detail: 'no episode matched' },
+  ])!, /imported 1 of 2 file\(s\): b\.mkv – no episode matched/);
+  assert.equal(deliveryProblem('Sonarr', dir, remote, [{ file: 'a.mkv', imported: true, detail: 'imported' }]), null);
+  // the files stay where they are, and the message says so
+  assert.match(deliveryProblem('Radarr', dir, remote, [])!, /The files are in \/data\/rips/);
+});
+
+test('a folder the *arr app does not have is detected', async () => {
+  // the app answers "folder" for any path, so the parent listing is what counts
+  const client = (dirs: string[]) => ({ http: { get: async () => ({ directories: dirs.map((path) => ({ path })) }) } });
+  assert.equal(await canSeeFolder(client(['/mnt/rips/Movie (2024)', '/mnt/rips/Other']), '/mnt/rips/Movie (2024)'), true);
+  assert.equal(await canSeeFolder(client(['/mnt/rips/Movie (2024)/']), '/mnt/rips/Movie (2024)'), true);
+  assert.equal(await canSeeFolder(client([]), '/nonexistent/rips/Movie (2024)'), false);
+  assert.equal(await canSeeFolder(client(['/mnt/rips/Other']), '/mnt/rips/Movie (2024)'), false);
+  // cannot tell: never block the import
+  assert.equal(await canSeeFolder({ http: { get: async () => ({}) } }, '/mnt/rips/x'), true);
+  assert.equal(await canSeeFolder({ http: { get: async () => { throw new Error('404'); } } }, '/mnt/rips/x'), true);
+  assert.equal(await canSeeFolder(client([]), '/'), true);
+});
+
+test('a label of generic words matches nothing', () => {
+  const library: LibraryCandidate[] = [
+    { kind: 'movie', id: 1, title: 'No Game No Life: Zero', alternateTitles: ['NGNL the Movie'] },
+    { kind: 'series', id: 2, title: 'Severance' },
+  ];
+  // "MOVIE_DISC" became "Movie Disc", and "movie" alone matched "NGNL the Movie"
+  assert.equal(matchLibrary(labelToTitle('MOVIE_DISC').title!, library), null);
+  assert.equal(matchLibrary('Season 1 Box Set', library), null);
+  assert.equal(nameScore('Movie', 'NGNL the Movie'), 0);
+  // real titles still match
+  assert.equal(matchLibrary('Severance', library)?.item.id, 2);
+  assert.equal(matchLibrary('No Game No Life Zero', library)?.item.id, 1);
 });

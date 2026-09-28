@@ -20,7 +20,7 @@ import { ejectDrive, labelToTitle, listDrives, listVirtualDrives, readDisc, reso
 import { audioSelectionFor, describeTracks } from './audio.js';
 import { extraFileName, extraLabel, guessExtraRoles } from './extras.js';
 import { toLocalPath } from '../paths.js';
-import { folderIsSettled, importIntoSonarr, type ImportOutcome, type KnownEpisode } from './sonarrImport.js';
+import { canSeeFolder, deliveryProblem, folderIsSettled, importIntoRadarr, importIntoSonarr, type ImportOutcome, type KnownEpisode } from './arrImport.js';
 import { pickAddTarget } from './addTarget.js';
 import { matchLibrary, nameScore, splitSequel, type LibraryCandidate } from './identify.js';
 import { keepAudioTracks } from './remux.js';
@@ -1058,8 +1058,8 @@ export class DiscManager {
    * hand. Folders that are still being ripped or encoded are skipped. Runs as a scheduled task and from Settings.
    */
   async importRipFolder(): Promise<{ folder: string; outcomes: ImportOutcome[] }[]> {
-    const { sonarr } = arr();
-    if (!sonarr.configured) throw new Error('Sonarr is not connected');
+    const { radarr, sonarr } = arr();
+    if (!sonarr.configured && !radarr.configured) throw new Error('Sonarr and Radarr are not connected');
     const root = this.ripRoot();
     if (!fs.existsSync(root)) return [];
     const busy = new Set(store.rips.filter((r) => ['ripping', 'transcoding', 'delivering'].includes(r.status)).flatMap((r) => [r.outputDir, r.deliveryDir].filter((d): d is string => Boolean(d)).map((d) => path.resolve(d))));
@@ -1069,15 +1069,31 @@ export class DiscManager {
       const dir = path.join(root, e.name);
       if (busy.has(path.resolve(dir)) || !folderIsSettled(dir)) continue;
       // the rip that made this folder knows the series and episodes; without one, Sonarr matches each file itself
-      const rip = store.rips.find((r) => (r.deliveryDir ?? r.outputDir) && path.resolve((r.deliveryDir ?? r.outputDir)!) === path.resolve(dir) && r.media.kind === 'series' && r.media.arrId);
+      const rip = store.rips.find((r) => (r.deliveryDir ?? r.outputDir) && path.resolve((r.deliveryDir ?? r.outputDir)!) === path.resolve(dir) && r.media.arrId);
       try {
-        const outcomes = await importIntoSonarr(sonarr, dir, rip ? { seriesId: rip.media.arrId, known: this.knownEpisodes(rip), dvd: rip.discType === 'dvd' } : {});
+        const { radarr } = arr();
+        const movie = rip?.media.kind === 'movie';
+        if (movie && !radarr.configured) continue;
+        const outcomes = movie
+          ? await importIntoRadarr(radarr, dir, { movieId: rip!.media.arrId, dvd: rip!.discType === 'dvd' })
+          : await importIntoSonarr(sonarr, dir, rip?.media.kind === 'series' ? { seriesId: rip.media.arrId, known: this.knownEpisodes(rip), dvd: rip.discType === 'dvd' } : {});
         if (!outcomes.length) {
           this.tidyRipFolder(dir);
           continue;
         }
         results.push({ folder: e.name, outcomes });
-        if (rip) this.reportImport(rip, outcomes);
+        if (rip) {
+          this.reportImport(rip, outcomes);
+          // a rip that failed because nothing could be imported is done once its files are in
+          if (rip.status === 'failed' && outcomes.length && outcomes.every((o) => o.imported)) {
+            rip.status = 'done';
+            rip.error = undefined;
+            rip.finishedAt = new Date().toISOString();
+            this.log(rip, 'Imported after all; the rip is complete');
+            store.saveRips();
+            this.emit(rip);
+          }
+        }
         this.tidyRipFolder(dir);
       } catch (err) {
         results.push({ folder: e.name, outcomes: [{ file: e.name, imported: false, detail: (err as Error).message }] });
@@ -1161,15 +1177,24 @@ export class DiscManager {
         const { radarr, sonarr } = arr();
         const dir = rip.deliveryDir ?? rip.outputDir!;
         await this.deliverExtras(rip);
-        if (rip.media.kind === 'movie' && radarr.configured) {
+        const movie = rip.media.kind === 'movie';
+        const client = movie ? radarr : sonarr;
+        if ((movie && radarr.configured) || (rip.media.kind === 'series' && sonarr.configured)) {
           if (!rip.media.arrId) await this.addToLibrary(rip);
-          await radarr.http.post('/command', { name: 'DownloadedMoviesScan', path: toArrPath(dir, 'radarr'), importMode: 'Move' });
-          this.log(rip, `Asked Radarr to import ${toArrPath(dir, 'radarr')}`);
-        } else if (rip.media.kind === 'series' && sonarr.configured) {
-          if (!rip.media.arrId) await this.addToLibrary(rip);
-          // explicit series and episodes: a folder scan would guess the series from "Show (Year) - Disc 1" and skip it
-          const outcomes = await importIntoSonarr(sonarr, dir, { seriesId: rip.media.arrId, known: this.knownEpisodes(rip), dvd: rip.discType === 'dvd', log: (l) => this.log(rip, l) });
+          const app = movie ? 'Radarr' : 'Sonarr';
+          const remote = toArrPath(dir, movie ? 'radarr' : 'sonarr');
+          // A path mapping that points somewhere the app does not have makes every import do nothing, while the
+          // app's scan command still reports success.
+          if (!(await canSeeFolder(client, remote))) {
+            return this.fail(rip, `${app} cannot see ${remote}${remote === dir ? '' : ` (this computer: ${dir})`} – fix the rip directory or its path mapping. The files are there and can be imported from Settings → Disc ripping.`);
+          }
+          // explicit series / movie: a folder scan would guess it from "Title (Year) - Disc 1" and skip it
+          const outcomes = movie
+            ? await importIntoRadarr(radarr, dir, { movieId: rip.media.arrId, dvd: rip.discType === 'dvd', log: (l) => this.log(rip, l) })
+            : await importIntoSonarr(sonarr, dir, { seriesId: rip.media.arrId, known: this.knownEpisodes(rip), dvd: rip.discType === 'dvd', log: (l) => this.log(rip, l) });
           this.reportImport(rip, outcomes);
+          const problem = deliveryProblem(app, dir, remote, outcomes);
+          if (problem) return this.fail(rip, problem);
         } else this.log(rip, 'No matching *arr app configured; files left in the rip folder');
       } else this.log(rip, `Files left in ${rip.deliveryDir ?? rip.outputDir}`);
       if (rip.arrQueue && rip.options.deliver) {

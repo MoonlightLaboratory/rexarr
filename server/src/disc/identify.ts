@@ -7,6 +7,9 @@
 
 const STOP = new Set(['the', 'a', 'an', 'of', 'and', 'wa', 'no', 'ga', 'wo', 'to', 'disc', 'disk', 'dvd', 'bd', 'bluray']);
 
+/** Words a disc label can consist of without saying anything about the title ("MOVIE_DISC", "SEASON 1 BOX"). */
+const GENERIC = new Set(['movie', 'movies', 'film', 'video', 'season', 'series', 'show', 'volume', 'vol', 'box', 'set', 'collection', 'complete', 'special', 'specials', 'bonus', 'extra', 'extras', 'sample', 'title', 'untitled', 'new', 'part', 'side']);
+
 export function tokens(s: string): string[] {
   return s
     .normalize('NFKD')
@@ -25,6 +28,8 @@ export function nameScore(term: string, name: string): number {
   const a = tokens(term);
   const b = tokens(name);
   if (!a.length || !b.length) return 0;
+  // a label that is only generic words ("MOVIE DISC") says nothing about which title it is
+  if (a.every((t) => GENERIC.has(t))) return 0;
   if (a.join(' ') === b.join(' ')) return 1;
   // shortened words ("Oregairu" / "Oregairu S2") count, but only between real words: "snafu" must not match the
   // "s" left over from "World's"

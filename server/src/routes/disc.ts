@@ -9,6 +9,7 @@ import { arr } from '../arr/index.js';
 import { toArrPath } from '../paths.js';
 import { PATHS } from '../config.js';
 import { estimateRip } from '../disc/estimate.js';
+import { canSeeFolder } from '../disc/arrImport.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 
 const mediaSchema = z.object({
@@ -139,12 +140,7 @@ export default async function discRoutes(app: FastifyInstance) {
     for (const [app, client] of [['radarr', radarr], ['sonarr', sonarr]] as const) {
       if (!client.configured) continue;
       const remote = toArrPath(dir, app);
-      try {
-        const res = await client.http.get<{ directories?: unknown[]; parent?: string }>('/filesystem', { path: remote.endsWith('/') ? remote : `${remote}/`, includeFiles: 'false' }, 15_000);
-        out.apps.push({ app, path: remote, visible: Array.isArray(res.directories) });
-      } catch (err) {
-        out.apps.push({ app, path: remote, visible: false, error: (err as Error).message });
-      }
+      out.apps.push({ app, path: remote, visible: await canSeeFolder(client, remote) });
     }
     return out;
   });
