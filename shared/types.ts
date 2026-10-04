@@ -1065,6 +1065,36 @@ export interface ScheduledTask {
   nextRun?: string;
 }
 
+/** One published release, as System → Updates lists it. */
+export interface ReleaseInfo {
+  /** major.backend.feature.minor, without the leading "v". */
+  version: string;
+  name: string;
+  /** The release notes, as Markdown. */
+  notes: string;
+  url: string;
+  publishedAt: string;
+  prerelease: boolean;
+  /** This is the version that is running. */
+  installed: boolean;
+  /** Newer than the version that is running. */
+  newer: boolean;
+}
+
+export interface UpdateStatus {
+  current: string;
+  branch: string;
+  mechanism: 'builtIn' | 'script' | 'docker' | 'external';
+  inDocker: boolean;
+  /** When the release list was last read from GitHub. */
+  checkedAt?: string;
+  /** The newest version above the one running, when there is one. */
+  available?: string;
+  releases: ReleaseInfo[];
+  /** Why the last check failed; the cached list is still returned. */
+  error?: string;
+}
+
 export interface BackupInfo {
   name: string;
   sizeBytes: number;

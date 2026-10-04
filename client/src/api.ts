@@ -1,5 +1,5 @@
 import { withBase } from './base';
-import type { DiscEstimate, TitleRole, AnidbInfo, AutoScanResult, AutoStatus, AppEvent, StoragePath, HwDevices, HwTestResult, TranscodingSettings, BackupInfo, DiscDrive, DiscRip, LogFileInfo, ScheduledTask, VirtualDrive, Episode, FfmpegCapabilities, HealthCheck, Job, LookupResult, MakemkvInfo, Movie, Profile, Release, RipMedia, RipOptions, Series, Settings, SystemInfo, SmartSearchResult, HostRuntime, DriveCandidate, PhysicalDrive, Artist, Album, Track, MqaInfo, MusicBrainzRelease, LocalItem, LocalFile, LocalScanStatus, LocalMeta, LocalMetaCandidate, SizeEstimateResult, SetupTools } from '@shared/types';
+import type { DiscEstimate, TitleRole, AnidbInfo, AutoScanResult, AutoStatus, AppEvent, StoragePath, HwDevices, HwTestResult, TranscodingSettings, BackupInfo, DiscDrive, DiscRip, LogFileInfo, ScheduledTask, VirtualDrive, Episode, FfmpegCapabilities, HealthCheck, Job, LookupResult, MakemkvInfo, Movie, Profile, Release, RipMedia, RipOptions, Series, Settings, SystemInfo, SmartSearchResult, HostRuntime, DriveCandidate, PhysicalDrive, Artist, Album, Track, MqaInfo, MusicBrainzRelease, LocalItem, LocalFile, LocalScanStatus, LocalMeta, LocalMetaCandidate, SizeEstimateResult, SetupTools, UpdateStatus } from '@shared/types';
 
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(withBase(url), {
@@ -165,6 +165,7 @@ export const api = {
   events: (level?: string) => req<AppEvent[]>('GET', `/api/system/events${level ? `?level=${level}` : ''}`),
   clearEvents: () => req<{ ok: true }>('DELETE', '/api/system/events'),
   tasks: () => req<ScheduledTask[]>('GET', '/api/system/tasks'),
+  updates: (refresh?: boolean) => req<UpdateStatus>('GET', `/api/system/updates${refresh ? '?refresh=1' : ''}`),
   runTask: (id: string) => req<ScheduledTask>('POST', `/api/system/tasks/${id}/run`),
   backups: () => req<BackupInfo[]>('GET', '/api/system/backups'),
   createBackup: () => req<BackupInfo>('POST', '/api/system/backups'),

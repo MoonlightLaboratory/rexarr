@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import fs from 'node:fs';
 import { appEvents, backups, logs, tasks } from '../system.js';
+import { checkUpdates } from '../updates.js';
 import { storagePaths } from '../storage.js';
 
 export default async function systemPageRoutes(app: FastifyInstance) {
@@ -13,6 +14,9 @@ export default async function systemPageRoutes(app: FastifyInstance) {
     appEvents.clear();
     return { ok: true };
   });
+
+  // Updates: the published releases with their notes (cached; ?refresh=1 asks GitHub again)
+  app.get<{ Querystring: { refresh?: string } }>('/api/system/updates', async (req) => checkUpdates(req.query.refresh === '1'));
 
   // Tasks
   app.get('/api/system/tasks', async () => tasks.list());

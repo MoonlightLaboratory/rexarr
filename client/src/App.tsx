@@ -23,6 +23,7 @@ const BackupPage = lazy(() => import('./pages/SystemPages').then((m) => ({ defau
 const EventsPage = lazy(() => import('./pages/SystemPages').then((m) => ({ default: m.EventsPage })));
 const ToolsPage = lazy(() => import('./pages/Tools').then((m) => ({ default: m.ToolsPage })));
 const LogsPage = lazy(() => import('./pages/SystemPages').then((m) => ({ default: m.LogsPage })));
+const UpdatesPage = lazy(() => import('./pages/Updates').then((m) => ({ default: m.UpdatesPage })));
 
 export interface AppState {
   jobs: Job[];
@@ -92,6 +93,7 @@ export default function App() {
             <Route path="/system" element={<SystemPage />} />
             <Route path="/system/tasks" element={<TasksPage />} />
             <Route path="/system/backup" element={<BackupPage />} />
+            <Route path="/system/updates" element={<UpdatesPage />} />
             <Route path="/system/events" element={<EventsPage />} />
             <Route path="/system/logs" element={<LogsPage />} />
             <Route path="/system/tools" element={<ToolsPage />} />

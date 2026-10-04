@@ -6,6 +6,7 @@ import fastifyStatic from '@fastify/static';
 import fs from 'node:fs';
 import path from 'node:path';
 import { APP_VERSION, CLIENT_DIST, CONFIG_DIR, MIGRATED, PATHS } from './config.js';
+import { checkUpdates } from './updates.js';
 import { registerAuth } from './auth.js';
 import { effectiveHost, listenHost } from './general.js';
 import { onLogLevel, onRestart, onShutdown, running, sslFingerprint } from './runtime.js';
@@ -260,6 +261,16 @@ tasks.register({ id: 'poll-imports', name: 'Check *arr imports for waiting jobs'
 tasks.register({ id: 'refresh-anidb', name: 'Refresh AniDB data', interval: () => (store.settings.anidb.enabled ? 7 * 24 * 3600 : 0), run: async () => { if (!store.settings.anidb.enabled) return 'disabled'; await anidb.ensure(true); const s = anidb.status(); return s.error ?? `${s.animeCount} anime, ${s.mappingCount} mappings`; } });
 tasks.register({ id: 'detect-ffmpeg', name: 'Detect FFmpeg encoders', interval: () => 6 * 3600, run: async () => { const c = await ffmpegCapabilities(store.settings.ffmpegPath, true); return c.available ? `ffmpeg ${c.version}, ${c.videoEncoders.length - 1} video encoders` : c.error; } });
 tasks.register({ id: 'auto-transcode', name: 'Auto transcode new remuxes', interval: () => (store.settings.auto.enabled ? store.settings.auto.scanIntervalMinutes * 60 : 0), run: async () => { if (!store.settings.auto.enabled) return 'disabled'; const r = await autoTranscode.scan(false, 'schedule'); return r.baseline !== undefined ? `baseline: ${r.baseline} existing remux(es) ignored` : `${r.found} remux(es), ${r.queued.length} queued${r.pending.length ? `, ${r.pending.length} pending` : ''}${r.skippedMissing.length ? `, ${r.skippedMissing.length} not visible` : ''}`; } });
+tasks.register({
+  id: 'check-updates',
+  name: 'Check for updates',
+  interval: () => 12 * 3600,
+  run: async () => {
+    const s = await checkUpdates(true);
+    if (s.error) return s.error;
+    return s.available ? `${s.available} available (running ${s.current})` : `up to date (${s.current})`;
+  },
+});
 tasks.register({ id: 'backup', name: 'Backup configuration', interval: () => Math.max(1, store.settings.general.backups.intervalDays) * 86400, run: async () => backups.create('scheduled').name });
 tasks.register({ id: 'clean-transcodes', name: 'Clean transcode cache', interval: () => 24 * 3600, run: async () => { const dir = PATHS.transcodes; if (!fs.existsSync(dir)) return 'nothing to clean'; const active = new Set(queue.list().filter((j) => ['probing', 'encoding', 'finalizing'].includes(j.status)).map((j) => j.id)); let n = 0; let bytes = 0; for (const f of fs.readdirSync(dir)) { const id = f.split('__')[0]; const p = `${dir}/${f}`; const st = fs.statSync(p); if (!active.has(id) && Date.now() - st.mtimeMs > 3600_000) { bytes += st.size; fs.rmSync(p, { recursive: true, force: true }); n++; } } return `${n} leftover file(s) removed (${(bytes / 1e9).toFixed(2)} GB)`; } });
 tasks.register({ id: 'clean-images', name: 'Clean image cache', interval: () => 7 * 24 * 3600, run: async () => { const dir = PATHS.images; if (!fs.existsSync(dir)) return 'nothing to clean'; let n = 0; for (const f of fs.readdirSync(dir)) { const p = `${dir}/${f}`; if (Date.now() - fs.statSync(p).mtimeMs > 30 * 24 * 3600_000) { fs.unlinkSync(p); n++; } } return `${n} stale image(s) removed`; } });

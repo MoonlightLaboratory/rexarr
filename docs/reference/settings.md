@@ -24,7 +24,8 @@ Everything on these pages is also available as JSON: `GET /api/settings`, `PUT /
   local addresses, for AniDB data, cover art and remote \*arr apps.
 - **Logging** — Info / Debug / Trace (Debug and Trace add every HTTP request) and the log file size before
   rotation.
-- **Updates** — branch and mechanism. In Docker, pull the new image; automatic updates are not available there.
+- **Updates** — branch and mechanism; the mechanism decides what **[System → Updates](system.md#updates)** tells
+  you to run to install a release. Rexarr does not update itself, and in Docker you pull the new image.
 - **Backups** — folder (relative to the config directory), interval (1–7 days) and retention: scheduled backups
   older than this are removed, and the newest three are always kept.
 

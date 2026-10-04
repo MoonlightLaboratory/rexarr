@@ -50,9 +50,29 @@ Scheduled work, with the last run, its result, the interval and the next run. Ea
 | Refresh AniDB data | weekly | the AniDB title dump and mapping (only while AniDB is on) |
 | Detect FFmpeg encoders | on change | re-read what ffmpeg can do |
 | Auto transcode new remuxes | *Scan every* | queue new remuxes (only while auto transcode is on) |
+| Check for updates | 12 hours | read the published releases from GitHub |
 | Backup configuration | *Backup interval* | a scheduled backup |
 | Clean transcode cache | daily | leftovers from cancelled or crashed encodes |
 | Clean image cache | daily | posters and backdrops no longer referenced |
+
+## Updates
+
+**System → Updates** lists every release Rexarr has published, newest first, with its notes rendered in the UI —
+the same text as the GitHub release:
+
+- The release you are running is marked **Installed**; anything above it is marked **Available**, and the summary
+  at the top says which version that is.
+- Each newer release says **how to install it for this instance**: pull the image and recreate the container in
+  Docker, install the package over the old one, run your update script, or `git pull && npm install && npm run
+  build` when running from source. **Rexarr does not update itself.**
+- The list is read from GitHub's releases API, cached for six hours, and refreshed by the **Check for updates**
+  task (twice a day) or the **Check** button. When GitHub cannot be reached — its unauthenticated API allows 60
+  calls an hour per address — the page says so and keeps showing the last list it read.
+- The first time a newer release is seen it is written to **System → Events**.
+
+**Settings → General → Updates** holds the branch and the mechanism used for the install instructions.
+
+API: `GET /api/system/updates[?refresh=1]`.
 
 ## Backup and restore
 

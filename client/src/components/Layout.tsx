@@ -34,6 +34,7 @@ const links = [
       { to: '/system', label: 'Status' },
       { to: '/system/tasks', label: 'Tasks' },
       { to: '/system/backup', label: 'Backup' },
+      { to: '/system/updates', label: 'Updates' },
       { to: '/system/events', label: 'Events' },
       { to: '/system/logs', label: 'Log Files' },
       { to: '/system/tools', label: 'Tools' },

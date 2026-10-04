@@ -132,6 +132,7 @@ Docker `HEALTHCHECK` uses it.
 | GET/POST | `/api/system/backups` · GET/DELETE `/api/system/backups/:name` | backups |
 | POST | `/api/system/backups/:name/restore` · `/api/system/backups/restore` | restore a backup or an upload |
 | GET | `/api/system/logs` · `/api/system/logs/:name` · DELETE `/api/system/logs` | log files |
+| GET | `/api/system/updates[?refresh=1]` | published releases with their notes, and which one is installed |
 | POST | `/api/system/shutdown` · `/api/system/restart` | stop or restart the server |
 | GET | `/api/transcoding/devices` · POST `/api/transcoding/test` | hardware devices and the encode test |
 | GET | `/api/setup/tools` · POST `/api/setup/dismiss` | the first-run tools check |

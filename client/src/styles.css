@@ -1053,3 +1053,84 @@ table.metaTags td.mono { word-break: break-word; }
 .addTargetRow select { height: 30px; }
 .addTargetLabel { font-size: var(--smallFontSize); color: var(--helpTextColor); }
 @media (max-width: 700px) { .addTargetRow { grid-template-columns: 1fr; } }
+
+/* ---- System → Updates -------------------------------------------------------------------- */
+.updateSummary {
+  padding: 15px;
+  margin-bottom: 10px;
+}
+.updateError {
+  padding: 12px 15px;
+  margin-bottom: 10px;
+  border-left: 3px solid var(--dangerColor);
+}
+.release {
+  margin-bottom: 10px;
+}
+.releaseHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  cursor: pointer;
+  user-select: none;
+}
+.releaseHead:hover {
+  background: var(--tableRowHoverBackgroundColor);
+}
+.releaseToggle {
+  display: inline-flex;
+  color: var(--disabledColor);
+  transition: transform 100ms ease;
+}
+.releaseToggle.open {
+  transform: rotate(90deg);
+}
+.releaseVersion {
+  font-size: 17px;
+  font-weight: 500;
+}
+.releaseBody {
+  padding: 0 15px 12px 37px;
+  border-top: 1px solid var(--borderColor);
+}
+.md p {
+  margin: 8px 0;
+  line-height: 1.5;
+}
+.md code {
+  background: var(--inputReadOnlyBackgroundColor);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 12px;
+}
+.mdHead {
+  font-weight: 600;
+  margin: 14px 0 4px;
+}
+.mdList {
+  margin: 6px 0;
+  padding-left: 18px;
+  line-height: 1.5;
+}
+.mdList li {
+  margin: 4px 0;
+}
+.mdQuote {
+  border-left: 3px solid var(--borderColor);
+  padding: 2px 12px;
+  margin: 10px 0;
+  color: var(--helpTextColor);
+}
+.mdQuote.warning {
+  border-left-color: var(--warningColor);
+}
+.mdQuote.note,
+.mdQuote.tip {
+  border-left-color: var(--infoColor);
+  color: var(--textColor);
+}
+.mdQuote.important,
+.mdQuote.caution {
+  border-left-color: var(--dangerColor);
+}

@@ -27,7 +27,7 @@ body:
     id: version
     attributes:
       label: Rexarr version
-      description: Shown in the sidebar and on System → Status (e.g. 0.1.6.0)
+      description: Shown in the sidebar and on System → Status (e.g. 0.1.7.0)
     validations:
       required: true
   - type: dropdown
