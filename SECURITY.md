@@ -25,4 +25,4 @@ fix before disclosing the issue publicly.
 - Rexarr can read, move and delete media files and talks to your \*arr apps with their API keys. Don't expose it
   to the internet without authentication (Settings → General → Security) and preferably a reverse proxy with HTTPS.
 - API keys for Radarr, Sonarr, Lidarr, Prowlarr, slskd and TMDb are stored in the config folder
-  (`<config>/data/settings.json`). Protect that folder and its backups.
+  (`<config>/data/settings.json`). Please protect that folder and its backups with your life.
