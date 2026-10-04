@@ -11,5 +11,5 @@
 - [ ] `npm run typecheck` passes
 - [ ] `npm test` passes (tests added or updated where it makes sense)
 - [ ] `npm run build` passes
-- [ ] Documentation in `docs/README.md` updated if behaviour or settings changed
+- [ ] Documentation in `docs/` updated if behaviour or settings changed
 - [ ] I have read the [Contribution Guide](../CONTRIBUTING.md) and my contribution is licensed under GPL-3.0-or-later

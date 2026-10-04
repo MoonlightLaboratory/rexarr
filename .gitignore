@@ -6,3 +6,6 @@ data/
 .env
 test-media/
 release/
+
+# MkDocs build output
+site/

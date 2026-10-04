@@ -48,7 +48,7 @@ Maintainers bump it with `node scripts/bump-version.mjs <level>`; leave it alone
    - Vite UI on http://localhost:7979 (hot reload, proxies the API)
 4. Data goes to `./data` by default; set `REXARR_CONFIG_DIR` to use a throw-away folder
 5. Optional: `npm run test-media` builds sample remuxes and disc images for testing without real media
-   (see [Test bench](docs/README.md#test-bench-transcoding--disc-ripping-without-hardware))
+   (see [Test bench](docs/development.md#test-bench))
 
 ### Before you open a pull request
 
@@ -66,9 +66,9 @@ All three must pass; CI builds the Docker image for every pull request.
   work on your fork's `main`
 - Keep a pull request to one feature or fix; split large changes
 - Match the surrounding code: TypeScript everywhere, comment density and naming like the file you are in,
-  the \*arr look for UI (see [Design](docs/README.md#design))
+  the \*arr look for UI (see [Design](docs/development.md#design-conventions))
 - Add or update tests next to the code (`*.test.ts`) for parsing, naming, estimates and other pure logic
-- Update [the documentation](docs/README.md) when behaviour or settings change
+- Update [the documentation](docs/) when behaviour or settings change
 - Commit messages: a short summary line, then what changed and why
 - Rebase on `main` rather than merging `main` into your branch
 

@@ -30,16 +30,16 @@ split album images, and find media on your disks that none of the \*arr apps man
 | <img src="docs/screenshots/transcode.jpg" alt="Transcode dialog with estimated size" width="420"><br>Transcode with estimated size | <img src="docs/screenshots/header-search.jpg" alt="Smart search" width="420"><br>Smart search |
 | <img src="docs/screenshots/live-preview.jpg" alt="Live preview of a running encode" width="420"><br>Live preview while encoding | <img src="docs/screenshots/disc-ready.jpg" alt="Disc ripping" width="420"><br>Disc ripping with MakeMKV |
 
-More in the [documentation](docs/README.md).
+Full documentation: **<https://moonlightlaboratory.github.io/rexarr/>**
 
 ## Getting Started
 
-- [Download a release](https://github.com/MoonlightLaboratory/rexarr/releases) for Windows, macOS, Linux or FreeBSD ([install guide](docs/README.md#install-from-a-release))
-- [Installation with Docker](docs/README.md#docker)
-- [Run from source](docs/README.md#run-from-source)
-- [First-time setup](docs/README.md#setup)
-- [Documentation](docs/README.md)
-- [Requirements](docs/README.md#requirements)
+- [Download a release](https://github.com/MoonlightLaboratory/rexarr/releases) for Windows, macOS, Linux or FreeBSD ([install guide](https://moonlightlaboratory.github.io/rexarr/getting-started/install/))
+- [Installation with Docker](https://moonlightlaboratory.github.io/rexarr/getting-started/docker/)
+- [Run from source](https://moonlightlaboratory.github.io/rexarr/getting-started/from-source/)
+- [First-time setup](https://moonlightlaboratory.github.io/rexarr/getting-started/setup/)
+- [Documentation](https://moonlightlaboratory.github.io/rexarr/)
+- [Requirements](https://moonlightlaboratory.github.io/rexarr/getting-started/requirements/)
 
 ## Support
 
@@ -52,8 +52,8 @@ More in the [documentation](docs/README.md).
 ## Contributors & Developers
 
 - [Contribution Guide](CONTRIBUTING.md)
-- [How a profile becomes an ffmpeg command](docs/README.md#how-a-profile-becomes-an-ffmpeg-command)
-- [Test bench (transcoding and disc ripping without hardware)](docs/README.md#test-bench-transcoding--disc-ripping-without-hardware)
+- [How a profile becomes an ffmpeg command](https://moonlightlaboratory.github.io/rexarr/guide/profiles/#how-a-profile-becomes-an-ffmpeg-command)
+- [Test bench (transcoding and disc ripping without hardware)](https://moonlightlaboratory.github.io/rexarr/development/#test-bench)
 - [Notes for AI coding agents](AGENTS.md)
 
 ## Features

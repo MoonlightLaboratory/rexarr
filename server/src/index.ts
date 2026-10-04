@@ -248,7 +248,7 @@ tasks.register({ id: 'check-health', name: 'Check health', interval: () => 300, 
 tasks.register({ id: 'poll-drives', name: 'Check optical drives', interval: () => (store.settings.disc.enabled ? store.settings.disc.pollIntervalSeconds : 0), run: async () => { const d = await discs.refreshDrives(); if (store.settings.disc.enabled) await discs.poll(); return `${d.length} drive(s)`; } });
 tasks.register({
   id: 'import-rips',
-  name: 'Import finished rips into Sonarr',
+  name: 'Import finished rips',
   interval: () => (store.settings.disc.autoImport !== false && store.settings.sonarr.enabled ? 600 : 0),
   run: async () => {
     const r = await discs.importRipFolder();

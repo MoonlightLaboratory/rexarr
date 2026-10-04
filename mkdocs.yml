@@ -1,0 +1,102 @@
+# Rexarr documentation site (https://moonlightlaboratory.github.io/rexarr/)
+#
+#   pip install mkdocs-material
+#   mkdocs serve            # http://127.0.0.1:8000
+#   mkdocs build --strict   # what CI builds (.github/workflows/docs.yml)
+site_name: Rexarr
+site_description: Remux-first transcoding, disc ripping and music companion for the *arr stack.
+site_url: https://moonlightlaboratory.github.io/rexarr/
+site_author: MoonlightLaboratory
+repo_url: https://github.com/MoonlightLaboratory/rexarr
+repo_name: MoonlightLaboratory/rexarr
+edit_uri: edit/main/docs/
+copyright: Rexarr is free software under the GNU General Public License v3.0.
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  logo: assets/rexarr.svg
+  favicon: assets/rexarr.svg
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light theme
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark theme
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - toc.follow
+    - content.code.copy
+    - content.action.edit
+    - search.highlight
+    - search.suggest
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/MoonlightLaboratory/rexarr
+      name: Rexarr on GitHub
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - getting-started/index.md
+      - Requirements: getting-started/requirements.md
+      - Install from a release: getting-started/install.md
+      - Docker: getting-started/docker.md
+      - Run from source: getting-started/from-source.md
+      - First-time setup: getting-started/setup.md
+  - Guide:
+      - guide/index.md
+      - Library: guide/library.md
+      - Search: guide/search.md
+      - Profiles: guide/profiles.md
+      - Transcoding: guide/transcoding.md
+      - Auto transcode: guide/auto-transcode.md
+      - Disc ripping: guide/disc-ripping.md
+      - Music: guide/music.md
+      - Local media: guide/local-media.md
+      - AniDB for anime: guide/anidb.md
+  - Reference:
+      - reference/index.md
+      - Settings: reference/settings.md
+      - System and maintenance: reference/system.md
+      - Storage and environment: reference/storage.md
+      - API: reference/api.md
+  - Troubleshooting: troubleshooting.md
+  - Development: development.md
+  - Release notes: release-notes.md

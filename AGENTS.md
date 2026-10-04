@@ -20,7 +20,7 @@ server/src/        Fastify server (ESM, TypeScript)
   search/          query parsing, smart search, release ranking
 client/src/        React UI (pages/, components/, styles.css)
 shared/            types.ts, presets.ts (built-in profiles, defaults), version.ts
-docs/README.md     full documentation
+docs/              documentation site (MkDocs, published to GitHub Pages)
 ```
 
 ## Commands

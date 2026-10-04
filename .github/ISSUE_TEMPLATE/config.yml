@@ -7,5 +7,5 @@ contact_links:
     url: https://github.com/MoonlightLaboratory/rexarr/security/advisories/new
     about: Please report security problems privately.
   - name: Documentation
-    url: https://github.com/MoonlightLaboratory/rexarr/blob/main/docs/README.md
+    url: https://moonlightlaboratory.github.io/rexarr/
     about: Setup, Docker, profiles, music, disc ripping and more.
