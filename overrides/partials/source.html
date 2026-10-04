@@ -1,0 +1,15 @@
+{#-
+  Material's own partial carries data-md-component="source", which makes the theme
+  call api.github.com on every first page view to show stars and forks. Two
+  cross-origin requests for two numbers nobody reads here, so this renders the same
+  link without them.
+-#}
+<a href="{{ config.repo_url }}" title="{{ lang.t('source') }}" class="md-source">
+  <div class="md-source__icon md-icon">
+    {% set icon = config.theme.icon.repo or "fontawesome/brands/git-alt" %}
+    {% include ".icons/" ~ icon ~ ".svg" %}
+  </div>
+  <div class="md-source__repository">
+    {{ config.repo_name }}
+  </div>
+</a>
