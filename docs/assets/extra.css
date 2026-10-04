@@ -51,10 +51,30 @@
 .md-header {
   box-shadow: 0 1px 0 var(--rx-border);
 }
+/* The logo is a wordmark, so the site name next to it would read "Rexarr Rexarr". */
+.md-header__button.md-logo {
+  padding: 0.2rem 0.4rem 0.2rem 0;
+}
 .md-header__button.md-logo img,
 .md-header__button.md-logo svg {
-  height: 1.6rem;
-  width: 1.6rem;
+  height: 1.7rem;
+  width: auto;
+}
+.md-header__title .md-header__topic:first-child .md-ellipsis {
+  display: none;
+}
+/* Material hides the logo below 1220px and shows the site name instead; the
+   wordmark is the branding, so show it there too, a little smaller. */
+@media screen and (max-width: 76.1875em) {
+  .md-header__button.md-logo {
+    display: block;
+    padding: 0.2rem 0.2rem 0.2rem 0;
+  }
+  .md-header__button.md-logo img,
+  .md-header__button.md-logo svg {
+    height: 1.4rem;
+    width: auto;
+  }
 }
 .md-tabs {
   background-color: var(--md-primary-fg-color);

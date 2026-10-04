@@ -18,8 +18,8 @@ theme:
   name: material
   # System fonts: no render-blocking request to Google Fonts on every page load.
   font: false
-  logo: assets/rexarr.svg
-  favicon: assets/rexarr.svg
+  logo: assets/rexarr-wordmark.svg
+  favicon: assets/rexarr-icon.svg
   palette:
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
