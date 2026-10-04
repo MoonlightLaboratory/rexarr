@@ -26,9 +26,9 @@ split album images, and find media on your disks that none of the \*arr apps man
 
 | | |
 | :---: | :---: |
-| <img src="docs/screenshots/series.webp" loading="lazy" alt="Series library" width="420"><br>Series library | <img src="docs/screenshots/movie.webp" loading="lazy" alt="Movie details" width="420"><br>Movie details |
-| <img src="docs/screenshots/transcode.webp" loading="lazy" alt="Transcode dialog with estimated size" width="420"><br>Transcode with estimated size | <img src="docs/screenshots/header-search.webp" loading="lazy" alt="Smart search" width="420"><br>Smart search |
-| <img src="docs/screenshots/live-preview.webp" loading="lazy" alt="Live preview of a running encode" width="420"><br>Live preview while encoding | <img src="docs/screenshots/disc-ready.webp" loading="lazy" alt="Disc ripping" width="420"><br>Disc ripping with MakeMKV |
+| <img src="docs/screenshots/series.webp" loading="lazy" decoding="async" alt="Series library" width="420"><br>Series library | <img src="docs/screenshots/movie.webp" loading="lazy" decoding="async" alt="Movie details" width="420"><br>Movie details |
+| <img src="docs/screenshots/transcode.webp" loading="lazy" decoding="async" alt="Transcode dialog with estimated size" width="420"><br>Transcode with estimated size | <img src="docs/screenshots/header-search.webp" loading="lazy" decoding="async" alt="Smart search" width="420"><br>Smart search |
+| <img src="docs/screenshots/live-preview.webp" loading="lazy" decoding="async" alt="Live preview of a running encode" width="420"><br>Live preview while encoding | <img src="docs/screenshots/disc-ready.webp" loading="lazy" decoding="async" alt="Disc ripping" width="420"><br>Disc ripping with MakeMKV |
 
 Full documentation: **<https://moonlightlaboratory.github.io/rexarr/>**
 

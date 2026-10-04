@@ -3,12 +3,12 @@
 <div class="rx-shots" markdown>
 
 <figure markdown>
-![Disc scanned and ready to rip](../screenshots/disc-ready.webp)
+![Disc scanned and ready to rip](../screenshots/disc-ready.webp){ decoding=async }
 <figcaption>DVD scanned by MakeMKV, titles and tracks</figcaption>
 </figure>
 
 <figure markdown>
-![Disc ripping in progress](../screenshots/disc-ripping.webp){ loading=lazy }
+![Disc ripping in progress](../screenshots/disc-ripping.webp){ decoding=async }
 <figcaption>Ripping in progress</figcaption>
 </figure>
 

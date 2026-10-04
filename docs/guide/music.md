@@ -3,12 +3,12 @@
 <div class="rx-shots" markdown>
 
 <figure markdown>
-![Music library](../screenshots/music.webp)
+![Music library](../screenshots/music.webp){ decoding=async }
 <figcaption>Artists</figcaption>
 </figure>
 
 <figure markdown>
-![Artist page](../screenshots/artist.webp){ loading=lazy }
+![Artist page](../screenshots/artist.webp){ decoding=async }
 <figcaption>Artist and albums</figcaption>
 </figure>
 

@@ -1,6 +1,6 @@
 # Library
 
-![Series library](../screenshots/series.webp)
+![Series library](../screenshots/series.webp){ decoding=async }
 
 **Movies** and **Series** mirror what Radarr and Sonarr have, with what is actually on disk: file quality, size,
 video and audio codecs, and how many episodes of a season are present.
@@ -18,7 +18,7 @@ video and audio codecs, and how many episodes of a season are present.
 
 ## Activity
 
-![Activity with a running encode](../screenshots/activity.webp){ loading=lazy }
+![Activity with a running encode](../screenshots/activity.webp){ decoding=async }
 
 Everything Rexarr is doing, newest first:
 

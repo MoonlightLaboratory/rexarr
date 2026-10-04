@@ -1,6 +1,6 @@
 # Transcoding
 
-![Activity with a running encode](../screenshots/activity.webp)
+![Activity with a running encode](../screenshots/activity.webp){ decoding=async }
 
 **Software (CPU) encoding is highly recommended for the best quality.** x265 and SVT-AV1 give noticeably smaller
 files at the same visual quality than any hardware encoder, which is what you want when archiving Blu-ray remuxes.
@@ -58,12 +58,12 @@ never leaves you with neither file.
 <div class="rx-shots" markdown>
 
 <figure markdown>
-![Live preview while encoding](../screenshots/live-preview.webp){ loading=lazy }
+![Live preview while encoding](../screenshots/live-preview.webp){ decoding=async }
 <figcaption>Live preview while encoding</figcaption>
 </figure>
 
 <figure markdown>
-![Before / after comparison](../screenshots/compare.webp){ loading=lazy }
+![Before / after comparison](../screenshots/compare.webp){ decoding=async }
 <figcaption>Before / after comparison</figcaption>
 </figure>
 

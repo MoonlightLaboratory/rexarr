@@ -3,12 +3,12 @@
 <div class="rx-shots" markdown>
 
 <figure markdown>
-![Header search popup](../screenshots/header-search.webp)
+![Header search popup](../screenshots/header-search.webp){ decoding=async }
 <figcaption>Header search</figcaption>
 </figure>
 
 <figure markdown>
-![Search page](../screenshots/search.webp){ loading=lazy }
+![Search page](../screenshots/search.webp){ decoding=async }
 <figcaption>Search page</figcaption>
 </figure>
 

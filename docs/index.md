@@ -73,27 +73,27 @@ Rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  opt
 
 ## What it does
 
-![Series library](screenshots/series.webp)
+![Series library](screenshots/series.webp){ decoding=async }
 
 <div class="rx-shots" markdown>
 
 <figure markdown>
-![Movie details](screenshots/movie.webp){ loading=lazy }
+![Movie details](screenshots/movie.webp){ decoding=async }
 <figcaption>Movie details</figcaption>
 </figure>
 
 <figure markdown>
-![Series details](screenshots/series-detail.webp){ loading=lazy }
+![Series details](screenshots/series-detail.webp){ decoding=async }
 <figcaption>Series details</figcaption>
 </figure>
 
 <figure markdown>
-![Encoding profiles](screenshots/profiles.webp){ loading=lazy }
+![Encoding profiles](screenshots/profiles.webp){ decoding=async }
 <figcaption>Encoding profiles</figcaption>
 </figure>
 
 <figure markdown>
-![Transcode dialog](screenshots/transcode.webp){ loading=lazy }
+![Transcode dialog](screenshots/transcode.webp){ decoding=async }
 <figcaption>Transcode with an estimated size</figcaption>
 </figure>
 
@@ -160,12 +160,12 @@ Rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  opt
 <div class="rx-shots" markdown>
 
 <figure markdown>
-![Live preview while encoding](screenshots/live-preview.webp){ loading=lazy }
+![Live preview while encoding](screenshots/live-preview.webp){ decoding=async }
 <figcaption>Live preview while encoding</figcaption>
 </figure>
 
 <figure markdown>
-![Disc ripping](screenshots/disc-ready.webp){ loading=lazy }
+![Disc ripping](screenshots/disc-ready.webp){ decoding=async }
 <figcaption>A DVD scanned by MakeMKV</figcaption>
 </figure>
 

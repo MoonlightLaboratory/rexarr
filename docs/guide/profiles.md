@@ -1,6 +1,6 @@
 # Profiles
 
-![Encoding profiles](../screenshots/profiles.webp)
+![Encoding profiles](../screenshots/profiles.webp){ decoding=async }
 
 A profile is a complete description of one encode: container, video, audio, subtitles and output handling. Every job
 uses exactly one profile. The built-in presets cannot be edited — **clone** one and change the copy.
