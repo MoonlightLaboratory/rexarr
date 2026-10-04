@@ -1,8 +1,18 @@
 # Music
 
-| | |
-| :---: | :---: |
-| ![Music library](../screenshots/music.jpg)<br>Artists | ![Artist page](../screenshots/artist.jpg)<br>Artist and albums |
+<div class="rx-shots" markdown>
+
+<figure markdown>
+![Music library](../screenshots/music.jpg)
+<figcaption>Artists</figcaption>
+</figure>
+
+<figure markdown>
+![Artist page](../screenshots/artist.jpg)
+<figcaption>Artist and albums</figcaption>
+</figure>
+
+</div>
 
 Connect **Lidarr** (API v1) in **Settings → Connections** to get a **Music** page and the *Music* scope in search.
 Audio work runs through [fre:ac](https://www.freac.org/)'s command-line encoder `freaccmd`; FFmpeg is only used to

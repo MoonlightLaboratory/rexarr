@@ -1,8 +1,18 @@
 # Search
 
-| | |
-| :---: | :---: |
-| ![Header search popup](../screenshots/header-search.jpg)<br>Header search | ![Search page](../screenshots/search.jpg)<br>Search page |
+<div class="rx-shots" markdown>
+
+<figure markdown>
+![Header search popup](../screenshots/header-search.jpg)
+<figcaption>Header search</figcaption>
+</figure>
+
+<figure markdown>
+![Search page](../screenshots/search.jpg)
+<figcaption>Search page</figcaption>
+</figure>
+
+</div>
 
 Type a title in the header (<kbd>/</kbd>) or on the **Search** page; results appear as you type.
 

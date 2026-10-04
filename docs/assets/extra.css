@@ -1,0 +1,224 @@
+/*
+ * Rexarr documentation theme — the colour tokens mirror the app's own
+ * (client/src/styles.css): #202020 page, #2a2a2a chrome, #333 cards,
+ * Radarr-style yellow #ffc230 as the accent, 4px radius.
+ */
+
+:root {
+  --rx-accent: #ffc230;
+  --rx-accent-dark: #e0a800;
+  --rx-radius: 4px;
+}
+
+/* ---------- dark (default) ---------- */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #202020;
+  --md-default-bg-color--light: #262626;
+  --md-default-fg-color: #e1e2e3;
+  --md-default-fg-color--light: #ccc;
+  --md-default-fg-color--lighter: #909293;
+  --md-default-fg-color--lightest: #3a3a3a;
+
+  --md-primary-fg-color: #2a2a2a;
+  --md-primary-bg-color: #e1e2e3;
+
+  --md-accent-fg-color: var(--rx-accent);
+  --md-typeset-a-color: var(--rx-accent);
+
+  --md-code-bg-color: #262626;
+  --md-code-fg-color: #e1e2e3;
+  --md-footer-bg-color: #1a1a1a;
+  --md-footer-bg-color--dark: #161616;
+
+  --rx-card-bg: #2b2b2b;
+  --rx-border: #3a3a3a;
+  --rx-table-head: #2a2a2a;
+  --rx-table-hover: #272727;
+}
+
+/* ---------- light ---------- */
+[data-md-color-scheme="default"] {
+  --md-accent-fg-color: var(--rx-accent-dark);
+  --md-typeset-a-color: #a8761a;
+
+  --rx-card-bg: #fbfbfb;
+  --rx-border: #e3e3e3;
+  --rx-table-head: #f3f3f3;
+  --rx-table-hover: #f8f8f8;
+}
+
+/* ---------- chrome ---------- */
+.md-header {
+  box-shadow: 0 1px 0 var(--rx-border);
+}
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+  height: 1.6rem;
+  width: 1.6rem;
+}
+.md-tabs {
+  background-color: var(--md-primary-fg-color);
+  border-bottom: 1px solid var(--rx-border);
+}
+.md-tabs__link {
+  opacity: 0.8;
+  font-weight: 500;
+}
+.md-tabs__link--active,
+.md-tabs__link:hover {
+  opacity: 1;
+  color: var(--rx-accent);
+}
+.md-nav__link--active,
+.md-nav__item .md-nav__link--active {
+  color: var(--rx-accent);
+  font-weight: 600;
+}
+.md-search__form {
+  border-radius: var(--rx-radius);
+}
+
+/* ---------- typography ---------- */
+.md-typeset h1 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.md-typeset h2 {
+  font-weight: 600;
+  margin-top: 2.2em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--rx-border);
+}
+.md-typeset h3 {
+  font-weight: 600;
+}
+.md-typeset kbd {
+  border-radius: var(--rx-radius);
+}
+
+/* ---------- tables ---------- */
+.md-typeset table:not([class]) {
+  border: 1px solid var(--rx-border);
+  border-radius: var(--rx-radius);
+  box-shadow: none;
+  font-size: 0.72rem;
+}
+.md-typeset table:not([class]) th {
+  background-color: var(--rx-table-head);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.md-typeset table:not([class]) td {
+  vertical-align: top;
+}
+.md-typeset table:not([class]) tr:hover {
+  background-color: var(--rx-table-hover);
+}
+
+/* ---------- code ---------- */
+.md-typeset pre > code,
+.md-typeset .highlight {
+  border-radius: var(--rx-radius);
+}
+.md-typeset code {
+  border-radius: 3px;
+}
+
+/* ---------- admonitions ---------- */
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: var(--rx-radius);
+  border-left-width: 3px;
+  font-size: 0.72rem;
+}
+
+/* ---------- buttons ---------- */
+.md-typeset .md-button {
+  border-radius: var(--rx-radius);
+  border-width: 1px;
+  font-weight: 600;
+}
+.md-typeset .md-button--primary {
+  background-color: var(--rx-accent);
+  border-color: var(--rx-accent);
+  color: #202020;
+}
+.md-typeset .md-button--primary:hover {
+  background-color: var(--rx-accent-dark);
+  border-color: var(--rx-accent-dark);
+  color: #202020;
+}
+.md-typeset .md-button:not(.md-button--primary):hover {
+  background-color: transparent;
+  border-color: var(--rx-accent);
+  color: var(--rx-accent);
+}
+
+/* ---------- images and screenshots ---------- */
+.md-typeset img:not(.emojione):not(.twemoji):not(.gemoji) {
+  border: 1px solid var(--rx-border);
+  border-radius: var(--rx-radius);
+}
+.md-typeset table:not([class]) img {
+  max-width: 100%;
+}
+.rx-shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 1rem;
+  margin: 1.2rem 0;
+}
+.rx-shots figure {
+  margin: 0;
+}
+.rx-shots img {
+  width: 100%;
+}
+.rx-shots figcaption {
+  margin-top: 0.4rem;
+  font-size: 0.68rem;
+  color: var(--md-default-fg-color--lighter);
+}
+
+/* ---------- grid cards ---------- */
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid > .card {
+  background-color: var(--rx-card-bg);
+  border: 1px solid var(--rx-border);
+  border-radius: var(--rx-radius);
+  box-shadow: none;
+  transition: border-color 125ms, transform 125ms;
+}
+.md-typeset .grid.cards > ul > li:hover {
+  border-color: var(--rx-accent);
+  transform: translateY(-1px);
+}
+.md-typeset .grid.cards > ul > li > hr {
+  margin: 0.6em 0;
+  border-color: var(--rx-border);
+}
+
+/* ---------- home hero ---------- */
+.rx-hero {
+  padding: 1.6rem 0 0.4rem;
+  border-bottom: 1px solid var(--rx-border);
+  margin-bottom: 1.6rem;
+}
+.md-typeset .rx-hero h1 {
+  margin-bottom: 0.2em;
+  font-size: 2.1rem;
+}
+.rx-hero .rx-tagline {
+  font-size: 0.9rem;
+  color: var(--md-default-fg-color--light);
+  max-width: 44rem;
+}
+.rx-pipeline {
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+/* ---------- footer ---------- */
+.md-footer-meta {
+  background-color: var(--md-footer-bg-color--dark);
+}

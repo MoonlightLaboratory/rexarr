@@ -55,9 +55,19 @@ never leaves you with neither file.
 
 ## Encode preview
 
-| | |
-| :---: | :---: |
-| ![Live preview while encoding](../screenshots/live-preview.jpg)<br>Live preview while encoding | ![Before / after comparison](../screenshots/compare.jpg)<br>Before / after comparison |
+<div class="rx-shots" markdown>
+
+<figure markdown>
+![Live preview while encoding](../screenshots/live-preview.jpg)
+<figcaption>Live preview while encoding</figcaption>
+</figure>
+
+<figure markdown>
+![Before / after comparison](../screenshots/compare.jpg)
+<figcaption>Before / after comparison</figcaption>
+</figure>
+
+</div>
 
 In **Activity**, an encoding job's thumbnail becomes a live frame (refreshing every few seconds) and the eye button
 opens the preview:

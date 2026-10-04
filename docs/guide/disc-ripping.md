@@ -1,8 +1,18 @@
 # Disc ripping
 
-| | |
-| :---: | :---: |
-| ![Disc scanned and ready to rip](../screenshots/disc-ready.jpg)<br>DVD scanned by MakeMKV, titles and tracks | ![Disc ripping in progress](../screenshots/disc-ripping.jpg)<br>Ripping in progress |
+<div class="rx-shots" markdown>
+
+<figure markdown>
+![Disc scanned and ready to rip](../screenshots/disc-ready.jpg)
+<figcaption>DVD scanned by MakeMKV, titles and tracks</figcaption>
+</figure>
+
+<figure markdown>
+![Disc ripping in progress](../screenshots/disc-ripping.jpg)
+<figcaption>Ripping in progress</figcaption>
+</figure>
+
+</div>
 
 Rexarr behaves like an automatic ripping machine: insert a disc, it identifies it against your library, rips the
 titles you want with MakeMKV, encodes them with a profile, and hands the finished files to Radarr / Sonarr —

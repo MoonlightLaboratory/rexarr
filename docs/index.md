@@ -1,11 +1,23 @@
+---
+title: Rexarr
+hide:
+  - navigation
+---
+
+<div class="rx-hero" markdown>
+
 # Rexarr
 
-**Remux-first transcoding, disc ripping and music for the \*arr stack.**
+<p class="rx-tagline">Remux-first transcoding, disc ripping and music for the *arr stack. Rexarr sits next to
+Radarr, Sonarr and Lidarr: it finds Blu-ray remux and full-disc releases for the titles you choose, re-encodes what
+the *arr apps import with FFmpeg — or fre:ac for music — rips DVDs and Blu-rays with MakeMKV, and indexes the media
+on your disks that no *arr app manages.</p>
 
-Rexarr sits next to Radarr, Sonarr and Lidarr. It finds Blu-ray remux and full-disc releases for the titles you
-choose, re-encodes what the \*arr apps import with FFmpeg — or fre:ac for music — using profiles you control, rips
-DVDs and Blu-rays with MakeMKV, splits album images, and indexes media on your disks that none of the \*arr apps
-manage.
+[Get started](getting-started/index.md){ .md-button .md-button--primary }
+[Download a release](https://github.com/MoonlightLaboratory/rexarr/releases){ .md-button }
+[GitHub](https://github.com/MoonlightLaboratory/rexarr){ .md-button }
+
+</div>
 
 !!! warning "Rexarr is in beta"
     It works day to day, but settings, file layout and the API can still change between releases, and some
@@ -13,7 +25,7 @@ manage.
     (**System → Backup**), read the [release notes](release-notes.md) before updating, and please
     [report what breaks](https://github.com/MoonlightLaboratory/rexarr/issues).
 
-```
+``` title="The pipeline"
 Search (Radarr / Sonarr / Prowlarr)  →  remux-only results  →  Grab
         ↓
 *arr downloads & imports the remux
@@ -23,53 +35,148 @@ Rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  opt
 
 ## Start here
 
-- [Requirements](getting-started/requirements.md) — what Rexarr needs on the machine
-- [Install from a release](getting-started/install.md) — Windows, macOS, Linux, FreeBSD
-- [Docker](getting-started/docker.md) — `ghcr.io/moonlightlaboratory/rexarr`
-- [First-time setup](getting-started/setup.md) — connect Radarr / Sonarr and run the first encode
+<div class="grid cards" markdown>
+
+-   :material-check-circle:{ .lg .middle } **Requirements**
+
+    ---
+
+    FFmpeg, the \*arr apps, and the optional tools for discs and music.
+
+    [:octicons-arrow-right-24: What Rexarr needs](getting-started/requirements.md)
+
+-   :material-download:{ .lg .middle } **Install**
+
+    ---
+
+    Windows installer, macOS app, Linux and FreeBSD tarballs — Node.js included.
+
+    [:octicons-arrow-right-24: Install from a release](getting-started/install.md)
+
+-   :material-docker:{ .lg .middle } **Docker**
+
+    ---
+
+    `ghcr.io/moonlightlaboratory/rexarr`, with `/config`, media mounts and `/dev/dri`.
+
+    [:octicons-arrow-right-24: Run in Docker](getting-started/docker.md)
+
+-   :material-rocket-launch:{ .lg .middle } **First-time setup**
+
+    ---
+
+    Connect Radarr / Sonarr, pick profiles, run the first encode.
+
+    [:octicons-arrow-right-24: Set it up](getting-started/setup.md)
+
+</div>
 
 ## What it does
 
 ![Series library](screenshots/series.jpg)
 
-| | |
-| :---: | :---: |
-| ![Movie details](screenshots/movie.jpg)<br>Movie details | ![Series details](screenshots/series-detail.jpg)<br>Series details |
-| ![Encoding profiles](screenshots/profiles.jpg)<br>Encoding profiles | ![Transcode dialog](screenshots/transcode.jpg)<br>Transcode dialog with estimated size |
+<div class="rx-shots" markdown>
 
-- **Web UI in the \*arr style** — Movies, Series, Search, Discs, Music, Activity, Profiles, Settings, System.
-  See [Library](guide/library.md).
-- **Remux-only search** — interactive search through Radarr / Sonarr (and raw Prowlarr search), filtered to
-  `Remux-1080p`, `Remux-2160p`, `Bluray-1080p Remux`, `REMUX` titles, with release scoring.
-  See [Search](guide/search.md).
-- **Full-disc (ISO) releases** — `BR-DISK`, `COMPLETE.BLURAY`, BD25/50/66/100, BD-ISO, BDMV, DVD5/DVD9/DVDR and
-  `VIDEO_TS` releases are recognised, ripped with MakeMKV when the download finishes, then transcoded and imported.
-  See [Full-disc releases](guide/disc-ripping.md#full-disc-releases-from-search).
-- **Automatic pipeline** — grab a release, Rexarr polls the \*arr app until the file is imported, then queues the
-  encode. Season packs expand into one job per episode.
-- **Profiles** — container, video encoder, quality, audio, subtitles, output naming, with built-in presets for
-  movies, TV, anime and music. See [Profiles](guide/profiles.md).
-- **Hardware acceleration** — NVENC, QuickSync, VAAPI, AMF, VideoToolbox, RKMPP, V4L2, with a test button and
-  software fallback. See [Transcoding](guide/transcoding.md).
-- **Auto transcode** — every new remux Radarr or Sonarr imports, queued with the profile for its type.
-  See [Auto transcode](guide/auto-transcode.md).
-- **Disc ripping** — insert a disc, Rexarr identifies it against your library, rips it with MakeMKV, encodes it and
-  hands it to Radarr / Sonarr with verified imports. See [Disc ripping](guide/disc-ripping.md).
-- **Music** — Lidarr library, album search through Lidarr's indexers and Soulseek, audio CD ripping to FLAC with
-  MusicBrainz tags, image + cue splitting, and fre:ac music profiles. See [Music](guide/music.md).
-- **Local media** — movies, shows and albums on your disks that no \*arr app manages.
-  See [Local media](guide/local-media.md).
-- **Live progress and preview** — percent, fps, speed, ETA, the full ffmpeg log, a live frame while encoding and a
-  before / after comparison when it finishes. See [Encode preview](guide/transcoding.md#encode-preview).
+<figure markdown>
+![Movie details](screenshots/movie.jpg)
+<figcaption>Movie details</figcaption>
+</figure>
 
-| | |
-| :---: | :---: |
-| ![Live preview while encoding](screenshots/live-preview.jpg)<br>Live preview while encoding | ![Disc ripping](screenshots/disc-ready.jpg)<br>Disc ripping with MakeMKV |
+<figure markdown>
+![Series details](screenshots/series-detail.jpg)
+<figcaption>Series details</figcaption>
+</figure>
+
+<figure markdown>
+![Encoding profiles](screenshots/profiles.jpg)
+<figcaption>Encoding profiles</figcaption>
+</figure>
+
+<figure markdown>
+![Transcode dialog](screenshots/transcode.jpg)
+<figcaption>Transcode with an estimated size</figcaption>
+</figure>
+
+</div>
+
+<div class="grid cards" markdown>
+
+-   :material-magnify:{ .lg .middle } **Remux-only search**
+
+    ---
+
+    Interactive search through Radarr / Sonarr and raw Prowlarr search, filtered to remuxes, with a smart score
+    that explains itself. Full-disc releases — `BR-DISK`, BD-ISO, BDMV, `VIDEO_TS` — are recognised too.
+
+    [:octicons-arrow-right-24: Search](guide/search.md)
+
+-   :material-tune:{ .lg .middle } **Profiles you control**
+
+    ---
+
+    Container, encoder, quality, audio, subtitles and output naming, with presets for movies, TV, anime and music —
+    and a preview of the exact ffmpeg command.
+
+    [:octicons-arrow-right-24: Profiles](guide/profiles.md)
+
+-   :material-expansion-card:{ .lg .middle } **Hardware acceleration**
+
+    ---
+
+    NVENC, QuickSync, VAAPI, AMF, VideoToolbox, RKMPP and V4L2, with a 3-second test button and automatic fallback
+    to the CPU.
+
+    [:octicons-arrow-right-24: Transcoding](guide/transcoding.md)
+
+-   :material-disc:{ .lg .middle } **Disc ripping**
+
+    ---
+
+    Insert a disc: Rexarr identifies it against your library, rips it with MakeMKV, encodes it, and hands it to
+    Radarr / Sonarr — then checks that it really was imported.
+
+    [:octicons-arrow-right-24: Disc ripping](guide/disc-ripping.md)
+
+-   :material-robot:{ .lg .middle } **Auto transcode**
+
+    ---
+
+    Every new remux Radarr or Sonarr imports, queued with the profile for its type — on a schedule or within
+    seconds, via a webhook.
+
+    [:octicons-arrow-right-24: Auto transcode](guide/auto-transcode.md)
+
+-   :material-music:{ .lg .middle } **Music**
+
+    ---
+
+    Lidarr library, album search through indexers and Soulseek, audio CD ripping to FLAC with MusicBrainz tags,
+    image + cue splitting, fre:ac profiles.
+
+    [:octicons-arrow-right-24: Music](guide/music.md)
+
+</div>
+
+<div class="rx-shots" markdown>
+
+<figure markdown>
+![Live preview while encoding](screenshots/live-preview.jpg)
+<figcaption>Live preview while encoding</figcaption>
+</figure>
+
+<figure markdown>
+![Disc ripping](screenshots/disc-ready.jpg)
+<figcaption>A DVD scanned by MakeMKV</figcaption>
+</figure>
+
+</div>
 
 ## Help
 
-- [Troubleshooting](troubleshooting.md) — nothing imports, paths not visible, encoder missing, disc not detected
-- [Settings reference](reference/settings.md) and [API reference](reference/api.md)
+- [Troubleshooting](troubleshooting.md) — nothing imports, paths not visible, an encoder is missing, a disc is not
+  detected
+- [Settings reference](reference/settings.md) · [System and maintenance](reference/system.md) ·
+  [API](reference/api.md)
 - [Open an issue](https://github.com/MoonlightLaboratory/rexarr/issues) — **System → Status → Report an issue**
   fills in your version for you
 - Security problems: see [SECURITY.md](https://github.com/MoonlightLaboratory/rexarr/blob/main/SECURITY.md)
