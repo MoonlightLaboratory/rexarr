@@ -16,6 +16,8 @@ site_dir: site
 
 theme:
   name: material
+  # System fonts: no render-blocking request to Google Fonts on every page load.
+  font: false
   logo: assets/rexarr.svg
   favicon: assets/rexarr.svg
   palette:

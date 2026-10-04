@@ -1,6 +1,6 @@
 # Profiles
 
-![Encoding profiles](../screenshots/profiles.jpg)
+![Encoding profiles](../screenshots/profiles.webp)
 
 A profile is a complete description of one encode: container, video, audio, subtitles and output handling. Every job
 uses exactly one profile. The built-in presets cannot be edited — **clone** one and change the copy.

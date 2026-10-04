@@ -1,6 +1,6 @@
 # Local media
 
-![Local files](../screenshots/local-files.jpg)
+![Local files](../screenshots/local-files.webp)
 
 Not every movie, show or album is added to Radarr, Sonarr or Lidarr. Rexarr scans the local folder of every path
 mapping (and any folders added in **Settings → Connections → Local media**) in the background and indexes what the

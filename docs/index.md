@@ -73,27 +73,27 @@ Rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  opt
 
 ## What it does
 
-![Series library](screenshots/series.jpg)
+![Series library](screenshots/series.webp)
 
 <div class="rx-shots" markdown>
 
 <figure markdown>
-![Movie details](screenshots/movie.jpg)
+![Movie details](screenshots/movie.webp){ loading=lazy }
 <figcaption>Movie details</figcaption>
 </figure>
 
 <figure markdown>
-![Series details](screenshots/series-detail.jpg)
+![Series details](screenshots/series-detail.webp){ loading=lazy }
 <figcaption>Series details</figcaption>
 </figure>
 
 <figure markdown>
-![Encoding profiles](screenshots/profiles.jpg)
+![Encoding profiles](screenshots/profiles.webp){ loading=lazy }
 <figcaption>Encoding profiles</figcaption>
 </figure>
 
 <figure markdown>
-![Transcode dialog](screenshots/transcode.jpg)
+![Transcode dialog](screenshots/transcode.webp){ loading=lazy }
 <figcaption>Transcode with an estimated size</figcaption>
 </figure>
 
@@ -160,12 +160,12 @@ Rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  opt
 <div class="rx-shots" markdown>
 
 <figure markdown>
-![Live preview while encoding](screenshots/live-preview.jpg)
+![Live preview while encoding](screenshots/live-preview.webp){ loading=lazy }
 <figcaption>Live preview while encoding</figcaption>
 </figure>
 
 <figure markdown>
-![Disc ripping](screenshots/disc-ready.jpg)
+![Disc ripping](screenshots/disc-ready.webp){ loading=lazy }
 <figcaption>A DVD scanned by MakeMKV</figcaption>
 </figure>
 

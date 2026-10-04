@@ -3,12 +3,12 @@
 <div class="rx-shots" markdown>
 
 <figure markdown>
-![Header search popup](../screenshots/header-search.jpg)
+![Header search popup](../screenshots/header-search.webp)
 <figcaption>Header search</figcaption>
 </figure>
 
 <figure markdown>
-![Search page](../screenshots/search.jpg)
+![Search page](../screenshots/search.webp){ loading=lazy }
 <figcaption>Search page</figcaption>
 </figure>
 
