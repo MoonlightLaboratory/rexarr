@@ -1,5 +1,5 @@
 import { INSTANCE_NAME, URL_BASE } from '../base';
-import { APP_VERSION, REPO_URL } from '@shared/version';
+import { APP_VERSION, DOCS_URL, REPO_URL } from '@shared/version';
 import { api, ripOverallPercent } from '../api';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -246,7 +246,7 @@ export function Layout({ children, jobs, rips, drives, health, connected, toasts
           <button className="headerLink" title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? <Icon.Sun /> : <Icon.Moon />}
           </button>
-          <a className="headerLink" href={`${REPO_URL}#readme`} target="_blank" rel="noreferrer" title="Documentation">
+          <a className="headerLink" href={DOCS_URL} target="_blank" rel="noreferrer" title="Documentation">
             <Icon.Question />
           </a>
           <a className="headerLink hideOnPhone" href={REPO_URL} target="_blank" rel="noreferrer" title="Rexarr on GitHub">

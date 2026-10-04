@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { REPO_URL } from '@shared/version';
+import { DOCS_URL, REPO_URL } from '@shared/version';
 import type { StoragePath } from '@shared/types';
 import type { SystemInfo } from '@shared/types';
 import { VIDEO_ENCODER_INFO, AUDIO_ENCODER_INFO } from '@shared/presets';
@@ -190,6 +190,9 @@ export function SystemPage() {
                   <span className="inline" style={{ gap: 12 }}>
                     <a href={REPO_URL} target="_blank" rel="noreferrer">
                       <Icon.GitHub /> Source
+                    </a>
+                    <a href={DOCS_URL} target="_blank" rel="noreferrer">
+                      Documentation
                     </a>
                     <a href={`${REPO_URL}/releases`} target="_blank" rel="noreferrer">
                       Releases

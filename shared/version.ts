@@ -5,5 +5,8 @@
  */
 export const APP_VERSION = '0.1.7.0';
 
-/** Source, documentation, releases and issues. */
+/** Source, releases and issues. */
 export const REPO_URL = 'https://github.com/MoonlightLaboratory/rexarr';
+
+/** The documentation site, built from docs/ (the Help button in the header). */
+export const DOCS_URL = 'https://moonlightlaboratory.github.io/rexarr';
