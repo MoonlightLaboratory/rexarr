@@ -37,9 +37,8 @@ theme:
         icon: material/weather-night
         name: Switch to dark theme
   features:
-    - navigation.instant
-    - navigation.instant.prefetch
-    - navigation.instant.progress
+    # No navigation.instant: the theme would fetch each page itself and swap the DOM, which looks
+    # frozen for the 150-270ms that takes - the browser's own loading indicator is immediate.
     - navigation.tabs
     - navigation.tabs.sticky
     - navigation.tracking
