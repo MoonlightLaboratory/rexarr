@@ -38,6 +38,7 @@ theme:
         name: Switch to dark theme
   features:
     - navigation.instant
+    - navigation.instant.prefetch
     - navigation.instant.progress
     - navigation.tabs
     - navigation.tabs.sticky
