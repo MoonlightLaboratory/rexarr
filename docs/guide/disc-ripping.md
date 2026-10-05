@@ -20,7 +20,8 @@ checking that they really were imported.
 
 **Settings → Disc ripping** is on by default. It does nothing until a disc is inserted, and it needs
 [MakeMKV](https://www.makemkv.com/) (`makemkvcon`); Rexarr auto-detects the macOS app bundle and
-`/usr/bin/makemkvcon`.
+`/usr/bin/makemkvcon`. In Docker, see [MakeMKV and Docker](makemkv-in-docker.md) — the published image does not
+carry MakeMKV.
 
 ## The pipeline
 

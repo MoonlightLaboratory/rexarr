@@ -71,10 +71,11 @@ compiles MakeMKV OSS + bin from makemkv.com, accepting their EULA), pass the dri
 once:
 
 ```bash
-docker run -d --name rexarr --device /dev/sr0 --device /dev/sg0 … rexarr-makemkv
+docker compose -f docker/docker-compose.makemkv.yml up -d --build
 ```
 
-Alternatively run Rexarr on the host for ripping and in Docker for everything else.
+[MakeMKV and Docker](../guide/makemkv-in-docker.md) covers this in full, including what to do when you already run
+a MakeMKV container of your own, and why its `makemkvcon` cannot simply be mounted into this image.
 
 !!! note "Sleep prevention does not apply"
     Rexarr never tries to keep the host awake from inside a container — the host's own power settings decide. See

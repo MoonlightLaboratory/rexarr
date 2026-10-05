@@ -98,7 +98,8 @@ build `docker/Dockerfile.makemkv` yourself (it compiles MakeMKV from makemkv.com
 drive **and** its SCSI node (`/dev/sr0` *and* `/dev/sg0`), and enter your MakeMKV key once in Settings.
 
 A USB drive on a NAS works, but check `Settings → Disc ripping → Rip directory` points somewhere roomy on the array
-and that Radarr / Sonarr can see it. See [Disc ripping](../guide/disc-ripping.md).
+and that Radarr / Sonarr can see it. See [Disc ripping](../guide/disc-ripping.md) and
+[MakeMKV and Docker](../guide/makemkv-in-docker.md) — including what to do if you already run a MakeMKV container.
 
 ## Where things go wrong
 

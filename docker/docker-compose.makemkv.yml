@@ -1,0 +1,34 @@
+# Rexarr with MakeMKV compiled in, for ripping inside the container.
+# Build it yourself first (MakeMKV cannot be redistributed, so there is no published image):
+#
+#   docker compose -f docker/docker-compose.makemkv.yml build
+#   docker compose -f docker/docker-compose.makemkv.yml up -d
+#
+# Then enter your MakeMKV key once under Settings → Disc ripping; it is kept in /config/.MakeMKV.
+services:
+  rexarr:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.makemkv
+      args:
+        MAKEMKV_VERSION: "1.18.1"   # check makemkv.com/download for the current one
+    image: rexarr:makemkv
+    container_name: rexarr
+    restart: unless-stopped
+    ports:
+      - "3939:3939"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - UMASK=002
+      - TZ=Europe/London
+    volumes:
+      - ./config:/config
+      - /path/to/media:/data/media
+      - /path/to/rips:/data/rips
+    devices:
+      # The drive and its generic SCSI node - MakeMKV needs both for Blu-ray.
+      - /dev/sr0:/dev/sr0
+      - /dev/sg0:/dev/sg0
+      # Intel QuickSync / VAAPI, if the machine has it:
+      # - /dev/dri:/dev/dri

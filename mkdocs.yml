@@ -107,6 +107,7 @@ nav:
       - Transcoding: guide/transcoding.md
       - Auto transcode: guide/auto-transcode.md
       - Disc ripping: guide/disc-ripping.md
+      - MakeMKV and Docker: guide/makemkv-in-docker.md
       - Music: guide/music.md
       - Local media: guide/local-media.md
       - AniDB for anime: guide/anidb.md
