@@ -1,0 +1,34 @@
+# Synology DSM 7.2+: Container Manager → Project → Create → "Create docker-compose.yml",
+# with the project path on /volume1/docker/rexarr.
+#
+# PUID / PGID: run `id <your-user>` over SSH. DSM user ids usually start at 1026, and 100 is the
+# "users" group that owns most shares.
+services:
+  rexarr:
+    image: ghcr.io/moonlightlaboratory/rexarr:latest
+    container_name: rexarr
+    restart: unless-stopped
+    ports:
+      - "3939:3939"
+    environment:
+      - PUID=1026
+      - PGID=100
+      - UMASK=002
+      - TZ=Europe/London
+    volumes:
+      - /volume1/docker/rexarr/config:/config
+      # Mount your media at the same path Radarr / Sonarr use inside their containers.
+      - /volume1/media:/data/media
+      # - /volume1/media/rips:/data/rips
+    # Intel QuickSync is available on x86 models with a Celeron / Pentium / Core CPU (DS918+, DS920+,
+    # DS923+ with an Intel CPU, DS1621xs+ …). ARM models (DS220j, DS223, RS819 …) have no /dev/dri -
+    # leave this commented out there, and leave Settings → Transcoding on "None".
+    # devices:
+    #   - /dev/dri:/dev/dri
+    #   - /dev/sr0:/dev/sr0     # USB optical drive, with an image built from docker/Dockerfile.makemkv
+    #   - /dev/sg0:/dev/sg0
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3939/api/health"]
+      interval: 1m
+      timeout: 10s
+      retries: 3

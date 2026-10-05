@@ -1,0 +1,31 @@
+# OpenMediaVault 6 / 7 with omv-extras → Services → Compose → Files → Add, then Up.
+#
+# Replace the disk path with yours (System → File Systems shows the /srv/dev-disk-by-uuid-… path, or
+# use a shared folder's absolute path). PUID / PGID: `id <your-user>`; 100 is the "users" group.
+services:
+  rexarr:
+    image: ghcr.io/moonlightlaboratory/rexarr:latest
+    container_name: rexarr
+    restart: unless-stopped
+    ports:
+      - "3939:3939"
+    environment:
+      - PUID=1000
+      - PGID=100
+      - UMASK=002
+      - TZ=Europe/London
+    volumes:
+      - /srv/dev-disk-by-uuid-CHANGE-ME/appdata/rexarr:/config
+      # Mount your media at the same path Radarr / Sonarr use inside their containers.
+      - /srv/dev-disk-by-uuid-CHANGE-ME/media:/data/media
+      # - /srv/dev-disk-by-uuid-CHANGE-ME/rips:/data/rips
+    devices:
+      # Intel QuickSync / VAAPI; remove on a board without /dev/dri (most arm boards).
+      - /dev/dri:/dev/dri
+      # - /dev/sr0:/dev/sr0     # optical drive, with an image built from docker/Dockerfile.makemkv
+      # - /dev/sg0:/dev/sg0
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3939/api/health"]
+      interval: 1m
+      timeout: 10s
+      retries: 3

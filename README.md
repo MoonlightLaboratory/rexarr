@@ -36,6 +36,7 @@ Full documentation: **<https://moonlightlaboratory.github.io/rexarr/>**
 
 - [Download a release](https://github.com/MoonlightLaboratory/rexarr/releases) for Windows, macOS, Linux or FreeBSD ([install guide](https://moonlightlaboratory.github.io/rexarr/getting-started/install/))
 - [Installation with Docker](https://moonlightlaboratory.github.io/rexarr/getting-started/docker/)
+- [Unraid, ZimaOS, TrueNAS, Synology DSM, OpenMediaVault](https://moonlightlaboratory.github.io/rexarr/getting-started/nas/)
 - [Run from source](https://moonlightlaboratory.github.io/rexarr/getting-started/from-source/)
 - [First-time setup](https://moonlightlaboratory.github.io/rexarr/getting-started/setup/)
 - [Documentation](https://moonlightlaboratory.github.io/rexarr/)

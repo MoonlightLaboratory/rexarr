@@ -14,6 +14,7 @@ import { queue } from './jobs/queue.js';
 import { anidb } from './anidb.js';
 import { spawn } from 'node:child_process';
 import { localItems, scanRoots } from './library/local.js';
+import { programDataOnNetworkShare } from './storage.js';
 
 function fmtBytes(n: number) {
   const u = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -205,6 +206,13 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
     const tFree = freeSpace(PATHS.transcodes);
     if (tFree && tFree < 50 * 1024 ** 3) out.push({ type: 'warning', source: 'Storage', message: `Only ${fmtBytes(tFree)} free in the transcode folder (${PATHS.transcodes}). An encode needs room for the whole output file there before it is moved into place – free space, mount a bigger volume, or write encodes next to the output instead.`, link: '/settings' });
   }
+  const share = programDataOnNetworkShare();
+  if (share)
+    out.push({
+      type: 'warning',
+      source: 'Storage',
+      message: `Program Data (${PATHS.programData}) is on a ${share} network share. Settings and history are written by renaming a temporary file over the old one, which ${share} does not always honour – they can be lost when the share drops. Keep this folder on local storage (in Docker, mount /config from a disk) and put only your media on the share.`,
+    });
   for (const [label, dir] of [['Program Data', PATHS.programData], ['Cache', PATHS.cache], ['Logs', PATHS.logs]] as const) {
     try {
       fs.accessSync(dir, fs.constants.W_OK);

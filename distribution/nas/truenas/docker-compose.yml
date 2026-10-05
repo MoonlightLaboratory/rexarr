@@ -1,0 +1,35 @@
+# TrueNAS SCALE 24.10 (Electric Eel) and newer, which run apps on Docker:
+#   Apps → Discover Apps → ⋮ → Install via YAML, paste this, and adjust the pool name.
+#
+# Apps run as the "apps" user (568:568) by default. Give that user read/write on the datasets below,
+# or set PUID / PGID to whatever owns your media.
+services:
+  rexarr:
+    image: ghcr.io/moonlightlaboratory/rexarr:latest
+    container_name: rexarr
+    restart: unless-stopped
+    ports:
+      - "3939:3939"
+    environment:
+      - PUID=568
+      - PGID=568
+      - UMASK=002
+      - TZ=Etc/UTC
+    volumes:
+      # A dataset of its own, on the pool - not on a network share.
+      - /mnt/tank/apps/rexarr:/config
+      # Your media, mounted at the same path Radarr / Sonarr see it inside their own apps.
+      - /mnt/tank/media:/data/media
+      # Somewhere roomy for disc rips (Settings → Disc ripping → Rip directory = /data/rips):
+      # - /mnt/tank/rips:/data/rips
+    devices:
+      # Intel QuickSync / VAAPI. Remove this line on a system without /dev/dri.
+      - /dev/dri:/dev/dri
+      # Disc ripping also needs the drive, and an image built from docker/Dockerfile.makemkv:
+      # - /dev/sr0:/dev/sr0
+      # - /dev/sg0:/dev/sg0
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3939/api/health"]
+      interval: 1m
+      timeout: 10s
+      retries: 3

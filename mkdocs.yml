@@ -96,6 +96,7 @@ nav:
       - Requirements: getting-started/requirements.md
       - Install from a release: getting-started/install.md
       - Docker: getting-started/docker.md
+      - NAS and home servers: getting-started/nas.md
       - Run from source: getting-started/from-source.md
       - First-time setup: getting-started/setup.md
   - Guide:

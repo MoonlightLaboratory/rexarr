@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!--
+  Unraid Community Applications template.
+  Add it by hand with Docker → Add Container → Template → paste this URL:
+  https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/main/distribution/nas/unraid/rexarr.xml
+-->
+<Container version="2">
+  <Name>Rexarr</Name>
+  <Repository>ghcr.io/moonlightlaboratory/rexarr:latest</Repository>
+  <Registry>https://github.com/MoonlightLaboratory/rexarr/pkgs/container/rexarr</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/MoonlightLaboratory/rexarr/issues</Support>
+  <Project>https://github.com/MoonlightLaboratory/rexarr</Project>
+  <Overview>
+    Remux-first transcoding companion for the *arr stack. Rexarr finds Blu-ray remuxes and full discs for Radarr and
+    Sonarr, re-encodes what they import with FFmpeg using profiles you control, rips DVDs and Blu-rays with MakeMKV,
+    and handles music through Lidarr and fre:ac.&#xD;&#xD;
+    Mount your media at the SAME path Radarr and Sonarr use (/data here, as in the TRaSH guides) so no path mapping
+    is needed.&#xD;&#xD;
+    Disc ripping needs makemkvcon, which may not be redistributed, so this image cannot rip: build
+    docker/Dockerfile.makemkv yourself if you want it. Everything else works out of the box.&#xD;&#xD;
+    Documentation: https://moonlightlaboratory.github.io/rexarr/
+  </Overview>
+  <Category>MediaApp:Video MediaServer:Video Downloaders:</Category>
+  <WebUI>http://[IP]:[PORT:3939]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/main/distribution/nas/unraid/rexarr.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/main/logo/rexarr-256.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="WebUI" Target="3939" Default="3939" Mode="tcp" Description="Rexarr's web interface" Type="Port" Display="always" Required="true" Mask="false">3939</Config>
+  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/rexarr" Mode="rw" Description="Settings, profiles, history, cache and logs. Keep this on the cache pool, not on a share." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/rexarr</Config>
+  <Config Name="Media" Target="/data" Default="/mnt/user/data" Mode="rw" Description="Your media, mounted at the same path Radarr / Sonarr see it (/data)." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/data</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User id Rexarr runs as (99 = nobody on Unraid)." Type="Variable" Display="advanced" Required="true" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group id (100 = users on Unraid)." Type="Variable" Display="advanced" Required="true" Mask="false">100</Config>
+  <Config Name="UMASK" Target="UMASK" Default="002" Mode="" Description="File mode mask for everything Rexarr writes." Type="Variable" Display="advanced" Required="false" Mask="false">002</Config>
+  <Config Name="TZ" Target="TZ" Default="Europe/London" Mode="" Description="Time zone." Type="Variable" Display="advanced" Required="false" Mask="false">Europe/London</Config>
+  <Config Name="Intel GPU" Target="/dev/dri" Default="/dev/dri" Mode="" Description="Pass /dev/dri for Intel QuickSync / VAAPI hardware encoding." Type="Device" Display="advanced" Required="false" Mask="false">/dev/dri</Config>
+  <Config Name="Optical drive" Target="/dev/sr0" Default="/dev/sr0" Mode="" Description="DVD / Blu-ray drive. Needs an image with MakeMKV in it (docker/Dockerfile.makemkv); add /dev/sg0 as well for Blu-ray." Type="Device" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Optical drive (SCSI node)" Target="/dev/sg0" Default="/dev/sg0" Mode="" Description="The generic SCSI node of the same drive, needed by MakeMKV for Blu-ray." Type="Device" Display="advanced" Required="false" Mask="false"/>
+</Container>

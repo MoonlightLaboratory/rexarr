@@ -76,3 +76,37 @@ export function storagePaths(force = false): StoragePath[] {
   cache = { at: Date.now(), value };
   return value;
 }
+
+/**
+ * Network filesystems are the one place Rexarr's own data must not live: settings and history are written by
+ * writing a temporary file and renaming it over the old one, which SMB and NFS do not always honour, and a
+ * dropped share then loses or truncates them. Returns the filesystem type when `dir` is on one.
+ *
+ * Reads /proc/mounts, so it only answers on Linux - which is where the NAS installations are.
+ */
+const NETWORK_FS = /^(nfs\d?|nfs4|cifs|smb\d?|smbfs|smb3|afs|afpfs|9p|ceph|glusterfs|fuse\.sshfs|fuse\.rclone|fuse\.s3fs|fuse\.davfs|davfs)$/i;
+
+export function networkFilesystem(dir: string, mounts: string): string | null {
+  let best = '';
+  let type: string | null = null;
+  for (const line of mounts.split('\n')) {
+    const [, point, fsType] = line.split(/\s+/);
+    if (!point || !fsType) continue;
+    const mount = point.replace(/\\040/g, ' ');
+    const inside = dir === mount || dir.startsWith(mount.endsWith('/') ? mount : `${mount}/`);
+    if (!inside || mount.length < best.length) continue;
+    best = mount;
+    type = NETWORK_FS.test(fsType) ? fsType.toLowerCase() : null;
+  }
+  return type;
+}
+
+/** The filesystem type of the folder Rexarr keeps its settings in, when it is a network share. */
+export function programDataOnNetworkShare(): string | null {
+  if (process.platform !== 'linux') return null;
+  try {
+    return networkFilesystem(path.resolve(PATHS.programData), fs.readFileSync('/proc/mounts', 'utf8'));
+  } catch {
+    return null;
+  }
+}

@@ -30,7 +30,8 @@ Run every 5 minutes (and on demand) and shown as warnings at the top of the page
   does not exist
 - MakeMKV missing while disc ripping is on, or a configured drive that has disappeared
 - fre:ac missing while music profiles exist
-- the program data folder not being writable
+- the program data folder not being writable, or sitting on an SMB / NFS share (settings are written with
+  atomic renames, which network filesystems do not always honour)
 
 ## Events
 

@@ -3,6 +3,10 @@
 Pre-built images are published to `ghcr.io/moonlightlaboratory/rexarr` (`latest`, branch and version tags,
 linux/amd64 + linux/arm64) by `.github/workflows/docker.yml`.
 
+!!! tip "On a NAS?"
+    Unraid, ZimaOS, TrueNAS SCALE, Synology DSM and OpenMediaVault have ready-made templates with the right paths
+    and user ids — see [NAS and home servers](nas.md).
+
 ```bash
 docker compose up -d          # uses the published image
 docker compose up -d --build  # or build locally from ./Dockerfile

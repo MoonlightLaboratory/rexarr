@@ -1,0 +1,79 @@
+# ZimaOS / CasaOS: Apps → ⋯ → Install a customized app → Import, and paste this file.
+# ZimaOS keeps app data under /DATA/AppData and shares under /DATA.
+name: rexarr
+services:
+  rexarr:
+    image: ghcr.io/moonlightlaboratory/rexarr:latest
+    container_name: rexarr
+    restart: unless-stopped
+    ports:
+      - "3939:3939"
+    environment:
+      - PUID=0
+      - PGID=0
+      - UMASK=002
+      - TZ=UTC
+    volumes:
+      - /DATA/AppData/rexarr/config:/config
+      # Mount your media at the same path Radarr / Sonarr use inside their containers.
+      - /DATA/Media:/DATA/Media
+    devices:
+      # Intel QuickSync / VAAPI on a ZimaBoard or ZimaCube; remove it if there is no /dev/dri.
+      - /dev/dri:/dev/dri
+    # Disc ripping also needs the optical drive and an image with MakeMKV in it:
+    #   - /dev/sr0:/dev/sr0
+    #   - /dev/sg0:/dev/sg0
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3939/api/health"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: rexarr
+  author: MoonlightLaboratory
+  developer: MoonlightLaboratory
+  category: Media
+  icon: https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/main/logo/rexarr-256.png
+  index: /
+  port_map: "3939"
+  scheme: http
+  webui_port: 3939
+  title:
+    en_us: Rexarr
+  tagline:
+    en_us: Remux-first transcoding and disc ripping for the *arr stack
+  description:
+    en_us: >-
+      Rexarr sits next to Radarr, Sonarr and Lidarr: it finds Blu-ray remux and full-disc releases for the titles you
+      choose, re-encodes what the *arr apps import with FFmpeg using profiles you control, rips DVDs and Blu-rays with
+      MakeMKV, and indexes media on your disks that no *arr app manages. Mount your media at the same path Radarr and
+      Sonarr use, or add a path mapping in Settings. Disc ripping needs an image built with MakeMKV, which cannot be
+      redistributed. Documentation: https://moonlightlaboratory.github.io/rexarr/
+  tips:
+    before_install:
+      en_us: >-
+        Set PUID / PGID to the user that owns your media if you do not run containers as root, and keep /config on
+        internal storage rather than a network share.
+  envs:
+    - container: PUID
+      description:
+        en_us: User id Rexarr runs as
+    - container: PGID
+      description:
+        en_us: Group id Rexarr runs as
+    - container: UMASK
+      description:
+        en_us: File mode mask for what Rexarr writes
+    - container: TZ
+      description:
+        en_us: Time zone
+  volumes:
+    - container: /config
+      description:
+        en_us: Settings, profiles, history, cache and logs
+    - container: /DATA/Media
+      description:
+        en_us: Your media, at the same path the *arr apps see it
