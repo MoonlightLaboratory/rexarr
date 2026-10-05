@@ -51,6 +51,18 @@ export function Markdown({ text }: { text: string }) {
       i++;
       continue;
     }
+    if (line.startsWith('```')) {
+      const code: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith('```')) code.push(lines[i++]);
+      i++; // the closing fence
+      blocks.push(
+        <pre key={key()}>
+          <code>{code.join('\n')}</code>
+        </pre>,
+      );
+      continue;
+    }
     const heading = line.match(/^(#{1,6})\s+(.*)$/);
     if (heading) {
       blocks.push(

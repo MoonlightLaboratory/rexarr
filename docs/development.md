@@ -8,7 +8,7 @@ npm install
 npm run dev     # Vite on :7979, API on :3939
 npm run build
 npm test        # node --import tsx --test "src/**/*.test.ts"
-npm run lint
+npm run typecheck
 ```
 
 See [CONTRIBUTING.md](https://github.com/MoonlightLaboratory/rexarr/blob/main/CONTRIBUTING.md) for the contribution

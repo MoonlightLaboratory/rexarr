@@ -26,7 +26,7 @@ RUN npm run build \
 
 # ---------- runtime ----------
 FROM node:22-alpine
-ARG REXARR_VERSION=0.1.7.0
+ARG REXARR_VERSION=0.1.7.1
 LABEL org.opencontainers.image.title="Rexarr" \
       org.opencontainers.image.description="Remux-first transcoding, music and disc ripping companion for Radarr, Sonarr and Lidarr" \
       org.opencontainers.image.source="https://github.com/MoonlightLaboratory/rexarr" \

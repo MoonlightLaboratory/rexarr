@@ -6,7 +6,7 @@ about most, with the paths and user ids each one uses:
 | System | Template | How you add it |
 | --- | --- | --- |
 | Unraid | [`rexarr.xml`](https://github.com/MoonlightLaboratory/rexarr/blob/main/distribution/nas/unraid/rexarr.xml) | Docker → Add Container → Template URL |
-| ZimaOS / CasaOS | [`docker-compose.yml`](https://github.com/MoonlightLaboratory/rexarr/blob/main/distribution/nas/zimaos/docker-compose.yml) | Apps → Install a customized app → Import (a store listing is in review) |
+| ZimaOS / CasaOS | [`docker-compose.yml`](https://github.com/MoonlightLaboratory/rexarr/blob/main/distribution/nas/zimaos/docker-compose.yml) | Apps → Install a customized app → Import |
 | TrueNAS SCALE | [`docker-compose.yml`](https://github.com/MoonlightLaboratory/rexarr/blob/main/distribution/nas/truenas/docker-compose.yml) | Apps → Discover → Install via YAML |
 | Synology DSM | [`docker-compose.yml`](https://github.com/MoonlightLaboratory/rexarr/blob/main/distribution/nas/synology/docker-compose.yml) | Container Manager → Project |
 | OpenMediaVault | [`docker-compose.yml`](https://github.com/MoonlightLaboratory/rexarr/blob/main/distribution/nas/openmediavault/docker-compose.yml) | omv-extras → Compose → Files |
@@ -40,6 +40,9 @@ Three things decide whether it works, whatever the box:
 1. **Apps → ⋯ → Install a customized app → Import**, and paste
    [the compose file](https://github.com/MoonlightLaboratory/rexarr/blob/main/distribution/nas/zimaos/docker-compose.yml).
    It carries the `x-casaos` block, so the icon, the web UI button and the port show up properly.
+   A store listing is prepared in
+   [`distribution/casaos`](https://github.com/MoonlightLaboratory/rexarr/tree/main/distribution/casaos) and will
+   install from the app store once it is accepted.
 2. Defaults: `/config` on `/DATA/AppData/rexarr/config`, media on `/DATA/Media` (mounted at the same path inside, so
    it matches what other CasaOS apps see), `PUID=0` / `PGID=0` because ZimaOS runs its apps as root. Set them to a
    real user if you have one.
