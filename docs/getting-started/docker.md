@@ -1,7 +1,14 @@
 # Docker
 
-Pre-built images are published to `ghcr.io/moonlightlaboratory/rexarr` (`latest`, branch and version tags,
-linux/amd64 + linux/arm64) by `.github/workflows/docker.yml`.
+Pre-built images are published to **GitHub Container Registry** and **Docker Hub** — the same image, pick either:
+
+```bash
+docker pull ghcr.io/moonlightlaboratory/rexarr:latest
+docker pull moonlightlaboratory/rexarr:latest
+```
+
+Tags: `latest`, the branch name, and the version of each release (`0.1.7.0`), for linux/amd64 and linux/arm64,
+built by `.github/workflows/docker.yml`.
 
 !!! tip "On a NAS?"
     Unraid, ZimaOS, TrueNAS SCALE, Synology DSM and OpenMediaVault have ready-made templates with the right paths

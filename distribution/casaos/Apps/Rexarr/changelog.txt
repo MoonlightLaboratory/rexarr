@@ -1,0 +1,3 @@
+05.10.26
+First CasaOS / ZimaOS store submission: Rexarr 0.1.7.0.
+

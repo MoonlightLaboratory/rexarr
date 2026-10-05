@@ -1,6 +1,6 @@
 services:
   rexarr:
-    image: ghcr.io/moonlightlaboratory/rexarr:latest
+    image: ghcr.io/moonlightlaboratory/rexarr:latest    # or moonlightlaboratory/rexarr:latest on Docker Hub
     # or build locally:
     # build: .
     # build: { context: ., dockerfile: docker/Dockerfile.makemkv, args: { MAKEMKV_VERSION: "1.18.1" } }   # with MakeMKV for ripping

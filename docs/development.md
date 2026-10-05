@@ -71,7 +71,10 @@ label, the issue template and the docs, and starts `docs/release-notes/<version>
 
 1. Bump the version and fill in the release notes it created.
 2. Push to `main`, then **Actions → Release → Run workflow** (or push a tag `v<version>`).
-3. The workflow builds every package with `scripts/package.mjs`, builds the Windows installers with Inno Setup
+3. Images go to GHCR automatically. Docker Hub needs two repository secrets — `DOCKERHUB_USERNAME` and
+   `DOCKERHUB_TOKEN` (an access token with *Read & Write*). Without them the workflow quietly skips Docker Hub and
+   publishes to GHCR only; with them it also keeps the Docker Hub page in step with the README.
+4. The workflow builds every package with `scripts/package.mjs`, builds the Windows installers with Inno Setup
    (`distribution/windows/rexarr.iss`), starts the packages on Linux x64 / arm64, Alpine, macOS and Windows
    (`scripts/smoke-test.sh`), then publishes the GitHub release and the
    `ghcr.io/moonlightlaboratory/rexarr:<version>` image. Pre-release is ticked by default while Rexarr is in beta.

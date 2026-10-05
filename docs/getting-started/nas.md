@@ -6,7 +6,7 @@ about most, with the paths and user ids each one uses:
 | System | Template | How you add it |
 | --- | --- | --- |
 | Unraid | [`rexarr.xml`](https://github.com/MoonlightLaboratory/rexarr/blob/main/distribution/nas/unraid/rexarr.xml) | Docker → Add Container → Template URL |
-| ZimaOS / CasaOS | [`docker-compose.yml`](https://github.com/MoonlightLaboratory/rexarr/blob/main/distribution/nas/zimaos/docker-compose.yml) | Apps → Install a customized app → Import |
+| ZimaOS / CasaOS | [`docker-compose.yml`](https://github.com/MoonlightLaboratory/rexarr/blob/main/distribution/nas/zimaos/docker-compose.yml) | Apps → Install a customized app → Import (a store listing is in review) |
 | TrueNAS SCALE | [`docker-compose.yml`](https://github.com/MoonlightLaboratory/rexarr/blob/main/distribution/nas/truenas/docker-compose.yml) | Apps → Discover → Install via YAML |
 | Synology DSM | [`docker-compose.yml`](https://github.com/MoonlightLaboratory/rexarr/blob/main/distribution/nas/synology/docker-compose.yml) | Container Manager → Project |
 | OpenMediaVault | [`docker-compose.yml`](https://github.com/MoonlightLaboratory/rexarr/blob/main/distribution/nas/openmediavault/docker-compose.yml) | omv-extras → Compose → Files |
