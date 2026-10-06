@@ -117,6 +117,7 @@ nav:
       - System and maintenance: reference/system.md
       - Storage and environment: reference/storage.md
       - API: reference/api.md
+  - How it compares: comparison.md
   - Troubleshooting: troubleshooting.md
   - Development: development.md
   - Release notes: release-notes.md

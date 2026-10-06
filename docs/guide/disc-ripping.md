@@ -16,7 +16,7 @@
 
 Rexarr behaves like an automatic ripping machine: insert a disc, it identifies it against your library, rips the
 titles you want with MakeMKV, encodes them with a profile, and hands the finished files to Radarr / Sonarr —
-checking that they really were imported.
+checking that they really were imported. ([How it compares](../comparison.md) to ARM itself.)
 
 **Settings → Disc ripping** is on by default. It does nothing until a disc is inserted, and it needs
 [MakeMKV](https://www.makemkv.com/) (`makemkvcon`); Rexarr auto-detects the macOS app bundle and

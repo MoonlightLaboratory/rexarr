@@ -42,6 +42,11 @@ Full documentation: **<https://moonlightlaboratory.github.io/rexarr/>**
 - [Documentation](https://moonlightlaboratory.github.io/rexarr/)
 - [Requirements](https://moonlightlaboratory.github.io/rexarr/getting-started/requirements/)
 
+## How it compares
+
+Automatic Ripping Machine, Tdarr, Unmanic, or MakeMKV and HandBrake by hand — what each is better at, and what
+Rexarr does not do: [How it compares](https://moonlightlaboratory.github.io/rexarr/comparison/).
+
 ## Support
 
 [![GitHub Issues](https://img.shields.io/badge/GitHub-Issues-181717?logo=github)](https://github.com/MoonlightLaboratory/rexarr/issues)

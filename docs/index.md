@@ -173,6 +173,7 @@ Rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  opt
 
 ## Help
 
+- [How it compares](comparison.md) — Automatic Ripping Machine, Tdarr, Unmanic, and doing it by hand
 - [Troubleshooting](troubleshooting.md) — nothing imports, paths not visible, an encoder is missing, a disc is not
   detected
 - [Settings reference](reference/settings.md) · [System and maintenance](reference/system.md) ·
