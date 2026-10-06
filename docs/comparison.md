@@ -35,9 +35,10 @@ through Radarr / Sonarr / Prowlarr, [auto-transcoding](guide/auto-transcode.md) 
 import, and [music](guide/music.md) through Lidarr — CD ripping with MusicBrainz tags, single-file albums with a cue
 sheet split so Lidarr can import them, fre:ac profiles.
 
-**Honest caveats**: Rexarr has no data-disc ISO backup, no notification integrations yet, and its published Docker
-image cannot rip on its own because MakeMKV may not be redistributed — you
-[build the image with it](guide/makemkv-in-docker.md) or run on the host. ARM is the steadier ripper.
+**Honest caveats**: Rexarr has no data-disc ISO backup and no notification integrations yet — both are on the
+[roadmap](roadmap.md) — and its published Docker image cannot rip on its own because MakeMKV may not be
+redistributed, so you [build the image with it](guide/makemkv-in-docker.md) or run on the host. ARM is the steadier
+ripper.
 
 !!! tip "Pick one per drive"
     Only one program can hold a disc at a time. If ARM already owns your drive, turn Rexarr's disc detection off
@@ -62,7 +63,7 @@ There is no worker fleet and no library-wide sweep.
 
 Use Tdarr or Unmanic to re-encode a 20 TB back catalogue across three machines. Use Rexarr to keep new remuxes and
 disc rips in the shape you want as they arrive — and for everything to do with discs and search, which neither of
-them does.
+them does. A library-wide option [is on the roadmap](roadmap.md#a-library-optimiser-option), behind stability.
 
 ## MakeMKV and HandBrake on their own
 

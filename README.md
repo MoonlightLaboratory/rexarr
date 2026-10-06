@@ -45,7 +45,9 @@ Full documentation: **<https://moonlightlaboratory.github.io/rexarr/>**
 ## How it compares
 
 Automatic Ripping Machine, Tdarr, Unmanic, or MakeMKV and HandBrake by hand — what each is better at, and what
-Rexarr does not do: [How it compares](https://moonlightlaboratory.github.io/rexarr/comparison/).
+Rexarr does not do: [How it compares](https://moonlightlaboratory.github.io/rexarr/comparison/). What is missing
+and what comes next — stability before features while Rexarr is in beta — is on the
+[roadmap](https://moonlightlaboratory.github.io/rexarr/roadmap/).
 
 ## Support
 
