@@ -55,6 +55,10 @@ and what comes next — stability before features while Rexarr is in beta — is
 [![GitHub Discussions](https://img.shields.io/badge/GitHub-Discussions-181717?logo=github)](https://github.com/MoonlightLaboratory/rexarr/discussions)
 
 - Found a bug? [Open an issue](https://github.com/MoonlightLaboratory/rexarr/issues/new/choose) – System → Status → *Report an issue* fills in your version for you.
+- A question about setup or usage? Ask in [Discussions → Q&A](https://github.com/MoonlightLaboratory/rexarr/discussions/categories/q-a).
+- An idea? [Discussions → Ideas](https://github.com/MoonlightLaboratory/rexarr/discussions/categories/ideas) for thinking out loud, or a
+  [feature request](https://github.com/MoonlightLaboratory/rexarr/issues/new?template=feature_request.yml) when you know what you want. See the
+  [roadmap](https://moonlightlaboratory.github.io/rexarr/roadmap/) first – stability comes before features in beta.
 - Security problem? Please report it privately, see [SECURITY.md](SECURITY.md).
 
 ## Contributors & Developers

@@ -181,4 +181,6 @@ Rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  opt
   [API](reference/api.md)
 - [Open an issue](https://github.com/MoonlightLaboratory/rexarr/issues) — **System → Status → Report an issue**
   fills in your version for you
+- Questions and ideas: [Discussions](https://github.com/MoonlightLaboratory/rexarr/discussions) — [Q&A](https://github.com/MoonlightLaboratory/rexarr/discussions/categories/q-a) for setup and
+  usage, [Ideas](https://github.com/MoonlightLaboratory/rexarr/discussions/categories/ideas) for anything not yet a feature request
 - Security problems: see [SECURITY.md](https://github.com/MoonlightLaboratory/rexarr/blob/main/SECURITY.md)

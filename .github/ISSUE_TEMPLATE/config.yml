@@ -1,8 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: Questions and help
-    url: https://github.com/MoonlightLaboratory/rexarr/discussions
+    url: https://github.com/MoonlightLaboratory/rexarr/discussions/categories/q-a
     about: Ask setup and usage questions in Discussions.
+  - name: Ideas and half-formed thoughts
+    url: https://github.com/MoonlightLaboratory/rexarr/discussions/categories/ideas
+    about: Not sure it is a feature request yet? Talk it through in Discussions first.
   - name: Security vulnerability
     url: https://github.com/MoonlightLaboratory/rexarr/security/advisories/new
     about: Please report security problems privately.

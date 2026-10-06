@@ -78,5 +78,6 @@ the old port if the new one cannot be bound.
 ## Reporting a bug
 
 **System → Status → Report an issue** opens a GitHub issue with your version, platform and install method filled in.
-Please include the job log or disc log, and say what you expected. Security problems go to
+Please include the job log or disc log, and say what you expected. If you are not sure it is a bug, ask in
+[Discussions → Q&A](https://github.com/MoonlightLaboratory/rexarr/discussions/categories/q-a) instead — half of what lands there is a path mapping. Security problems go to
 [SECURITY.md](https://github.com/MoonlightLaboratory/rexarr/blob/main/SECURITY.md) instead.

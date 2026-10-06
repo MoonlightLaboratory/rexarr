@@ -51,7 +51,8 @@ will notify you themselves when the import lands.
 
 Open a [feature request](https://github.com/MoonlightLaboratory/rexarr/issues/new?template=feature_request.yml) —
 what you are trying to do and what gets in the way is more useful than a solution, because the answer is sometimes
-a setting that already exists.
+a setting that already exists. If it is still a half-formed thought, [Discussions →
+Ideas](https://github.com/MoonlightLaboratory/rexarr/discussions/categories/ideas) is the place for it.
 
 Bugs go through [the same place](https://github.com/MoonlightLaboratory/rexarr/issues/new/choose), and
 **System → Status → Report an issue** fills in your version, platform and install method for you.
