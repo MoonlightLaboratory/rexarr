@@ -368,6 +368,8 @@ svg { flex-shrink: 0; }
 /* More air above a section heading than below it, so sections read as blocks. */
 .legend { margin-top: 30px; margin-bottom: 12px; }
 /* A group heading inside a card, for sections long enough to need signposting. */
+.subhead.row { display: flex; align-items: center; gap: 10px; }
+.subhead.row .spacer { flex: 1; }
 .subhead { margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--borderColor); color: var(--textColor); font-size: 15px; font-weight: 600; }
 .card-b > .subhead:first-child, .card-b > p:first-child + .subhead { margin-top: 0; }
 .legend:first-child, .page-b > :first-child.legend { margin-top: 0; }

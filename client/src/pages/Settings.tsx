@@ -692,6 +692,7 @@ function LocalMediaCard({ value, onChange, dirty }: { value: LocalMediaSettings;
         <p className="small dim" style={{ marginTop: 0 }}>
           Not everything is added to the *arr apps. Rexarr scans these folders for movies, series / anime and music albums (from folder and file names) and shows the ones no *arr app manages in search, marked <strong>Local</strong>, where they can be encoded like library files.
         </p>
+        <div className="subhead">Scanning</div>
         <div className="grid-2">
           <label className="check mb">
             <input type="checkbox" checked={value.enabled} onChange={(e) => set({ enabled: e.target.checked })} /> Include local media in search
@@ -709,8 +710,8 @@ function LocalMediaCard({ value, onChange, dirty }: { value: LocalMediaSettings;
           </div>
         </div>
 
-        <div className="inline mt mb">
-          <strong>Folders</strong>
+        <div className="subhead row">
+          Folders
           <span className="spacer" />
           <button className="btn sm" onClick={() => set({ folders: [...value.folders, { path: '', kind: 'auto' }] })}>
             <Icon.Plus /> Add folder
@@ -744,8 +745,14 @@ function LocalMediaCard({ value, onChange, dirty }: { value: LocalMediaSettings;
         )}
         {status && !status.roots.length && <div className="muted small mb">No folders yet – add one, or a path mapping.</div>}
 
-        <div className="inline mt mb">
-          <strong>Metadata</strong>
+        <div className="field stack">
+          <label>Skip folders named</label>
+          <input type="text" value={value.exclude.join(', ')} onChange={(e) => set({ exclude: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })} />
+          <div className="help">Comma separated, anywhere in the tree (samples, extras, NAS recycle bins, game libraries…).</div>
+        </div>
+
+        <div className="subhead row">
+          Metadata
           <span className="spacer" />
           <button className="btn sm" disabled={!value.metadata || status?.metadata?.running} onClick={() => api.localMetadataRefresh().then(setStatus)} title="Match titles that have no metadata yet">
             {status?.metadata?.running ? <span className="spinner" /> : <Icon.Refresh />} Match now
@@ -767,12 +774,6 @@ function LocalMediaCard({ value, onChange, dirty }: { value: LocalMediaSettings;
             <input type="text" value={value.metadataLanguage} placeholder="en-US" onChange={(e) => set({ metadataLanguage: e.target.value })} />
             <div className="help">Titles and overviews, e.g. en-US, ja-JP, de-DE.</div>
           </div>
-        </div>
-
-        <div className="field stack">
-          <label>Skip folders named</label>
-          <input type="text" value={value.exclude.join(', ')} onChange={(e) => set({ exclude: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })} />
-          <div className="help">Comma separated, anywhere in the tree (samples, extras, NAS recycle bins, game libraries…).</div>
         </div>
 
         {status && (
