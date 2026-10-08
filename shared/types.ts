@@ -1105,6 +1105,8 @@ export interface ExperimentSettings {
    * disc on a list of ones it expects, so inserting it later matches straight away.
    */
   barcode: boolean;
+  /** Turn Radarr's and Sonarr's "cutoff unmet" lists into a list of discs worth putting in the drive. */
+  wanted: boolean;
 }
 
 /** What a barcode turned out to be, and what Rexarr can do with it. */
@@ -1114,6 +1116,24 @@ export interface BarcodeLookup {
   inLibrary: { kind: 'movie' | 'series'; id: number; externalId?: number; title: string; year?: number; season?: number; score: number } | null;
   /** What Radarr / Sonarr found for the title, when it is not in the library yet. */
   lookup: { kind: 'movie' | 'series'; title: string; year?: number; externalId: number; poster?: string }[];
+}
+
+/** Something Radarr or Sonarr would like a better copy of, and what disc would provide it. */
+export interface WantedDisc {
+  kind: 'movie' | 'series';
+  arrId: number;
+  externalId?: number;
+  title: string;
+  year?: number;
+  seasonNumber?: number;
+  /** Series rows: how many episodes of that season are below the cutoff. */
+  episodes?: number;
+  /** What is on disk now. */
+  quality: string;
+  /** The disc that would improve it. */
+  upgradeWith: 'bluray' | 'uhd' | 'none';
+  /** A barcode scan says this one is already on the shelf. */
+  onShelf: boolean;
 }
 
 /** A disc Rexarr has been told about but has not seen yet. */

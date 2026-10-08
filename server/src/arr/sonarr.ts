@@ -292,6 +292,23 @@ export class Sonarr {
     }));
   }
 
+  /** Episodes Sonarr keeps but is still looking to upgrade (its "Cutoff Unmet" list). */
+  async cutoffUnmet(limit = 500): Promise<{ seriesId: number; seriesTitle: string; tvdbId?: number; seasonNumber: number; episodeNumber: number; title?: string; quality?: string; sizeBytes?: number }[]> {
+    const page = await this.http.get<{
+      records?: { seriesId: number; seasonNumber: number; episodeNumber: number; title?: string; series?: { title?: string; tvdbId?: number }; episodeFile?: { size?: number; quality?: { quality?: { name?: string } } } }[];
+    }>('/wanted/cutoff', { page: 1, pageSize: Math.min(limit, 1000), sortKey: 'airDateUtc', includeSeries: 'true', includeEpisodeFile: 'true' }, 30_000);
+    return (page.records ?? []).map((r) => ({
+      seriesId: r.seriesId,
+      seriesTitle: r.series?.title ?? `Series ${r.seriesId}`,
+      tvdbId: r.series?.tvdbId,
+      seasonNumber: r.seasonNumber,
+      episodeNumber: r.episodeNumber,
+      title: r.title,
+      quality: r.episodeFile?.quality?.quality?.name,
+      sizeBytes: r.episodeFile?.size,
+    }));
+  }
+
   async qualityProfiles() {
     return this.http.get<{ id: number; name: string }[]>('/qualityprofile');
   }

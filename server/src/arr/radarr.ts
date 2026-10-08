@@ -186,6 +186,16 @@ export class Radarr {
     }));
   }
 
+  /** Movies Radarr keeps but is still looking to upgrade (its "Cutoff Unmet" list). */
+  async cutoffUnmet(limit = 200): Promise<{ id: number; title: string; year?: number; tmdbId?: number; quality?: string; sizeBytes?: number }[]> {
+    const page = await this.http.get<{ records?: { id: number; title: string; year?: number; tmdbId?: number; movieFile?: { size?: number; quality?: { quality?: { name?: string } } } }[] }>(
+      '/wanted/cutoff',
+      { page: 1, pageSize: Math.min(limit, 500), sortKey: 'movieMetadata.sortTitle', includeMovieFile: 'true' },
+      30_000,
+    );
+    return (page.records ?? []).map((r) => ({ id: r.id, title: r.title, year: r.year, tmdbId: r.tmdbId, quality: r.movieFile?.quality?.quality?.name, sizeBytes: r.movieFile?.size }));
+  }
+
   async qualityProfiles() {
     return this.http.get<{ id: number; name: string }[]>('/qualityprofile');
   }

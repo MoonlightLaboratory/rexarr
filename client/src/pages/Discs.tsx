@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { MusicBrainzRelease, DriveCandidate, DiscAudioTrack, DiscDrive, DiscEstimate, DiscRip, DiscTitle, Episode, ExtraType, LookupResult, MakemkvInfo, RipMedia, RipOptions, RipStatus, TitleRole } from '@shared/types';
+import type { MusicBrainzRelease, DriveCandidate, DiscAudioTrack, DiscDrive, DiscEstimate, DiscRip, DiscTitle, Episode, ExtraType, LookupResult, MakemkvInfo, RipMedia, RipOptions, RipStatus, TitleRole, WantedDisc } from '@shared/types';
 import { api, fmtAge, fmtBytes, fmtDuration, ripOverallPercent } from '../api';
 import { useApp } from '../App';
 import { Page, ToolbarButton } from '../components/Layout';
@@ -1080,6 +1080,65 @@ function LogModal({ rip, onClose }: { rip: DiscRip; onClose: () => void }) {
   );
 }
 
+/**
+ * The ripping to-do list (Settings → Experiments): what Radarr and Sonarr are still hoping to improve, read as
+ * "which disc should I go and find".
+ */
+function RippingTodo() {
+  const [list, setList] = useState<WantedDisc[] | null>(null);
+  const [open, setOpen] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api
+      .wanted()
+      .then(setList)
+      .catch((e) => setError((e as Error).message));
+  }, []);
+  if (error || !list?.length) return null;
+  const shelf = list.filter((w) => w.onShelf).length;
+  return (
+    <div className="card mb">
+      <div className="card-h" style={{ cursor: 'pointer' }} onClick={() => setOpen(!open)}>
+        Insert disc for…
+        <span className="badge sm">{list.length}</span>
+        {shelf > 0 && <span className="badge sm green">{shelf} scanned</span>}
+        <span className="spacer" />
+        <span className="small dim">below the quality your profile asks for</span>
+      </div>
+      {open && (
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>On disk</th>
+                <th>A disc would give</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {list.slice(0, 40).map((w) => (
+                <tr key={`${w.kind}${w.arrId}${w.seasonNumber ?? ''}`}>
+                  <td>
+                    <Link to={w.kind === 'movie' ? `/movies/${w.arrId}` : `/series/${w.arrId}`}>{w.title}</Link>
+                    {w.year ? <span className="dim"> ({w.year})</span> : null}
+                    {w.seasonNumber !== undefined && <span className="dim"> · season {w.seasonNumber}</span>}
+                    {w.episodes ? <span className="dim"> · {w.episodes} episode{w.episodes === 1 ? '' : 's'}</span> : null}
+                    {w.onShelf && <span className="badge sm green" title="A barcode scan says this one is on the shelf">on the shelf</span>}
+                  </td>
+                  <td className="dim">{w.quality}</td>
+                  <td>{w.upgradeWith === 'uhd' ? 'a UHD Blu-ray' : 'a Blu-ray'}</td>
+                  <td className="num dim small">{w.kind === 'movie' ? 'film' : 'series'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DiscsPage() {
   const { rips, drives, settings, toast } = useApp();
   const [makemkv, setMakemkv] = useState<MakemkvInfo | null>(null);
@@ -1129,6 +1188,7 @@ export function DiscsPage() {
         </div>
       )}
       {driveError && <div className="warn">Could not list drives: {driveError}</div>}
+      {settings?.experiments?.wanted === true && <RippingTodo />}
 
       <div className="card mb">
         <div className="card-h">

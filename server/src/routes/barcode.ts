@@ -11,6 +11,7 @@ import { z } from 'zod';
 import qrcode from 'qrcode-generator';
 import type { ExpectedDisc } from '../../../shared/types.js';
 import { lookupBarcode, normaliseCode, rankAgainstLibrary, toExpected } from '../barcode.js';
+import { wantedDiscs } from '../wanted.js';
 import { arr } from '../arr/index.js';
 import { discs } from '../disc/manager.js';
 import { store } from '../store.js';
@@ -110,6 +111,16 @@ export default async function barcodeRoutes(app: FastifyInstance) {
     store.setExpectedDiscs([entry, ...store.expectedDiscs.filter((e) => e.code !== code)].slice(0, 100));
     appEvents.add('info', 'Barcode', `${d.title} scanned (${code})${arrId ? ' and added to the library' : ''}; waiting for the disc`);
     return { expected: entry, notes };
+  });
+
+  /** The ripping to-do list: what Radarr and Sonarr would like a better copy of, and which disc would do it. */
+  app.get('/api/wanted', async (_req, reply) => {
+    if (store.settings.experiments?.wanted !== true) return reply.code(404).send({ error: 'The ripping to-do list is off (Settings → Experiments)' });
+    try {
+      return await wantedDiscs();
+    } catch (err) {
+      return reply.code(502).send({ error: (err as Error).message });
+    }
   });
 
   app.get('/api/barcode/expected', async (_req, reply) => {

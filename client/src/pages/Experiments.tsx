@@ -148,6 +148,28 @@ export function ExperimentsPage() {
               )}
             </div>
           </div>
+          <div className="card mb">
+            <div className="card-h">
+              <label className="check">
+                <input type="checkbox" checked={s.experiments?.wanted === true} onChange={(e) => set({ wanted: e.target.checked })} /> Ripping to-do list
+              </label>
+              <span className="spacer" />
+              <span className="small dim">beta</span>
+            </div>
+            <div className="card-b">
+              <p className="small dim" style={{ marginTop: 0 }}>
+                Radarr and Sonarr already keep a list of what they would like a better copy of – their <em>Cutoff
+                Unmet</em> pages – and most of it is waiting for a download that may never come while the better
+                copy sits on a shelf in the next room. With this on, the <a href={withBase('/discs')}>Discs</a> page
+                shows that list the other way round: what is still low quality, which kind of disc would actually
+                improve it, and whether you have already scanned that disc's barcode.
+              </p>
+              <div className="help">
+                A 1080p remux is not improved by a Blu-ray, so those only appear when a UHD disc would help, and
+                anything already at 2160p remux is left out entirely.
+              </div>
+            </div>
+          </div>
         </>
       )}
     </Page>

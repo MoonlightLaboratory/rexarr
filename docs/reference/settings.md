@@ -162,6 +162,24 @@ know a disc; when that happens, search for the title on the Discs page as usual.
 API: `GET /api/scan/qr.svg`, `POST /api/barcode/lookup`, `GET`/`POST /api/barcode/expected`,
 `DELETE /api/barcode/expected/:id`.
 
+### Ripping to-do list
+
+Radarr and Sonarr already keep a list of what they would like a better copy of — their **Cutoff Unmet** pages —
+and most of it waits for a download that may never come while the better copy sits on a shelf in the next room.
+With this on, the **Discs** page gains an **Insert disc for…** card that reads that list the other way round:
+
+| Column | What it says |
+| --- | --- |
+| Title | the film, or a series season with how many of its episodes are below the cutoff |
+| On disk | the quality you have now — the worst one in the season, when they differ |
+| A disc would give | **a Blu-ray** or **a UHD Blu-ray**, whichever would actually improve it |
+
+What it leaves out matters as much as what it shows: a **1080p remux** is already what a Blu-ray holds, so those
+only appear when a UHD disc would help, and anything at **2160p remux** is left out entirely — no disc on a shelf
+beats it. Titles whose barcode you have [scanned](#barcode-scanning) are marked **on the shelf** and sorted first.
+
+API: `GET /api/wanted`.
+
 ## Path mappings
 
 Translate the paths Radarr / Sonarr / Lidarr report into paths on this machine — needed whenever the \*arr app runs
