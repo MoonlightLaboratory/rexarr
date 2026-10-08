@@ -24,6 +24,7 @@ const links = [
     children: [
       { to: '/settings', label: 'Connections' },
       { to: '/settings/general', label: 'General' },
+      { to: '/settings/experiments', label: 'Experiments' },
     ],
   },
   {
@@ -176,6 +177,8 @@ export function Layout({ children, jobs, rips, drives, health, connected, toasts
   const pageRef = useRef<HTMLDivElement>(null);
   const sidebar = useSidebarWidth(pageRef);
   const [phone, setPhone] = useState(() => window.matchMedia('(max-width: 768px)').matches);
+  // The phone scanning page is its own thing: no header, no sidebar, nothing to tap by accident.
+  const bare = pathname.replace(/\/+$/, '') === '/scan';
   const encoding = jobs.filter((j) => j.status === 'encoding');
   const progressLabel = encoding.length === 1 ? `${Math.floor(encoding[0].progress.percent)}%` : encoding.length > 1 ? `${encoding.length} encoding` : '';
   useEffect(() => {
@@ -225,6 +228,8 @@ export function Layout({ children, jobs, rips, drives, health, connected, toasts
               ))}
             </div>
   );
+
+  if (bare) return <>{children}</>;
 
   return (
     <div ref={pageRef} className={`page${sidebar.collapsed ? ' sidebarCollapsed' : ''}`} style={{ '--sidebarWidth': `${sidebar.width}px` } as React.CSSProperties}>

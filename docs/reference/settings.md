@@ -128,6 +128,40 @@ AniDB for anime (`anidb.enabled`), with a refresh button and the dataset status.
 Buttons on this page: **Check import access** (asks Radarr and Sonarr whether they can see the rip folder) and
 **Import rip folder now**. See [Disc ripping](../guide/disc-ripping.md).
 
+## Experiments
+
+Features that are finished enough to try and not finished enough to be on by default. They can change or go away
+in the next release, so they are the part of Rexarr most worth
+[reporting](https://github.com/MoonlightLaboratory/rexarr/issues/new?template=bug_report.yml) when they misbehave.
+
+### Barcode scanning
+
+Scan the barcode on a disc case with your phone: Rexarr works out what the disc is, adds it to Radarr / Sonarr if
+it is not there yet, and keeps it on a list of **discs it expects**, so the title is in the library before the disc
+reaches the drive. Off unless `experiments.barcode` is on.
+
+1. Turn it on and save. The page then shows a **QR code**: point your phone's camera at it to open Rexarr's `/scan`
+   page. The phone has to be able to reach Rexarr's address, and when authentication is on the code carries your
+   API key — treat it like a password.
+2. On the phone, scan the barcode or type the number under it.
+3. Rexarr looks the number up, shows what it found, and you confirm which title it is. A title that is not in the
+   library yet is added the same way a disc's title is — the root folder and quality profile your library uses for
+   that kind of thing, unmonitored unless **Settings → Disc ripping → Monitor what is added** is on.
+
+!!! warning "A camera needs HTTPS"
+    Browsers only hand a page the camera over `https://` or on `localhost`. Over plain `http://` on your network
+    the scanning page says so and falls back to typing the number in, which works everywhere. Turn on SSL under
+    **Settings → General → Host**, or put Rexarr behind a proxy with a certificate.
+
+**Where the numbers come from**: [MusicBrainz](https://musicbrainz.org) for music, which indexes barcodes
+properly, and [UPCitemdb](https://www.upcitemdb.com)'s trial endpoint for everything else — 100 lookups a day per
+address, no account for either. What comes back is a shop listing (`Blade Runner 2049 [4K Ultra HD + Blu-ray]`),
+so the edition, region, disc-count and seller noise is stripped before the title is matched. Both can simply not
+know a disc; when that happens, search for the title on the Discs page as usual.
+
+API: `GET /api/scan/qr.svg`, `POST /api/barcode/lookup`, `GET`/`POST /api/barcode/expected`,
+`DELETE /api/barcode/expected/:id`.
+
 ## Path mappings
 
 Translate the paths Radarr / Sonarr / Lidarr report into paths on this machine — needed whenever the \*arr app runs

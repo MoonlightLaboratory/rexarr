@@ -22,6 +22,7 @@ import searchRoutes from './routes/search.js';
 import jobRoutes from './routes/jobs.js';
 import systemRoutes from './routes/system.js';
 import discRoutes from './routes/disc.js';
+import barcodeRoutes from './routes/barcode.js';
 import anidbRoutes from './routes/anidb.js';
 import imageRoutes from './routes/images.js';
 import systemPageRoutes from './routes/systemPages.js';
@@ -100,6 +101,7 @@ async function buildApp(host: { bindAddress: string; port: number; urlBase: stri
   await instance.register(jobRoutes);
   await instance.register(systemRoutes);
   await instance.register(discRoutes);
+  await instance.register(barcodeRoutes);
   await instance.register(anidbRoutes);
   await instance.register(imageRoutes);
   await instance.register(systemPageRoutes);

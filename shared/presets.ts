@@ -372,6 +372,7 @@ export const DEFAULT_SETTINGS = {
   slskd: { enabled: false, url: 'http://localhost:5030', apiKey: '', downloadsPath: '', maxQueueLength: 50, searchTimeoutSeconds: 15 },
   musicbrainz: { enabled: true },
   notifications: { targets: [] },
+  experiments: { barcode: false },
   ffmpegPath: 'ffmpeg',
   ffprobePath: 'ffprobe',
   freacPath: '',

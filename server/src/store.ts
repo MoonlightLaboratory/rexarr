@@ -2,7 +2,7 @@ import { withGeneralDefaults } from './general.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DATA_DIR } from './config.js';
-import type { DiscRip, Job, Profile, Settings } from '../../shared/types.js';
+import type { DiscRip, ExpectedDisc, Job, Profile, Settings } from '../../shared/types.js';
 import { BUILTIN_PROFILES, DEFAULT_SETTINGS } from '../../shared/presets.js';
 
 interface Persisted<T> {
@@ -50,6 +50,7 @@ const settingsP = load<Settings>('settings.json', structuredClone(DEFAULT_SETTIN
 const profilesP = load<Profile[]>('profiles.json', []);
 const jobsP = load<Job[]>('jobs.json', []);
 const ripsP = load<DiscRip[]>('rips.json', []);
+const expectedP = load<ExpectedDisc[]>('expected-discs.json', []);
 
 // Merge defaults for settings keys added in later versions.
 settingsP.value = {
@@ -63,6 +64,7 @@ settingsP.value = {
   localMedia: { ...DEFAULT_SETTINGS.localMedia, ...(settingsP.value.localMedia ?? {}) },
   musicbrainz: { ...DEFAULT_SETTINGS.musicbrainz, ...(settingsP.value.musicbrainz ?? {}) },
   notifications: { targets: settingsP.value.notifications?.targets ?? [] },
+  experiments: { ...DEFAULT_SETTINGS.experiments, ...(settingsP.value.experiments ?? {}) },
   disc: { ...DEFAULT_SETTINGS.disc, ...(settingsP.value.disc ?? {}), cd: { ...DEFAULT_SETTINGS.disc.cd, ...(settingsP.value.disc?.cd ?? {}) } },
   anidb: { ...DEFAULT_SETTINGS.anidb, ...(settingsP.value.anidb ?? {}) },
   transcoding: { ...DEFAULT_SETTINGS.transcoding, ...(settingsP.value.transcoding ?? {}) },
@@ -125,6 +127,15 @@ export const store = {
   },
   saveJobs() {
     save(jobsP);
+  },
+
+  /** Discs a barcode scan said are coming, but that have not been put in a drive yet. */
+  get expectedDiscs(): ExpectedDisc[] {
+    return expectedP.value;
+  },
+  setExpectedDiscs(list: ExpectedDisc[]) {
+    expectedP.value = list;
+    save(expectedP);
   },
 
   get rips(): DiscRip[] {

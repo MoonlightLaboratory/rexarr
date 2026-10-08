@@ -125,6 +125,9 @@ Docker `HEALTHCHECK` uses it.
 | POST | `/api/settings/apikey` | reset the API key |
 | POST | `/api/settings/test/:app` | test a connection (`radarr`, `sonarr`, `prowlarr`, `lidarr`, `slskd`) |
 | POST | `/api/notifications/test` | send one test message to a notification target in the body |
+| GET | `/api/scan/qr.svg` | QR code for the phone scanning page (experiment) |
+| POST | `/api/barcode/lookup` | what a barcode is, and what it matches (experiment) |
+| GET/POST | `/api/barcode/expected` · DELETE `/api/barcode/expected/:id` | discs a scan says are coming |
 | GET | `/api/settings/arr-options` | root folders and quality profiles from the \*arr apps |
 | GET | `/api/system` · `/api/system/health` · `/api/system/ffmpeg` | status, health checks, encoders |
 | GET | `/api/system/paths` | storage layout with sizes |

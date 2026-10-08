@@ -1214,3 +1214,66 @@ table.metaTags td.mono { word-break: break-word; }
   align-self: flex-end;
   text-decoration: none;
 }
+
+/* ---- /scan: the phone page behind the QR code on Settings → Experiments --------------------- */
+.scanPage {
+  min-height: 100vh;
+  padding: 24px 18px 40px;
+  background: var(--pageBackground);
+  color: var(--textColor);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+.scanTitle {
+  margin: 0 0 4px;
+  font-size: 24px;
+  font-weight: 600;
+}
+.scanVideo {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  background: #000;
+  border: 1px solid var(--borderColor);
+  border-radius: 6px;
+}
+.scanBtn {
+  width: 100%;
+  min-height: 48px;
+  justify-content: center;
+  font-size: 16px;
+}
+.scanForm {
+  display: flex;
+  gap: 10px;
+}
+.scanForm input {
+  flex: 1;
+  height: 48px;
+  font-size: 17px;
+}
+.scanForm .btn {
+  min-height: 48px;
+}
+.scanNote {
+  margin: 0;
+  color: var(--helpTextColor);
+  line-height: 1.5;
+}
+.scanError {
+  color: var(--dangerColor);
+}
+.scanResult {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.scanProduct {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.4;
+}

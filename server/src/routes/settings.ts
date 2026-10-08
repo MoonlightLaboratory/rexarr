@@ -141,6 +141,7 @@ export const settingsSchema = z.object({
         .default([]),
     })
     .default({ targets: [] }),
+  experiments: z.object({ barcode: z.boolean() }).default({ barcode: false }),
   freacPath: z.string().default(''),
   ffmpegPath: z.string().min(1),
   ffprobePath: z.string().min(1),

@@ -24,6 +24,8 @@ const EventsPage = lazy(() => import('./pages/SystemPages').then((m) => ({ defau
 const ToolsPage = lazy(() => import('./pages/Tools').then((m) => ({ default: m.ToolsPage })));
 const LogsPage = lazy(() => import('./pages/SystemPages').then((m) => ({ default: m.LogsPage })));
 const UpdatesPage = lazy(() => import('./pages/Updates').then((m) => ({ default: m.UpdatesPage })));
+const ExperimentsPage = lazy(() => import('./pages/Experiments').then((m) => ({ default: m.ExperimentsPage })));
+const ScanPage = lazy(() => import('./pages/Scan').then((m) => ({ default: m.ScanPage })));
 
 export interface AppState {
   jobs: Job[];
@@ -75,6 +77,7 @@ export default function App() {
         <Layout jobs={jobs} rips={rips} drives={drives} health={health} connected={connected} toasts={toasts} toastControls={toastControls}>
           <Suspense fallback={<div className="pageToolbar" />}>
           <Routes>
+            <Route path="/scan" element={<ScanPage />} />
             <Route path="/" element={<Home />} />
             <Route path="/movies" element={<MoviesPage />} />
             <Route path="/movies/:id" element={<MovieDetailPage />} />
@@ -90,6 +93,7 @@ export default function App() {
             <Route path="/profiles/:id" element={<ProfilesPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/general" element={<SettingsGeneralPage />} />
+            <Route path="/settings/experiments" element={<ExperimentsPage />} />
             <Route path="/system" element={<SystemPage />} />
             <Route path="/system/tasks" element={<TasksPage />} />
             <Route path="/system/backup" element={<BackupPage />} />

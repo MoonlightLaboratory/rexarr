@@ -644,6 +644,8 @@ export interface Settings {
   musicbrainz: { enabled: boolean };
   /** Discord, Slack, ntfy and friends: told when an encode or a rip finishes or fails. */
   notifications: NotificationSettings;
+  /** Beta features, off unless you turn them on. */
+  experiments: ExperimentSettings;
   ffmpegPath: string;
   ffprobePath: string;
   /** fre:ac command line encoder (freaccmd) for music profiles and CD ripping. Empty = auto-detect. */
@@ -1094,6 +1096,40 @@ export interface NotificationTarget {
 
 export interface NotificationSettings {
   targets: NotificationTarget[];
+}
+
+/** Unfinished features, off by default, that can be switched on to try them (Settings → Experiments). */
+export interface ExperimentSettings {
+  /**
+   * Scan a disc's barcode with a phone: Rexarr resolves the release, adds it to Radarr / Sonarr and keeps the
+   * disc on a list of ones it expects, so inserting it later matches straight away.
+   */
+  barcode: boolean;
+}
+
+/** What a barcode turned out to be, and what Rexarr can do with it. */
+export interface BarcodeLookup {
+  product: { code: string; product: string; title: string; year?: number; seasonNumber?: number; kind: 'movie' | 'series' | 'album'; source: string; artist?: string };
+  /** The library entry it matches, when it is already in Radarr / Sonarr. */
+  inLibrary: { kind: 'movie' | 'series'; id: number; externalId?: number; title: string; year?: number; season?: number; score: number } | null;
+  /** What Radarr / Sonarr found for the title, when it is not in the library yet. */
+  lookup: { kind: 'movie' | 'series'; title: string; year?: number; externalId: number; poster?: string }[];
+}
+
+/** A disc Rexarr has been told about but has not seen yet. */
+export interface ExpectedDisc {
+  id: string;
+  /** The barcode that produced it. */
+  code: string;
+  title: string;
+  year?: number;
+  kind: 'movie' | 'series';
+  /** Radarr / Sonarr id once it is in the library. */
+  arrId?: number;
+  seasonNumber?: number;
+  /** What the barcode lookup called it, before cleaning. */
+  product?: string;
+  addedAt: string;
 }
 
 export interface ReleaseInfo {

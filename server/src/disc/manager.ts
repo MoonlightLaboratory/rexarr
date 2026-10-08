@@ -980,18 +980,22 @@ export class DiscManager {
    * kind of title (or the ones set in Settings), unmonitored unless Settings say otherwise, so adding a show to import
    * one disc never starts downloading the rest of it.
    */
-  async addToLibrary(rip: DiscRip): Promise<void> {
-    if (rip.media.arrId || !rip.media.externalId) return;
+  /**
+   * Add a title to Sonarr / Radarr where the library already keeps that kind of thing, unmonitored unless asked.
+   * Used by a rip that starts before its show exists, and by the barcode scanner.
+   */
+  async addMediaToLibrary(media: RipMedia, log: (line: string) => void): Promise<number | undefined> {
+    if (media.arrId || !media.externalId) return media.arrId;
     const { radarr, sonarr } = arr();
     const d = store.settings.disc;
     // anime: AniDB knows nearly every anime by its TVDB / TMDB id, even when TVDB calls the show "standard"
-    let anime = rip.media.seriesType === 'anime';
+    let anime = media.seriesType === 'anime';
     if (!anime && anidb.enabled) {
       await anidb.ensure().catch(() => undefined);
-      anime = rip.media.kind === 'series' ? anidb.forTvdb(rip.media.externalId).length > 0 : Boolean(anidb.forTmdb(rip.media.externalId));
+      anime = media.kind === 'series' ? anidb.forTvdb(media.externalId).length > 0 : Boolean(anidb.forTmdb(media.externalId));
     }
     const monitored = d.addMonitored === true;
-    if (rip.media.kind === 'series') {
+    if (media.kind === 'series') {
       if (!sonarr.configured) throw new Error('Sonarr is not connected');
       const [roots, profiles, series] = await Promise.all([sonarr.rootFolders(), sonarr.qualityProfiles(), sonarr.http.get<{ path: string; seriesType: string; qualityProfileId: number }[]>('/series')]);
       const target = pickAddTarget({
@@ -1003,11 +1007,11 @@ export class DiscManager {
         ...d.addTargets?.[anime ? 'anime' : 'series'],
       });
       if (!target) throw new Error('Sonarr has no root folder or quality profile');
-      const s = await sonarr.add(rip.media.externalId, anime ? 'anime' : (rip.media.seriesType ?? 'standard'), target.qualityProfileId, target.rootFolderPath, monitored);
-      rip.media.arrId = s.id;
+      const s = await sonarr.add(media.externalId, anime ? 'anime' : (media.seriesType ?? 'standard'), target.qualityProfileId, target.rootFolderPath, monitored);
+      media.arrId = s.id;
       const profile = profiles.find((p) => p.id === target.qualityProfileId)?.name;
-      this.log(rip, `Added ${s.title} to Sonarr: ${target.rootFolderPath}, ${profile} (${target.why})${monitored ? '' : ', not monitored – nothing is downloaded'}`);
-    } else if (rip.media.kind === 'movie') {
+      log(`Added ${s.title} to Sonarr: ${target.rootFolderPath}, ${profile} (${target.why})${monitored ? '' : ', not monitored – nothing is downloaded'}`);
+    } else if (media.kind === 'movie') {
       if (!radarr.configured) throw new Error('Radarr is not connected');
       const [roots, profiles, movies] = await Promise.all([radarr.rootFolders(), radarr.qualityProfiles(), radarr.http.get<{ path: string; qualityProfileId: number }[]>('/movie')]);
       const target = pickAddTarget({
@@ -1019,11 +1023,15 @@ export class DiscManager {
         ...d.addTargets?.[anime ? 'animeMovie' : 'movie'],
       });
       if (!target) throw new Error('Radarr has no root folder or quality profile');
-      const m = await radarr.add(rip.media.externalId, target.qualityProfileId, target.rootFolderPath, monitored);
-      rip.media.arrId = m.id;
+      const m = await radarr.add(media.externalId, target.qualityProfileId, target.rootFolderPath, monitored);
+      media.arrId = m.id;
       const profile = profiles.find((p) => p.id === target.qualityProfileId)?.name;
-      this.log(rip, `Added ${m.title} to Radarr: ${target.rootFolderPath}, ${profile} (${target.why})${monitored ? '' : ', not monitored – nothing is downloaded'}`);
+      log(`Added ${m.title} to Radarr: ${target.rootFolderPath}, ${profile} (${target.why})${monitored ? '' : ', not monitored – nothing is downloaded'}`);
     }
+    return media.arrId;
+  }
+  async addToLibrary(rip: DiscRip): Promise<void> {
+    await this.addMediaToLibrary(rip.media, (line) => this.log(rip, line));
     store.saveRips();
     this.emit(rip);
   }

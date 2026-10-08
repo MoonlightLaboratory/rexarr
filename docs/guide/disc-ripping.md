@@ -156,6 +156,13 @@ copies that choice to every episode on the disc.
 Tracks that are not kept are dropped from the ripped MKV by a stream copy (no re-encode), which also shrinks the
 file before it is transcoded: on a Naruto DVD, 6 audio tracks down to 1 took a title from 1.58 GB to 1.21 GB.
 
+## Scanning a barcode instead of waiting for the disc
+
+An experiment (**Settings → Experiments**, off by default): scan the barcode on the case with your phone and Rexarr
+resolves the release, adds it to Radarr / Sonarr and remembers that the disc is coming, so it is already in the
+library when you put it in the drive. See
+[Settings → Experiments](../reference/settings.md#barcode-scanning) — including why the camera needs HTTPS.
+
 ## Adding missing shows and movies
 
 Some discs are for titles you have not added yet. With **Add shows and movies to Sonarr / Radarr when their disc
