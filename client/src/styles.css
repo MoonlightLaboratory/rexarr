@@ -185,7 +185,7 @@
 
 /* ---------- scaffolding ---------- */
 * { box-sizing: border-box; }
-*:focus { outline: none; }
+*:focus, *:focus-visible { outline: none; }
 html, body, #root { height: 100%; margin: 0; }
 body { background: var(--pageBackground); color: var(--textColor); font-family: var(--defaultFontFamily); font-size: var(--defaultFontSize); line-height: var(--lineHeight); }
 a { color: var(--linkColor); text-decoration: none; }
@@ -321,7 +321,6 @@ svg { flex-shrink: 0; }
 .btn.sm svg { width: 13px; height: 13px; }
 .btn.xs { padding: 2px 7px; gap: 4px; font-size: var(--extraSmallFontSize); }
 .btn.xs svg { width: 11px; height: 11px; }
-.btn:focus-visible { outline: 2px solid var(--inputFocusBorderColor); outline-offset: 1px; }
 .btn svg { flex: 0 0 auto; opacity: 0.85; }
 .btn:hover svg { opacity: 1; }
 .btn.icon { padding: 4px 6px; }
@@ -423,7 +422,6 @@ input[type='checkbox']:checked { border-color: var(--primaryColor); background: 
 input[type='checkbox']:checked::after { content: ''; width: 5px; height: 10px; border: solid var(--white); border-width: 0 2px 2px 0; transform: translateY(-1px) rotate(45deg); }
 /* No glow when a tick is clicked; a crisp ring only when it is reached by keyboard. */
 input[type='checkbox']:focus { border-color: var(--inputFocusBorderColor); box-shadow: none; }
-input[type='checkbox']:focus-visible { outline: 2px solid var(--inputFocusBorderColor); outline-offset: 1px; }
 input[type='checkbox']:disabled { opacity: 0.7; cursor: not-allowed; }
 .check { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--textColor); min-height: 21px; font-weight: normal; }
 .check input { margin: 0; }
@@ -1022,8 +1020,6 @@ table.metaTags td.mono { word-break: break-word; }
 @media (max-width: 768px) { .searchHelpText { font-size: 18px; } }
 /* sub-navigation: hover is not the same yellow as the current page */
 .nav .navChildren a.childLink:hover:not(.active) { color: var(--white); }
-/* smooth, consistent focus ring for keyboard users */
-:where(button, a, input, select, textarea):focus-visible { outline: 2px solid var(--inputFocusBorderColor, #66afe9); outline-offset: 1px; }
 /* tables: numbers line up */
 .tbl td.num, .tbl th.num { font-variant-numeric: tabular-nums; }
 .stat .v, .storageMeta, .sizeEstimateValue { font-variant-numeric: tabular-nums; }
