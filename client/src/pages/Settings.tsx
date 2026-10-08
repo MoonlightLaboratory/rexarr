@@ -535,11 +535,11 @@ function NotificationCard({ value, onChange }: { value: NotificationSettings; on
                   <input type="checkbox" checked={t.enabled} onChange={(e) => set(t.id, { enabled: e.target.checked })} /> Enabled
                 </label>
                 <span className="spacer" />
-                <button className="btn sm" disabled={testing === t.id} onClick={() => test(t)}>
-                  {testing === t.id ? <span className="spinner" /> : 'Test'}
+                <button className="btn sm" disabled={testing === t.id} onClick={() => test(t)} title="Send one message with these settings (saved or not)">
+                  {testing === t.id ? <span className="spinner" /> : <Icon.Play />} Test
                 </button>
-                <button className="btn sm danger" onClick={() => onChange({ targets: targets.filter((x) => x.id !== t.id) })}>
-                  Remove
+                <button className="btn sm danger" onClick={() => onChange({ targets: targets.filter((x) => x.id !== t.id) })} title="Remove this notification">
+                  <Icon.Trash /> Remove
                 </button>
               </div>
               {spec.path && (
@@ -588,7 +588,7 @@ function NotificationCard({ value, onChange }: { value: NotificationSettings; on
         })}
         {!targets.length && <div className="help">No targets yet.</div>}
         <button className="btn sm mt" onClick={() => setPicking(true)}>
-          Add notification
+          <Icon.Plus /> Add notification
         </button>
         {picking && (
           <Modal title="Add Notification" onClose={() => setPicking(false)} wide>
@@ -596,14 +596,8 @@ function NotificationCard({ value, onChange }: { value: NotificationSettings; on
               {NOTIFY_KINDS.map((k) => (
                 <button key={k.kind} className="connCard" onClick={() => add(k.kind)}>
                   <span className="connCardName">{k.label}</span>
-                  <a
-                    className="btn sm"
-                    href={k.info}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    More Info
+                  <a className="btn xs" href={k.info} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                    More Info <Icon.ExternalLink />
                   </a>
                 </button>
               ))}

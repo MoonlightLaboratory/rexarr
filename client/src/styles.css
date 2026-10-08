@@ -306,7 +306,7 @@ svg { flex-shrink: 0; }
 .spacer { flex: 1; }
 
 /* ---------- buttons ---------- */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; overflow: hidden; padding: 6px 16px; border: 1px solid var(--defaultBorderColor); border-radius: 4px; background: var(--defaultBackgroundColor); color: var(--defaultButtonTextColor); vertical-align: middle; text-align: center; white-space: nowrap; line-height: normal; cursor: pointer; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; overflow: hidden; padding: 7px 16px; border: 1px solid var(--defaultBorderColor); border-radius: 4px; background: var(--defaultBackgroundColor); color: var(--defaultButtonTextColor); vertical-align: middle; text-align: center; white-space: nowrap; line-height: 1.2; font-weight: 500; cursor: pointer; }
 .btn:hover { border-color: var(--defaultHoverBorderColor); background: var(--defaultHoverBackgroundColor); color: var(--defaultButtonTextColor); text-decoration: none; }
 .btn:disabled { opacity: 0.65; cursor: not-allowed; }
 .btn.primary { border-color: var(--primaryBorderColor); background: var(--primaryBackgroundColor); color: var(--white); }
@@ -317,8 +317,13 @@ svg { flex-shrink: 0; }
 .btn.warning:hover { border-color: var(--warningHoverBorderColor); background: var(--warningHoverBackgroundColor); }
 .btn.danger { border-color: var(--dangerBorderColor); background: var(--dangerBackgroundColor); color: var(--white); }
 .btn.danger:hover { border-color: var(--dangerHoverBorderColor); background: var(--dangerHoverBackgroundColor); }
-.btn.sm { padding: 1px 5px; font-size: var(--smallFontSize); }
-.btn.sm svg { width: 12px; height: 12px; }
+.btn.sm { padding: 5px 11px; gap: 6px; font-size: var(--smallFontSize); }
+.btn.sm svg { width: 13px; height: 13px; }
+.btn.xs { padding: 2px 7px; gap: 4px; font-size: var(--extraSmallFontSize); }
+.btn.xs svg { width: 11px; height: 11px; }
+.btn:focus-visible { outline: 2px solid var(--themeBlue); outline-offset: 1px; }
+.btn svg { flex: 0 0 auto; opacity: 0.85; }
+.btn:hover svg { opacity: 1; }
 .btn.icon { padding: 4px 6px; }
 .btn svg { width: 14px; height: 14px; }
 .btn-group { display: inline-flex; gap: 6px; flex-wrap: wrap; }
