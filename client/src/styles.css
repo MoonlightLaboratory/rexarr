@@ -1150,3 +1150,35 @@ table.metaTags td.mono { word-break: break-word; }
   gap: 4px 14px;
   margin-top: 8px;
 }
+
+/* Add Notification: the *arr connection picker – a grid of cards with a More Info link. */
+.connCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+}
+.connCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: stretch;
+  min-height: 90px;
+  padding: 14px 12px 10px;
+  background: var(--defaultBackgroundColor);
+  border: 1px solid var(--borderColor);
+  border-radius: 4px;
+  color: var(--textColor);
+  cursor: pointer;
+  text-align: center;
+}
+.connCard:hover {
+  border-color: var(--themeBlue);
+}
+.connCardName {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+.connCard .btn {
+  align-self: flex-end;
+  text-decoration: none;
+}

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { NotificationTarget } from '../../shared/types.js';
-import { buildRequest, jobEvent, ripEvent } from './notify.js';
+import { buildRequest, jobEvent, ripEvent, scriptEnv } from './notify.js';
 
 const target = (over: Partial<NotificationTarget>): NotificationTarget => ({
   id: 't', name: 'Test', kind: 'discord', enabled: true, url: '', events: ['encode.done'], ...over,
@@ -72,4 +72,16 @@ test('only a change into a final state is worth sending', () => {
   assert.equal(ripEvent('delivering', 'done'), 'rip.done');
   assert.equal(ripEvent('ripping', 'failed'), 'rip.failed');
   assert.equal(ripEvent('failed', 'failed'), null);
+});
+
+test('a custom script is not an HTTP target, and gets the event in its environment', () => {
+  assert.equal(buildRequest(target({ kind: 'script', path: '/config/notify.sh' }), payload), null, 'nothing to POST');
+  const env = scriptEnv({ event: 'rip.failed', title: 'Disc failed', message: 'Peach Girl: no titles', failed: true });
+  assert.equal(env.REXARR_EVENT, 'rip.failed');
+  assert.equal(env.REXARR_TITLE, 'Disc failed');
+  assert.equal(env.REXARR_MESSAGE, 'Peach Girl: no titles');
+  assert.equal(env.REXARR_FAILED, 'true');
+  assert.match(env.REXARR_AT, /^\d{4}-\d{2}-\d{2}T/);
+  assert.ok(env.REXARR_VERSION.length > 0);
+  assert.equal(scriptEnv(payload).REXARR_FAILED, 'false');
 });

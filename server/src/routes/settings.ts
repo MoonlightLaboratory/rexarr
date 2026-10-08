@@ -62,7 +62,8 @@ const generalSchema = z.object({
 const notificationTargetSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1).max(60),
-  kind: z.enum(['discord', 'slack', 'telegram', 'ntfy', 'gotify', 'pushbullet', 'apprise', 'webhook']),
+  kind: z.enum(['discord', 'slack', 'telegram', 'ntfy', 'gotify', 'pushbullet', 'apprise', 'webhook', 'script']),
+  path: z.string().max(500).optional(),
   url: z.string().max(500).default(''),
   token: z.string().max(300).optional(),
   target: z.string().max(300).optional(),

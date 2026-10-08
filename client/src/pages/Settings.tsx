@@ -1,6 +1,7 @@
 import { URL_BASE } from '../base';
 import { useEffect, useState } from 'react';
 import type { ArrConnection, LocalMediaSettings, LocalScanStatus, NotificationEvent, NotificationKind, NotificationSettings, NotificationTarget, Settings, SlskdConnection, SystemInfo } from '@shared/types';
+import { Modal } from '../components/Modal';
 import { api, fmtAge } from '../api';
 import { useApp } from '../App';
 import { Page, ToolbarButton, ToolbarText } from '../components/Layout';
@@ -463,16 +464,18 @@ function FreacCard({ path, onChange }: { path: string; onChange: (p: string) => 
 
 // ---- Notifications ---------------------------------------------------------------------------
 
-const NOTIFY_KINDS: { kind: NotificationKind; label: string; url?: string; urlHint?: string; token?: string; tokenHint?: string; target?: string; targetHint?: string; help: string }[] = [
-  { kind: 'discord', label: 'Discord', url: 'Webhook URL', urlHint: 'Channel → Edit → Integrations → Webhooks', help: 'Posts as a webhook message in the channel.' },
-  { kind: 'slack', label: 'Slack', url: 'Incoming webhook URL', urlHint: 'https://hooks.slack.com/services/…', help: 'Posts to the channel the webhook belongs to.' },
-  { kind: 'telegram', label: 'Telegram', token: 'Bot token', tokenHint: 'From @BotFather', target: 'Chat id', targetHint: 'Your user or group id', help: 'Sends through your own bot.' },
-  { kind: 'ntfy', label: 'ntfy', url: 'Server or topic URL', urlHint: 'https://ntfy.sh/your-topic', target: 'Topic', targetHint: 'Only when the URL is just the server', token: 'Access token', tokenHint: 'Optional, for protected topics', help: 'Failures are sent with a high priority.' },
-  { kind: 'gotify', label: 'Gotify', url: 'Server URL', urlHint: 'http://gotify:80', token: 'App token', tokenHint: 'Apps → create an application', help: '' },
-  { kind: 'pushbullet', label: 'Pushbullet', token: 'Access token', tokenHint: 'Settings → Account → Access Tokens', help: 'Sends a note to every device on the account.' },
-  { kind: 'apprise', label: 'Apprise API', url: 'Server URL', urlHint: 'http://apprise:8000', token: 'Config key', tokenHint: 'For a saved configuration', target: 'Apprise URLs', targetHint: 'Stateless: discord://…, mailto://…', help: 'Anything Apprise supports, including IFTTT.' },
-  { kind: 'webhook', label: 'Webhook', url: 'URL', urlHint: 'POSTed as JSON: event, title, message, failed, at', help: 'For your own automation.' },
+const NOTIFY_KINDS: { kind: NotificationKind; label: string; info: string; url?: string; urlHint?: string; token?: string; tokenHint?: string; target?: string; targetHint?: string; path?: string; pathHint?: string; help: string }[] = [
+  { kind: 'apprise', label: 'Apprise', info: 'https://github.com/caronc/apprise-api', url: 'Server URL', urlHint: 'http://apprise:8000', token: 'Config key', tokenHint: 'For a saved configuration', target: 'Apprise URLs', targetHint: 'Stateless: discord://…, mailto://…', help: 'Anything Apprise supports, which is most of the internet – email, Signal, Mailgun, SendGrid, IFTTT.' },
+  { kind: 'script', label: 'Custom Script', info: 'https://moonlightlaboratory.github.io/rexarr/reference/settings/#notifications', path: 'Path', pathHint: '/config/scripts/notify.sh', help: 'Run on every event with REXARR_EVENT, REXARR_TITLE, REXARR_MESSAGE, REXARR_FAILED, REXARR_VERSION and REXARR_AT in its environment. It must be executable.' },
+  { kind: 'discord', label: 'Discord', info: 'https://support.discord.com/hc/en-us/articles/228383668', url: 'Webhook URL', urlHint: 'Channel → Edit → Integrations → Webhooks', help: 'Posts as a webhook message in the channel.' },
+  { kind: 'gotify', label: 'Gotify', info: 'https://gotify.net/docs/pushmsg', url: 'Server URL', urlHint: 'http://gotify:80', token: 'App token', tokenHint: 'Apps → create an application', help: '' },
+  { kind: 'ntfy', label: 'ntfy', info: 'https://docs.ntfy.sh/publish/', url: 'Server or topic URL', urlHint: 'https://ntfy.sh/your-topic', target: 'Topic', targetHint: 'Only when the URL is just the server', token: 'Access token', tokenHint: 'Optional, for protected topics', help: 'Failures are sent with a high priority.' },
+  { kind: 'pushbullet', label: 'Pushbullet', info: 'https://docs.pushbullet.com/#create-push', token: 'Access token', tokenHint: 'Settings → Account → Access Tokens', help: 'Sends a note to every device on the account.' },
+  { kind: 'slack', label: 'Slack', info: 'https://api.slack.com/messaging/webhooks', url: 'Incoming webhook URL', urlHint: 'https://hooks.slack.com/services/…', help: 'Posts to the channel the webhook belongs to.' },
+  { kind: 'telegram', label: 'Telegram', info: 'https://core.telegram.org/bots#how-do-i-create-a-bot', token: 'Bot token', tokenHint: 'From @BotFather', target: 'Chat id', targetHint: 'Your user or group id', help: 'Sends through your own bot.' },
+  { kind: 'webhook', label: 'Webhook', info: 'https://moonlightlaboratory.github.io/rexarr/reference/settings/#notifications', url: 'URL', urlHint: 'POSTed as JSON: event, title, message, failed, at', help: 'For your own automation.' },
 ];
+
 
 const NOTIFY_EVENTS: { event: NotificationEvent; label: string }[] = [
   { event: 'encode.done', label: 'Encode finished' },
@@ -487,13 +490,16 @@ function NotificationCard({ value, onChange }: { value: NotificationSettings; on
   const [tested, setTested] = useState<Record<string, { ok: boolean; msg: string }>>({});
   const [testing, setTesting] = useState<string | null>(null);
   const set = (id: string, patch: Partial<NotificationTarget>) => onChange({ targets: targets.map((t) => (t.id === id ? { ...t, ...patch } : t)) });
-  const add = () =>
+  const [picking, setPicking] = useState(false);
+  const add = (kind: NotificationKind) => {
+    setPicking(false);
     onChange({
       targets: [
         ...targets,
-        { id: `n${Date.now().toString(36)}`, name: 'Discord', kind: 'discord', enabled: true, url: '', events: ['encode.failed', 'rip.done', 'rip.failed'] },
+        { id: `n${Date.now().toString(36)}`, name: NOTIFY_KINDS.find((k) => k.kind === kind)!.label, kind, enabled: true, url: '', events: ['encode.failed', 'rip.done', 'rip.failed'] },
       ],
     });
+  };
   const test = async (t: NotificationTarget) => {
     setTesting(t.id);
     try {
@@ -524,13 +530,7 @@ function NotificationCard({ value, onChange }: { value: NotificationSettings; on
             <div key={t.id} className="notifyTarget">
               <div className="inline">
                 <input type="text" value={t.name} onChange={(e) => set(t.id, { name: e.target.value })} placeholder="Name" style={{ maxWidth: 160 }} />
-                <select value={t.kind} onChange={(e) => set(t.id, { kind: e.target.value as NotificationKind })}>
-                  {NOTIFY_KINDS.map((k) => (
-                    <option key={k.kind} value={k.kind}>
-                      {k.label}
-                    </option>
-                  ))}
-                </select>
+                <span className="badge">{spec.label}</span>
                 <label className="check">
                   <input type="checkbox" checked={t.enabled} onChange={(e) => set(t.id, { enabled: e.target.checked })} /> Enabled
                 </label>
@@ -542,6 +542,12 @@ function NotificationCard({ value, onChange }: { value: NotificationSettings; on
                   Remove
                 </button>
               </div>
+              {spec.path && (
+                <div className="field">
+                  <label>{spec.path}</label>
+                  <input type="text" value={t.path ?? ''} onChange={(e) => set(t.id, { path: e.target.value })} placeholder={spec.pathHint} autoComplete="off" />
+                </div>
+              )}
               {spec.url && (
                 <div className="field">
                   <label>{spec.url}</label>
@@ -581,9 +587,29 @@ function NotificationCard({ value, onChange }: { value: NotificationSettings; on
           );
         })}
         {!targets.length && <div className="help">No targets yet.</div>}
-        <button className="btn sm mt" onClick={add}>
+        <button className="btn sm mt" onClick={() => setPicking(true)}>
           Add notification
         </button>
+        {picking && (
+          <Modal title="Add Notification" onClose={() => setPicking(false)} wide>
+            <div className="connCards">
+              {NOTIFY_KINDS.map((k) => (
+                <button key={k.kind} className="connCard" onClick={() => add(k.kind)}>
+                  <span className="connCardName">{k.label}</span>
+                  <a
+                    className="btn sm"
+                    href={k.info}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    More Info
+                  </a>
+                </button>
+              ))}
+            </div>
+          </Modal>
+        )}
       </div>
     </div>
   );

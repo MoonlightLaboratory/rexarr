@@ -1069,7 +1069,7 @@ export interface ScheduledTask {
 
 /** One published release, as System → Updates lists it. */
 /** Where a notification goes. */
-export type NotificationKind = 'discord' | 'slack' | 'telegram' | 'ntfy' | 'gotify' | 'pushbullet' | 'apprise' | 'webhook';
+export type NotificationKind = 'discord' | 'slack' | 'telegram' | 'ntfy' | 'gotify' | 'pushbullet' | 'apprise' | 'webhook' | 'script';
 
 /** What is worth telling you about. */
 export type NotificationEvent = 'encode.done' | 'encode.failed' | 'rip.done' | 'rip.failed' | 'update.available';
@@ -1086,6 +1086,8 @@ export interface NotificationTarget {
   token?: string;
   /** Telegram chat id, or the Apprise URL list for a stateless Apprise server. */
   target?: string;
+  /** Custom script: the program to run, with the event in its environment. */
+  path?: string;
   /** Only these events are sent; an empty list sends nothing. */
   events: NotificationEvent[];
 }

@@ -6,6 +6,9 @@
  * written to System → Events and swallowed, and a target that is off or not subscribed is skipped before any work.
  */
 import type { Job, DiscRip, NotificationEvent, NotificationTarget } from '../../shared/types.js';
+import { execFile } from 'node:child_process';
+import fs from 'node:fs';
+import { APP_VERSION } from './config.js';
 import { bus } from './events.js';
 import { httpFetch } from './net.js';
 import { store } from './store.js';
@@ -65,6 +68,8 @@ export function buildRequest(t: NotificationTarget, p: NotifyPayload): { url: st
       if (t.target) body.urls = t.target;
       return json(t.token ? `${url}/notify/${encodeURIComponent(t.token)}` : `${url}/notify`, body);
     }
+    case 'script':
+      return null; // not an HTTP target – see runScript
     case 'webhook':
       return url ? json(url, { event: p.event, title: p.title, message: p.message, failed: p.failed === true, at: new Date().toISOString() }) : null;
     default:
@@ -72,7 +77,38 @@ export function buildRequest(t: NotificationTarget, p: NotifyPayload): { url: st
   }
 }
 
+/** What a custom script is told, on top of the environment it inherits. */
+export function scriptEnv(p: NotifyPayload): Record<string, string> {
+  return {
+    REXARR_EVENT: p.event,
+    REXARR_TITLE: p.title,
+    REXARR_MESSAGE: p.message,
+    REXARR_FAILED: p.failed ? 'true' : 'false',
+    REXARR_VERSION: APP_VERSION,
+    REXARR_AT: new Date().toISOString(),
+  };
+}
+
+/** Run the program, give it 30 seconds, and report a non-zero exit or its stderr as the failure. */
+function runScript(path: string, p: NotifyPayload): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (!path) return resolve('no script path is set');
+    if (!fs.existsSync(path)) return resolve(`${path} does not exist`);
+    try {
+      fs.accessSync(path, fs.constants.X_OK);
+    } catch {
+      return resolve(`${path} is not executable (chmod +x it)`);
+    }
+    execFile(path, [], { env: { ...process.env, ...scriptEnv(p) }, timeout: 30_000, maxBuffer: 1024 * 1024 }, (err, _out, stderr) => {
+      if (!err) return resolve(null);
+      const detail = (stderr || '').trim().split('\n').slice(-1)[0];
+      resolve(detail ? `${err.message.split('\n')[0]} – ${detail}` : err.message.split('\n')[0]);
+    });
+  });
+}
+
 async function send(t: NotificationTarget, p: NotifyPayload): Promise<string | null> {
+  if (t.kind === 'script') return runScript((t.path ?? '').trim(), p);
   const req = buildRequest(t, p);
   if (!req) return `${t.kind} target "${t.name}" is missing its URL or token`;
   try {

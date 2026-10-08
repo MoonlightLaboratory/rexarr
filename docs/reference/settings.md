@@ -46,8 +46,8 @@ Everything on these pages is also available as JSON: `GET /api/settings`, `PUT /
 ### Notifications
 
 Rexarr can tell you when an **encode finished or failed**, when a **disc finished or failed**, and when an
-**update is available**. Add as many targets as you like; each one chooses its own events, so the phone can get
-failures only while a channel gets everything.
+**update is available**. **Add notification** opens a picker of the kinds below; add as many as you like, and each
+one chooses its own events, so the phone can get failures only while a channel gets everything.
 
 | Target | What it needs |
 | --- | --- |
@@ -59,10 +59,16 @@ failures only while a channel gets everything.
 | Pushbullet | an access token |
 | Apprise API | the server URL, plus a config key for a saved configuration or the Apprise URLs for a stateless one — this is the way to reach IFTTT and everything else Apprise supports |
 | Webhook | a URL of your own. It receives `{ event, title, message, failed, at }` as JSON |
+| Custom Script | the path to an executable program. It is run on each event with `REXARR_EVENT`, `REXARR_TITLE`, `REXARR_MESSAGE`, `REXARR_FAILED`, `REXARR_VERSION` and `REXARR_AT` in its environment, and is given 30 seconds; a non-zero exit, a missing file or one that is not executable is reported |
 
 **Test** sends one message with the values on screen, saved or not, and says what the target answered. A target
 that fails later is not retried: the reason is written to **System → Events**, so a broken webhook never holds up
 an encode or a rip.
+
+!!! warning "A custom script runs as Rexarr"
+    Anyone who can reach the Settings page can point this at any program on the machine and have Rexarr run it
+    with Rexarr's own permissions. On an instance other people can reach, turn on authentication
+    (Settings → General → Security) before you add one.
 
 ## Encoding
 
