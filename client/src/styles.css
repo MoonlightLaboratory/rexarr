@@ -399,7 +399,20 @@ svg { flex-shrink: 0; }
 input[type='text'], input[type='number'], input[type='password'], input[type='search'], select, textarea {
   padding: 6px 16px; width: 100%; height: 35px; border: 1px solid var(--inputBorderColor); border-radius: 4px; background: var(--inputBackgroundColor); box-shadow: inset 0 1px 1px var(--inputBoxShadowColor); color: var(--textColor);
 }
-select { padding: 0 11px; }
+/* Native selects draw their own arrow with their own spacing, which never matched the inputs beside
+   them. Draw ours instead: same box as an input, chevron on the right, room for it in the padding. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0 32px 0 11px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 13px 13px;
+  cursor: pointer;
+}
+select:hover { border-color: var(--inputFocusBorderColor); }
+select::-ms-expand { display: none; }
 textarea { height: auto; min-height: 70px; resize: vertical; }
 input:focus, select:focus, textarea:focus { border-color: var(--inputFocusBorderColor); box-shadow: inset 0 1px 1px var(--inputBoxShadowColor), 0 0 8px var(--inputFocusBoxShadowColor); }
 input:disabled, select:disabled { opacity: 0.7; cursor: not-allowed; background: var(--inputReadOnlyBackgroundColor); }
