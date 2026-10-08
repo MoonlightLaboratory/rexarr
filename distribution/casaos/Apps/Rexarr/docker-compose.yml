@@ -105,8 +105,8 @@ x-casaos:
     - https://cdn.jsdelivr.net/gh/MoonlightLaboratory/rexarr@main/distribution/casaos/Apps/Rexarr/screenshot-2.png
     - https://cdn.jsdelivr.net/gh/MoonlightLaboratory/rexarr@main/distribution/casaos/Apps/Rexarr/screenshot-3.png
   index: /
-  version: "0.1.7.0"
-  update_at: "2026-10-05"
+  version: "0.1.7.2"
+  update_at: "2026-10-08"
   port_map: "3939"
   scheme: http
   website: https://moonlightlaboratory.github.io/rexarr/
