@@ -62,12 +62,37 @@ The dialog lists the optical devices it finds. Rexarr then checks the tray itsel
 `drutil`), reads the label with `blkid` / `diskutil`, and rips through MakeMKV's `dev:` source. In Docker pass both
 nodes (`--device /dev/sr0 --device /dev/sg0`). A configured drive that is missing shows up under **System → Status**.
 
-Ejecting uses `drutil` on macOS and `eject` on Linux. One drive is checked at a time, and never while MakeMKV is
-using a disc.
+Ejecting uses `drutil` on macOS and `eject` on Linux. Drives are checked one at a time, and never while MakeMKV is
+using a disc — which does not stop several discs ripping at once; see [Several drives](#several-drives).
 
 !!! tip "macOS mounts DVDs automatically"
     macOS mounts a DVD as soon as it is inserted, which leaves MakeMKV only its "OS access mode" — that fails on
     most discs. Rexarr unmounts the volume (the disc stays in the drive) before scanning and ripping.
+
+### Several drives
+
+Rexarr rips from as many drives as you have, at the same time:
+
+- Every loaded drive gets **its own entry** on the Discs page, and each one is scanned without waiting for the
+  others. With *Start ripping automatically once identified* on, each disc starts ripping as soon as **its own**
+  scan is ready.
+- **Rips run in parallel.** Each one writes into a folder of its own, because MakeMKV names the files itself and
+  two rips must not land in the same place.
+- A disc that has finished and is still in the tray is not ripped again until it is swapped, and a drive whose
+  label reads blank for a moment after reconnecting does not produce a second entry.
+
+Two things are deliberately not parallel:
+
+- **Listing the drives.** Asking MakeMKV what drives exist makes it query every one of them, which disturbs a scan
+  or a rip in flight, so Rexarr keeps the list it already has until the drives are idle. A disc put in while
+  another is ripping can therefore take a poll or two to appear.
+- **Encoding.** However many discs rip at once, their transcodes queue behind
+  **Settings → Encoding → FFmpeg → Encodes at a time**. On a four-core machine, ripping two discs while one encode
+  runs is usually the sensible shape; see [Requirements](../getting-started/requirements.md#hardware).
+
+In Docker, pass **both nodes of each drive**: `--device /dev/sr0 --device /dev/sg0 --device /dev/sr1 --device
+/dev/sg1`. Drives on the same USB bus share its bandwidth, so two rips from one hub are slower than two from
+separate ports.
 
 ### Virtual drives
 
