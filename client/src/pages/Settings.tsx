@@ -995,14 +995,14 @@ export function SettingsPage() {
             </div>
           </div>
           <div className="subhead">Where rips go</div>
-          <div className="grid-2">
-            <div className="field">
+          <div>
+            <div className="field stack">
               <label>Rip directory</label>
               <input type="text" value={s.disc.ripDirectory} onChange={(e) => setS({ ...s, disc: { ...s.disc, ripDirectory: e.target.value } })} placeholder="Empty = <data dir>/rips" />
               <div className="help">Where finished, compressed rips go for Radarr / Sonarr to import – they must be able to see it (add a path mapping if they see it under another path). Discs are ripped and encoded in Rexarr's local cache first, so raw files never appear here.</div>
               <RipDirectoryCheck saved={settings?.disc.ripDirectory ?? ''} current={s.disc.ripDirectory} />
             </div>
-            <div className="field">
+            <div className="field stack">
               <label className="check">
                 <input type="checkbox" checked={s.disc.autoImport !== false} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoImport: e.target.checked } })} /> Import finished rips automatically
               </label>

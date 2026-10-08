@@ -373,7 +373,7 @@ svg { flex-shrink: 0; }
 .legend:first-child, .page-b > :first-child.legend { margin-top: 0; }
 
 /* ---------- forms ---------- */
-.field { display: grid; grid-template-columns: var(--formLabelWidth) minmax(0, 1fr); column-gap: 20px; row-gap: 0; align-items: start; margin-bottom: 20px; max-width: 800px; }
+.field { display: grid; grid-template-columns: var(--formLabelWidth) minmax(0, 1fr); column-gap: 20px; row-gap: 0; align-items: start; align-content: start; margin-bottom: 20px; max-width: 800px; }
 .field > label { grid-column: 1; display: flex; justify-content: flex-end; padding-top: 8px; min-height: 35px; text-align: end; font-weight: bold; }
 .field > *:not(label) { grid-column: 2; }
 .field .help { margin-top: 5px; color: var(--helpTextColor); line-height: 20px; font-size: 13px; }
