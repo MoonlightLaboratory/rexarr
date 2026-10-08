@@ -14,7 +14,7 @@ discs. The pipelines overlap; everything either side of them differs.
 - Handles **any** disc: video, audio CD (through `abcde`), and data discs as ISO backups.
 - Decides movie vs TV and names the folder from [OMDb](https://www.omdbapi.com/).
 - Rips with **MakeMKV or HandBrake**, main feature or everything, and transcodes with HandBrake presets.
-- Sends **notifications** — IFTTT, Pushbullet, Slack, Discord and more.
+- Sends **notifications** on more of the pipeline than Rexarr does, through more services.
 - Years of use behind it, a large community, and a Discord. Rexarr is in beta.
 
 **Where Rexarr differs on the same job**
@@ -35,10 +35,11 @@ through Radarr / Sonarr / Prowlarr, [auto-transcoding](guide/auto-transcode.md) 
 import, and [music](guide/music.md) through Lidarr — CD ripping with MusicBrainz tags, single-file albums with a cue
 sheet split so Lidarr can import them, fre:ac profiles.
 
-**Honest caveats**: Rexarr has no data-disc ISO backup and no notification integrations yet — both are on the
-[roadmap](roadmap.md) — and its published Docker image cannot rip on its own because MakeMKV may not be
-redistributed, so you [build the image with it](guide/makemkv-in-docker.md) or run on the host. ARM is the steadier
-ripper.
+**Honest caveats**: Rexarr has no data-disc ISO backup — that is on the [roadmap](roadmap.md) — and its published
+Docker image cannot rip on its own because MakeMKV may not be redistributed, so you
+[build the image with it](guide/makemkv-in-docker.md) or run on the host. ARM is the steadier ripper. Rexarr does
+send [notifications](reference/settings.md#notifications) now: Discord, Slack, Telegram, ntfy, Gotify, Pushbullet,
+an Apprise server or a script of your own.
 
 !!! tip "Pick one per drive"
     Only one program can hold a disc at a time. If ARM already owns your drive, turn Rexarr's disc detection off

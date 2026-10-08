@@ -35,15 +35,6 @@ detect that there are no titles, read the disc, verify the copy, and name it som
 
 *Today:* back it up with MakeMKV's own backup mode, `dd`, or ARM.
 
-## Smaller
-
-### More to notify about
-
-[Notifications](reference/settings.md#notifications) ship in 0.1.7.1 — Discord, Slack, Telegram, ntfy, Gotify,
-Pushbullet, an Apprise server or a plain webhook — for encodes, discs and new releases. What they do not cover
-yet: a health check going red (a share that dropped, ffmpeg gone missing), a delivery that needed fixing by hand,
-and a daily summary rather than one message per job.
-
 ## Ask for something else
 
 Open a [feature request](https://github.com/MoonlightLaboratory/rexarr/issues/new?template=feature_request.yml) —
