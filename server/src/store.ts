@@ -62,6 +62,7 @@ settingsP.value = {
   slskd: { ...DEFAULT_SETTINGS.slskd, ...(settingsP.value.slskd ?? {}) },
   localMedia: { ...DEFAULT_SETTINGS.localMedia, ...(settingsP.value.localMedia ?? {}) },
   musicbrainz: { ...DEFAULT_SETTINGS.musicbrainz, ...(settingsP.value.musicbrainz ?? {}) },
+  notifications: { targets: settingsP.value.notifications?.targets ?? [] },
   disc: { ...DEFAULT_SETTINGS.disc, ...(settingsP.value.disc ?? {}), cd: { ...DEFAULT_SETTINGS.disc.cd, ...(settingsP.value.disc?.cd ?? {}) } },
   anidb: { ...DEFAULT_SETTINGS.anidb, ...(settingsP.value.anidb ?? {}) },
   transcoding: { ...DEFAULT_SETTINGS.transcoding, ...(settingsP.value.transcoding ?? {}) },

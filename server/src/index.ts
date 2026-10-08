@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { APP_VERSION, CLIENT_DIST, CONFIG_DIR, MIGRATED, PATHS } from './config.js';
 import { checkUpdates } from './updates.js';
+import { startNotifications } from './notify.js';
 import { registerAuth } from './auth.js';
 import { effectiveHost, listenHost } from './general.js';
 import { onLogLevel, onRestart, onShutdown, running, sslFingerprint } from './runtime.js';
@@ -243,6 +244,8 @@ bus.on('event', (ev) => {
   if (ev.type === 'job' || ev.type === 'rip') updateSleep();
 });
 if (MIGRATED.length) appEvents.add('info', 'Storage', `Moved to the new storage layout: ${MIGRATED.join(', ')}`);
+
+startNotifications();
 
 // ---- scheduled tasks (System → Tasks)
 tasks.register({ id: 'check-health', name: 'Check health', interval: () => 300, run: async () => { const r = await runHealthChecks(); return r.length ? `${r.length} issue(s)` : 'no issues'; } });

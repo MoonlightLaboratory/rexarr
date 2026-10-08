@@ -642,6 +642,8 @@ export interface Settings {
   slskd: SlskdConnection;
   /** MusicBrainz / Cover Art Archive lookups (CDs, music metadata). */
   musicbrainz: { enabled: boolean };
+  /** Discord, Slack, ntfy and friends: told when an encode or a rip finishes or fails. */
+  notifications: NotificationSettings;
   ffmpegPath: string;
   ffprobePath: string;
   /** fre:ac command line encoder (freaccmd) for music profiles and CD ripping. Empty = auto-detect. */
@@ -1066,6 +1068,32 @@ export interface ScheduledTask {
 }
 
 /** One published release, as System → Updates lists it. */
+/** Where a notification goes. */
+export type NotificationKind = 'discord' | 'slack' | 'telegram' | 'ntfy' | 'gotify' | 'pushbullet' | 'apprise' | 'webhook';
+
+/** What is worth telling you about. */
+export type NotificationEvent = 'encode.done' | 'encode.failed' | 'rip.done' | 'rip.failed' | 'update.available';
+
+export interface NotificationTarget {
+  id: string;
+  /** Shown in Settings and in the event log. */
+  name: string;
+  kind: NotificationKind;
+  enabled: boolean;
+  /** Webhook or server URL: Discord, Slack, ntfy, Gotify, Apprise and plain webhooks. */
+  url: string;
+  /** Gotify app token, Pushbullet access token, Telegram bot token, Apprise config key. */
+  token?: string;
+  /** Telegram chat id, or the Apprise URL list for a stateless Apprise server. */
+  target?: string;
+  /** Only these events are sent; an empty list sends nothing. */
+  events: NotificationEvent[];
+}
+
+export interface NotificationSettings {
+  targets: NotificationTarget[];
+}
+
 export interface ReleaseInfo {
   /** major.backend.feature.minor, without the leading "v". */
   version: string;

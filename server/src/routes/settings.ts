@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { testTarget } from '../notify.js';
 import type { ArrStatus, Settings } from '../../../shared/types.js';
 import { store } from '../store.js';
 import { Radarr } from '../arr/radarr.js';
@@ -56,6 +57,16 @@ const generalSchema = z.object({
   logging: z.object({ level: z.enum(['info', 'debug', 'trace']), sizeLimitMb: z.number().int().min(1).max(100) }),
   updates: z.object({ branch: z.string().max(60), automatic: z.boolean(), mechanism: z.enum(['builtIn', 'script', 'docker', 'external']), scriptPath: z.string().max(500) }),
   backups: z.object({ folder: z.string().max(500), intervalDays: z.number().int().min(1).max(7), retentionDays: z.number().int().min(1).max(90) }),
+});
+
+const notificationTargetSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1).max(60),
+  kind: z.enum(['discord', 'slack', 'telegram', 'ntfy', 'gotify', 'pushbullet', 'apprise', 'webhook']),
+  url: z.string().max(500).default(''),
+  token: z.string().max(300).optional(),
+  target: z.string().max(300).optional(),
+  events: z.array(z.enum(['encode.done', 'encode.failed', 'rip.done', 'rip.failed', 'update.available'])).optional(),
 });
 
 export const settingsSchema = z.object({
@@ -115,6 +126,20 @@ export const settingsSchema = z.object({
     .object({ enabled: z.boolean(), url: z.string(), apiKey: z.string(), downloadsPath: z.string().default(''), maxQueueLength: z.number().int().min(0).max(10000).default(50), searchTimeoutSeconds: z.number().int().min(5).max(60).default(15) })
     .default({ enabled: false, url: 'http://localhost:5030', apiKey: '', downloadsPath: '', maxQueueLength: 50, searchTimeoutSeconds: 15 }),
   musicbrainz: z.object({ enabled: z.boolean() }).default({ enabled: true }),
+  notifications: z
+    .object({
+      targets: z
+        .array(
+          notificationTargetSchema.extend({
+            id: z.string().min(1).max(60),
+            enabled: z.boolean(),
+            events: z.array(z.enum(['encode.done', 'encode.failed', 'rip.done', 'rip.failed', 'update.available'])).default([]),
+          }),
+        )
+        .max(20)
+        .default([]),
+    })
+    .default({ targets: [] }),
   freacPath: z.string().default(''),
   ffmpegPath: z.string().min(1),
   ffprobePath: z.string().min(1),
@@ -180,6 +205,7 @@ function mergeGeneral(next: z.infer<typeof generalSchema> | undefined, current: 
   };
 }
 
+
 export default async function settingsRoutes(app: FastifyInstance) {
   app.get('/api/settings', async () => redact(store.settings));
 
@@ -234,6 +260,14 @@ export default async function settingsRoutes(app: FastifyInstance) {
     const body = conn.partial().safeParse(req.body ?? {});
     const c = { ...store.settings[name], ...(body.success ? body.data : {}) };
     return testConnection(name, c);
+  });
+
+  /** Send one test message to a target the user is editing (it does not have to be saved yet). */
+  app.post('/api/notifications/test', async (req, reply) => {
+    const body = notificationTargetSchema.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: body.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') });
+    const error = await testTarget({ ...body.data, id: body.data.id ?? 'test', enabled: true, events: body.data.events ?? [] });
+    return error ? reply.code(400).send({ error }) : { ok: true };
   });
 
   app.get('/api/settings/arr-options', async () => {

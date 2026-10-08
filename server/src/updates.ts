@@ -10,6 +10,7 @@ import type { ReleaseInfo, UpdateStatus } from '../../shared/types.js';
 import { APP_VERSION, PACKAGE_INFO, REPO_URL } from './config.js';
 import { IN_DOCKER } from './general.js';
 import { appEvents } from './system.js';
+import { notifyUpdate } from './notify.js';
 import { httpFetch } from './net.js';
 import { store } from './store.js';
 
@@ -98,6 +99,7 @@ export async function checkUpdates(force = false): Promise<UpdateStatus> {
   if (newest && announced !== newest.version) {
     announced = newest.version;
     appEvents.add('info', 'Updates', `Rexarr ${newest.version} is available (this is ${APP_VERSION})`);
+    void notifyUpdate(newest.version, APP_VERSION);
   }
   return status(releases, lastError);
 }

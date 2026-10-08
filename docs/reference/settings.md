@@ -41,6 +41,28 @@ Everything on these pages is also available as JSON: `GET /api/settings`, `PUT /
 | fre:ac | `freaccmd` path | empty = auto-detect |
 | Local media | extra folders, scan interval, folder kinds | see [Local media](../guide/local-media.md) |
 | MusicBrainz | on / off | CD and album lookups, Cover Art Archive |
+| Notifications | any number of targets | see below |
+
+### Notifications
+
+Rexarr can tell you when an **encode finished or failed**, when a **disc finished or failed**, and when an
+**update is available**. Add as many targets as you like; each one chooses its own events, so the phone can get
+failures only while a channel gets everything.
+
+| Target | What it needs |
+| --- | --- |
+| Discord | the channel's webhook URL (Channel → Edit → Integrations → Webhooks) |
+| Slack | an incoming webhook URL |
+| Telegram | a bot token from @BotFather and the chat id |
+| ntfy | the topic URL (`https://ntfy.sh/your-topic`), or the server URL and the topic separately; an access token for protected topics. Failures are sent with a high priority |
+| Gotify | the server URL and an app token |
+| Pushbullet | an access token |
+| Apprise API | the server URL, plus a config key for a saved configuration or the Apprise URLs for a stateless one — this is the way to reach IFTTT and everything else Apprise supports |
+| Webhook | a URL of your own. It receives `{ event, title, message, failed, at }` as JSON |
+
+**Test** sends one message with the values on screen, saved or not, and says what the target answered. A target
+that fails later is not retried: the reason is written to **System → Events**, so a broken webhook never holds up
+an encode or a rip.
 
 ## Encoding
 

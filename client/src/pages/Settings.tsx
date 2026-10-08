@@ -1,6 +1,6 @@
 import { URL_BASE } from '../base';
 import { useEffect, useState } from 'react';
-import type { ArrConnection, LocalMediaSettings, LocalScanStatus, Settings, SlskdConnection, SystemInfo } from '@shared/types';
+import type { ArrConnection, LocalMediaSettings, LocalScanStatus, NotificationEvent, NotificationKind, NotificationSettings, NotificationTarget, Settings, SlskdConnection, SystemInfo } from '@shared/types';
 import { api, fmtAge } from '../api';
 import { useApp } from '../App';
 import { Page, ToolbarButton, ToolbarText } from '../components/Layout';
@@ -461,6 +461,134 @@ function FreacCard({ path, onChange }: { path: string; onChange: (p: string) => 
   );
 }
 
+// ---- Notifications ---------------------------------------------------------------------------
+
+const NOTIFY_KINDS: { kind: NotificationKind; label: string; url?: string; urlHint?: string; token?: string; tokenHint?: string; target?: string; targetHint?: string; help: string }[] = [
+  { kind: 'discord', label: 'Discord', url: 'Webhook URL', urlHint: 'Channel → Edit → Integrations → Webhooks', help: 'Posts as a webhook message in the channel.' },
+  { kind: 'slack', label: 'Slack', url: 'Incoming webhook URL', urlHint: 'https://hooks.slack.com/services/…', help: 'Posts to the channel the webhook belongs to.' },
+  { kind: 'telegram', label: 'Telegram', token: 'Bot token', tokenHint: 'From @BotFather', target: 'Chat id', targetHint: 'Your user or group id', help: 'Sends through your own bot.' },
+  { kind: 'ntfy', label: 'ntfy', url: 'Server or topic URL', urlHint: 'https://ntfy.sh/your-topic', target: 'Topic', targetHint: 'Only when the URL is just the server', token: 'Access token', tokenHint: 'Optional, for protected topics', help: 'Failures are sent with a high priority.' },
+  { kind: 'gotify', label: 'Gotify', url: 'Server URL', urlHint: 'http://gotify:80', token: 'App token', tokenHint: 'Apps → create an application', help: '' },
+  { kind: 'pushbullet', label: 'Pushbullet', token: 'Access token', tokenHint: 'Settings → Account → Access Tokens', help: 'Sends a note to every device on the account.' },
+  { kind: 'apprise', label: 'Apprise API', url: 'Server URL', urlHint: 'http://apprise:8000', token: 'Config key', tokenHint: 'For a saved configuration', target: 'Apprise URLs', targetHint: 'Stateless: discord://…, mailto://…', help: 'Anything Apprise supports, including IFTTT.' },
+  { kind: 'webhook', label: 'Webhook', url: 'URL', urlHint: 'POSTed as JSON: event, title, message, failed, at', help: 'For your own automation.' },
+];
+
+const NOTIFY_EVENTS: { event: NotificationEvent; label: string }[] = [
+  { event: 'encode.done', label: 'Encode finished' },
+  { event: 'encode.failed', label: 'Encode failed' },
+  { event: 'rip.done', label: 'Disc finished' },
+  { event: 'rip.failed', label: 'Disc failed' },
+  { event: 'update.available', label: 'Update available' },
+];
+
+function NotificationCard({ value, onChange }: { value: NotificationSettings; onChange: (v: NotificationSettings) => void }) {
+  const targets = value?.targets ?? [];
+  const [tested, setTested] = useState<Record<string, { ok: boolean; msg: string }>>({});
+  const [testing, setTesting] = useState<string | null>(null);
+  const set = (id: string, patch: Partial<NotificationTarget>) => onChange({ targets: targets.map((t) => (t.id === id ? { ...t, ...patch } : t)) });
+  const add = () =>
+    onChange({
+      targets: [
+        ...targets,
+        { id: `n${Date.now().toString(36)}`, name: 'Discord', kind: 'discord', enabled: true, url: '', events: ['encode.failed', 'rip.done', 'rip.failed'] },
+      ],
+    });
+  const test = async (t: NotificationTarget) => {
+    setTesting(t.id);
+    try {
+      await api.testNotification(t);
+      setTested((x) => ({ ...x, [t.id]: { ok: true, msg: 'Sent' } }));
+    } catch (e) {
+      setTested((x) => ({ ...x, [t.id]: { ok: false, msg: (e as Error).message } }));
+    } finally {
+      setTesting(null);
+    }
+  };
+  return (
+    <div className="card">
+      <div className="card-h">
+        Notifications
+        <span className="spacer" />
+        <span className="small dim">optional</span>
+      </div>
+      <div className="card-b">
+        <div className="help mb">
+          Told when an encode or a disc finishes or fails, and when a new Rexarr is out. Everything is also in
+          System → Events.
+        </div>
+        {targets.map((t) => {
+          const spec = NOTIFY_KINDS.find((k) => k.kind === t.kind) ?? NOTIFY_KINDS[0];
+          const result = tested[t.id];
+          return (
+            <div key={t.id} className="notifyTarget">
+              <div className="inline">
+                <input type="text" value={t.name} onChange={(e) => set(t.id, { name: e.target.value })} placeholder="Name" style={{ maxWidth: 160 }} />
+                <select value={t.kind} onChange={(e) => set(t.id, { kind: e.target.value as NotificationKind })}>
+                  {NOTIFY_KINDS.map((k) => (
+                    <option key={k.kind} value={k.kind}>
+                      {k.label}
+                    </option>
+                  ))}
+                </select>
+                <label className="check">
+                  <input type="checkbox" checked={t.enabled} onChange={(e) => set(t.id, { enabled: e.target.checked })} /> Enabled
+                </label>
+                <span className="spacer" />
+                <button className="btn sm" disabled={testing === t.id} onClick={() => test(t)}>
+                  {testing === t.id ? <span className="spinner" /> : 'Test'}
+                </button>
+                <button className="btn sm danger" onClick={() => onChange({ targets: targets.filter((x) => x.id !== t.id) })}>
+                  Remove
+                </button>
+              </div>
+              {spec.url && (
+                <div className="field">
+                  <label>{spec.url}</label>
+                  <input type="text" value={t.url} onChange={(e) => set(t.id, { url: e.target.value })} placeholder={spec.urlHint} autoComplete="off" />
+                </div>
+              )}
+              {spec.token && (
+                <div className="field">
+                  <label>{spec.token}</label>
+                  <input type="password" value={t.token ?? ''} onChange={(e) => set(t.id, { token: e.target.value })} placeholder={spec.tokenHint} autoComplete="off" />
+                </div>
+              )}
+              {spec.target && (
+                <div className="field">
+                  <label>{spec.target}</label>
+                  <input type="text" value={t.target ?? ''} onChange={(e) => set(t.id, { target: e.target.value })} placeholder={spec.targetHint} autoComplete="off" />
+                </div>
+              )}
+              <div className="inline wrap">
+                {NOTIFY_EVENTS.map((e) => (
+                  <label key={e.event} className="check">
+                    <input
+                      type="checkbox"
+                      checked={t.events?.includes(e.event) ?? false}
+                      onChange={(ev) => set(t.id, { events: ev.target.checked ? [...(t.events ?? []), e.event] : (t.events ?? []).filter((x) => x !== e.event) })}
+                    />{' '}
+                    {e.label}
+                  </label>
+                ))}
+              </div>
+              {(spec.help || result) && (
+                <div className="help">
+                  {result ? <span style={{ color: result.ok ? 'var(--successColor)' : 'var(--dangerColor)' }}>{result.msg}</span> : spec.help}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {!targets.length && <div className="help">No targets yet.</div>}
+        <button className="btn sm mt" onClick={add}>
+          Add notification
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ArrCard({ name, label, hint, conn, onChange, placeholder, keyHint, children }: { name: 'radarr' | 'sonarr' | 'prowlarr' | 'lidarr' | 'slskd'; label: string; hint: string; conn: ArrConnection; onChange: (c: ArrConnection) => void; placeholder?: string; keyHint?: string; children?: React.ReactNode }) {
   const [test, setTest] = useState<{ ok: boolean; msg: string } | null>(null);
   const [testing, setTesting] = useState(false);
@@ -713,6 +841,9 @@ export function SettingsPage() {
         </ArrCard>
         <SlskdCard conn={s.slskd} onChange={(c) => setS({ ...s, slskd: c })} />
         <FreacCard path={s.freacPath} onChange={(p) => setS({ ...s, freacPath: p })} />
+      </div>
+      <div className="mb">
+        <NotificationCard value={s.notifications ?? { targets: [] }} onChange={(n) => setS({ ...s, notifications: n })} />
       </div>
 
       <div className="legend">Encoding</div>

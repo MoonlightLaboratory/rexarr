@@ -1134,3 +1134,19 @@ table.metaTags td.mono { word-break: break-word; }
 .mdQuote.caution {
   border-left-color: var(--dangerColor);
 }
+
+/* ---- Settings → Notifications --------------------------------------------------------------- */
+.notifyTarget {
+  border: 1px solid var(--borderColor);
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.notifyTarget .field {
+  margin-top: 8px;
+}
+.inline.wrap {
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 8px;
+}

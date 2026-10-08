@@ -37,15 +37,12 @@ detect that there are no titles, read the disc, verify the copy, and name it som
 
 ## Smaller
 
-### Notifications
+### More to notify about
 
-Telling you when a rip or an encode finished, when one failed, or when a new version is out — through
-[Apprise](https://github.com/caronc/apprise)-style targets: Discord, Slack, Pushbullet, IFTTT, Gotify, ntfy, plain
-webhooks. The plumbing is already there (every job and rip is an event in **System → Events**); what is missing is
-the delivery and the settings page.
-
-*Today:* **System → Events** has the history, **System → Updates** says when a release is out, and Radarr / Sonarr
-will notify you themselves when the import lands.
+[Notifications](reference/settings.md#notifications) ship in 0.1.7.1 — Discord, Slack, Telegram, ntfy, Gotify,
+Pushbullet, an Apprise server or a plain webhook — for encodes, discs and new releases. What they do not cover
+yet: a health check going red (a share that dropped, ffmpeg gone missing), a delivery that needed fixing by hand,
+and a daily summary rather than one message per job.
 
 ## Ask for something else
 

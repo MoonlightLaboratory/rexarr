@@ -371,6 +371,7 @@ export const DEFAULT_SETTINGS = {
   localMedia: { enabled: true, usePathMappings: true, folders: [], exclude: ['@eaDir', '#recycle', '$RECYCLE.BIN', 'System Volume Information', 'lost+found', 'SteamLibrary', 'steamapps', 'node_modules', 'rexarr-split', 'Sample', 'Samples', 'Extras', 'Featurettes', 'Trailers', 'Behind The Scenes', 'Deleted Scenes', 'Interviews'], hideArrManaged: true, rescanHours: 12, metadata: true, tmdbApiKey: '', metadataLanguage: 'en-US' },
   slskd: { enabled: false, url: 'http://localhost:5030', apiKey: '', downloadsPath: '', maxQueueLength: 50, searchTimeoutSeconds: 15 },
   musicbrainz: { enabled: true },
+  notifications: { targets: [] },
   ffmpegPath: 'ffmpeg',
   ffprobePath: 'ffprobe',
   freacPath: '',

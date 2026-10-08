@@ -124,6 +124,7 @@ Docker `HEALTHCHECK` uses it.
 | GET | `/api/settings/host` | host settings (port, bind, URL base, SSL) |
 | POST | `/api/settings/apikey` | reset the API key |
 | POST | `/api/settings/test/:app` | test a connection (`radarr`, `sonarr`, `prowlarr`, `lidarr`, `slskd`) |
+| POST | `/api/notifications/test` | send one test message to a notification target in the body |
 | GET | `/api/settings/arr-options` | root folders and quality profiles from the \*arr apps |
 | GET | `/api/system` · `/api/system/health` · `/api/system/ffmpeg` | status, health checks, encoders |
 | GET | `/api/system/paths` | storage layout with sizes |
