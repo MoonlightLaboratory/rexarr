@@ -212,7 +212,7 @@ svg { flex-shrink: 0; }
 .headerSearch { display: flex; align-items: center; margin-left: 8px; color: var(--white); }
 .headerSearch svg { width: 16px; height: 16px; }
 .pageHeader .headerSearch input[type='text'] { margin-left: 8px; width: 220px; height: auto; padding: 4px 0; border: none; border-bottom: 1px solid var(--white); border-radius: 0; background: transparent; box-shadow: none; color: var(--white); transition: border 0.3s ease-out; }
-.pageHeader .headerSearch input[type='text']::placeholder { color: var(--white); opacity: 0.85; }
+.pageHeader .headerSearch input[type='text']::placeholder { color: var(--white); opacity: 0.85; transition: color 0.3s ease-out, opacity 0.3s ease-out; }
 .pageHeader .headerSearch input[type='text']:focus { border-bottom-color: transparent; box-shadow: none; }
 .pageHeader .headerSearch input[type='text']:focus::placeholder { color: transparent; }
 .headerRight { display: flex; justify-content: flex-end; align-items: center; flex-grow: 1; padding-right: 8px; }
