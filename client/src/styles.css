@@ -365,6 +365,9 @@ svg { flex-shrink: 0; }
 .fieldSet { margin: 0 0 20px; padding: 0; border: 0; min-width: 0; }
 .fieldSet > legend, .legend { display: block; margin-bottom: 21px; padding: 0; width: 100%; border: 0; border-bottom: 1px solid var(--borderColor); color: var(--textColor); font-size: 21px; line-height: inherit; }
 .legend.small { color: var(--helpTextColor); font-size: 18px; }
+/* More air above a section heading than below it, so sections read as blocks. */
+.legend { margin-top: 30px; margin-bottom: 12px; }
+.legend:first-child, .page-b > :first-child.legend { margin-top: 0; }
 
 /* ---------- forms ---------- */
 .field { display: grid; grid-template-columns: var(--formLabelWidth) minmax(0, 1fr); column-gap: 20px; row-gap: 0; align-items: start; margin-bottom: 20px; max-width: 800px; }
@@ -377,6 +380,10 @@ svg { flex-shrink: 0; }
 .field.row { grid-template-columns: var(--formLabelWidth) minmax(0, 1fr); align-items: center; margin-bottom: 8px; }
 .field.row > label { padding-top: 0; min-height: 0; }
 .grid-2 .field, .grid-3 .field, .modal .grid-2 .field { grid-template-columns: minmax(0, 1fr); }
+/* A grid already separates its children: a field's own margin would add to the gap (15 + 20 = 35). */
+.grid-2 > .field, .grid-3 > .field { margin-bottom: 0; }
+/* The last thing in a card should sit on the card's padding, not on padding plus its own margin. */
+.card-b > *:last-child { margin-bottom: 0; }
 .grid-2 .field > label, .grid-3 .field > label, .modal .grid-2 .field > label { grid-column: 1; justify-content: flex-start; text-align: start; padding-top: 0; min-height: 0; margin-bottom: 4px; }
 .grid-2 .field > *:not(label), .grid-3 .field > *:not(label), .modal .grid-2 .field > *:not(label) { grid-column: 1; }
 @media (max-width: 1200px) {
@@ -1146,23 +1153,23 @@ table.metaTags td.mono { word-break: break-word; }
 .notifyTarget {
   border: 1px solid var(--borderColor);
   border-radius: 4px;
-  padding: 10px 12px;
-  margin-bottom: 10px;
+  padding: 12px 15px;
+  margin-bottom: 15px;
 }
 .notifyTarget .field {
   margin-top: 8px;
 }
 .inline.wrap {
   flex-wrap: wrap;
-  gap: 4px 14px;
-  margin-top: 8px;
+  gap: 8px 16px;
+  margin-top: 10px;
 }
 
 /* Add Notification: the *arr connection picker – a grid of cards with a More Info link. */
 .connCards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 12px;
+  gap: 15px;
 }
 .connCard {
   display: flex;
