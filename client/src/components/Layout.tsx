@@ -279,7 +279,7 @@ export function Layout({ children, jobs, rips, drives, health, connected, toasts
                 {l.to === '/activity' && (active > 0 || pending > 0) && (
                   <span className="status">
                     {active > 0 && <span className="badge remux sm">{active}</span>}
-                    {pending > 0 && <span className="badge sm">{pending}</span>}
+                    {pending > 0 && <span className="badge count">{pending}</span>}
                   </span>
                 )}
                 {l.to === '/discs' && activeRips > 0 && (
@@ -289,7 +289,7 @@ export function Layout({ children, jobs, rips, drives, health, connected, toasts
                 )}
                 {l.to === '/system' && (healthErrors > 0 || healthWarnings > 0) && (
                   <span className="status" title={`${healthErrors} error(s), ${healthWarnings} warning(s)`}>
-                    <span className={`badge sm ${healthErrors ? 'red' : 'warning'}`}>{healthErrors + healthWarnings}</span>
+                    <span className={`badge count ${healthErrors ? 'red' : 'warning'}`}>{healthErrors + healthWarnings}</span>
                   </span>
                 )}
               </NavLink>

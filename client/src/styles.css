@@ -336,6 +336,8 @@ svg { flex-shrink: 0; }
 /* ---------- labels (badges) ---------- */
 .badge { display: inline-block; margin: 2px; padding: 2px 5px; border: 1px solid var(--themeLightColor); border-radius: 2px; background: var(--themeLightColor); color: var(--white); text-align: center; white-space: nowrap; line-height: 1; font-size: var(--smallFontSize); cursor: default; }
 .badge.sm { padding: 1px 3px; font-size: var(--extraSmallFontSize); }
+/* A count beside a nav item: square, centred, and the same width whether it says 2 or 12. */
+.badge.count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; margin: 0; padding: 0 5px; border-radius: 3px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; vertical-align: middle; }
 .badge.lg { padding: 3px 7px; font-size: var(--defaultFontSize); font-weight: bold; }
 .badge.remux { border-color: var(--themeBlue); background: var(--themeBlue); color: #1c1c1c; font-weight: bold; }
 .badge.blue, .badge.info { border-color: var(--infoColor); background: var(--infoColor); }
