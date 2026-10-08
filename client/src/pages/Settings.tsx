@@ -982,6 +982,7 @@ export function SettingsPage() {
           <p className="small dim" style={{ marginTop: 0 }}>
             When enabled, Rexarr watches your optical drives. Inserting a Blu-ray or DVD reads the title list, identifies it through Radarr / Sonarr, rips it with MakeMKV to a remux MKV, optionally transcodes it with the default profile, hands it to the *arr app for import and ejects the disc.
           </p>
+          <div className="subhead">MakeMKV</div>
           <div className="grid-2">
             <div className="field">
               <label>makemkvcon binary</label>
@@ -989,29 +990,45 @@ export function SettingsPage() {
               <div className="help">Auto-detected from the MakeMKV app on macOS and /usr/bin on Linux when left as “makemkvcon”.</div>
             </div>
             <div className="field">
+              <label>Drive poll interval (seconds)</label>
+              <input type="number" min={5} value={s.disc.pollIntervalSeconds} onChange={(e) => setS({ ...s, disc: { ...s.disc, pollIntervalSeconds: Number(e.target.value) } })} />
+            </div>
+          </div>
+          <div className="subhead">Where rips go</div>
+          <div className="grid-2">
+            <div className="field">
               <label>Rip directory</label>
               <input type="text" value={s.disc.ripDirectory} onChange={(e) => setS({ ...s, disc: { ...s.disc, ripDirectory: e.target.value } })} placeholder="Empty = <data dir>/rips" />
               <div className="help">Where finished, compressed rips go for Radarr / Sonarr to import – they must be able to see it (add a path mapping if they see it under another path). Discs are ripped and encoded in Rexarr's local cache first, so raw files never appear here.</div>
               <RipDirectoryCheck saved={settings?.disc.ripDirectory ?? ''} current={s.disc.ripDirectory} />
-              <label className="check mt">
-                <input type="checkbox" checked={s.disc.autoImport !== false} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoImport: e.target.checked } })} /> Import finished rips into Sonarr automatically
-              </label>
-              <div className="help">Every 10 minutes, episodes still in the rip folder – an import that failed, files you copied there – are handed to Sonarr with their series and episode numbers.</div>
-              <ImportRipsNow />
-              <label className="check mt">
-                <input type="checkbox" checked={s.disc.addMissing !== false} onChange={(e) => setS({ ...s, disc: { ...s.disc, addMissing: e.target.checked } })} /> Add shows and movies to Sonarr / Radarr when their disc is ripped
-              </label>
-              <div className="help">A disc for something that is not in Sonarr / Radarr yet is added when the rip starts, so it can be imported. It goes into the root folder and quality profile your library uses for that kind of title, unless you pick them below.</div>
-              <label className="check mt">
-                <input type="checkbox" checked={s.disc.addMonitored === true} disabled={s.disc.addMissing === false} onChange={(e) => setS({ ...s, disc: { ...s.disc, addMonitored: e.target.checked } })} /> Monitor what is added
-              </label>
-              <div className="help">Off (recommended): Sonarr / Radarr keep the title for imports but download nothing. On: they may download the episodes you did not rip, and look for upgrades of the rip.</div>
-              {s.disc.addMissing !== false && <AddTargets value={s.disc.addTargets ?? {}} onChange={(addTargets) => setS({ ...s, disc: { ...s.disc, addTargets } })} />}
             </div>
+            <div className="field">
+              <label className="check">
+                <input type="checkbox" checked={s.disc.autoImport !== false} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoImport: e.target.checked } })} /> Import finished rips automatically
+              </label>
+              <div className="help">Every 10 minutes, films and episodes still in the rip folder – an import that failed, files you copied there – are handed to Radarr / Sonarr with the movie or the episode numbers stated.</div>
+              <ImportRipsNow />
+            </div>
+          </div>
+          <div className="subhead">When a disc is inserted</div>
+          <div className="grid-2">
+            <label className="check mb"><input type="checkbox" checked={s.disc.autoRip} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoRip: e.target.checked } })} /> Start ripping automatically once identified</label>
+            <label className="check mb"><input type="checkbox" checked={s.disc.autoTranscode} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoTranscode: e.target.checked } })} /> Transcode with the default profile</label>
+            <label className="check mb"><input type="checkbox" checked={s.disc.autoDeliver} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoDeliver: e.target.checked } })} /> Hand finished files to Radarr / Sonarr</label>
+            <label className="check mb"><input type="checkbox" checked={s.disc.autoEject} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoEject: e.target.checked } })} /> Eject when done</label>
+            <label className="check"><input type="checkbox" checked={s.disc.keepRaw} onChange={(e) => setS({ ...s, disc: { ...s.disc, keepRaw: e.target.checked } })} /> Keep the raw MakeMKV rip after transcoding</label>
+          </div>
+          <div className="subhead">Which titles to rip</div>
+          <div className="grid-2">
             <div className="field">
               <label>Minimum title length (seconds)</label>
               <input type="number" min={0} value={s.disc.minTitleSeconds} onChange={(e) => setS({ ...s, disc: { ...s.disc, minTitleSeconds: Number(e.target.value) } })} />
               <div className="help">Skips trailers and menus. 600 for movies, 1200 for hour-long episodes, lower for short anime episodes.</div>
+            </div>
+            <div className="field">
+              <label>Shortest extra (seconds)</label>
+              <input type="number" min={0} value={s.disc.extraMinSeconds ?? 30} disabled={!s.disc.includeExtras} onChange={(e) => setS({ ...s, disc: { ...s.disc, extraMinSeconds: Number(e.target.value) } })} />
+              <div className="help">Menus and logos are shorter than this. A creditless OP / ED runs about 90 seconds.</div>
             </div>
             <div className="field">
               <label className="check">
@@ -1021,27 +1038,24 @@ export function SettingsPage() {
                 Also rip titles shorter than the minimum: creditless OP / ED, OVAs, specials, bonus clips. Each one can be named on the Discs page – a Sonarr special (season 0, when TVDB lists it) or an extra (OP, ED, Extra, OVA, Special or your own name), which goes into an <code>Extras</code> folder next to the show.
               </div>
             </div>
-            <div className="field">
-              <label>Shortest extra (seconds)</label>
-              <input type="number" min={0} value={s.disc.extraMinSeconds ?? 30} disabled={!s.disc.includeExtras} onChange={(e) => setS({ ...s, disc: { ...s.disc, extraMinSeconds: Number(e.target.value) } })} />
-              <div className="help">Menus and logos are shorter than this. A creditless OP / ED runs about 90 seconds.</div>
-            </div>
-            <div className="field">
-              <label>Drive poll interval (seconds)</label>
-              <input type="number" min={5} value={s.disc.pollIntervalSeconds} onChange={(e) => setS({ ...s, disc: { ...s.disc, pollIntervalSeconds: Number(e.target.value) } })} />
-            </div>
           </div>
+          <div className="subhead">Adding to your library</div>
+          <div className="field stack">
+              <label className="check">
+                <input type="checkbox" checked={s.disc.addMissing !== false} onChange={(e) => setS({ ...s, disc: { ...s.disc, addMissing: e.target.checked } })} /> Add shows and movies to Sonarr / Radarr when their disc is ripped
+              </label>
+              <div className="help">A disc for something that is not in Sonarr / Radarr yet is added when the rip starts, so it can be imported. It goes into the root folder and quality profile your library uses for that kind of title, unless you pick them below.</div>
+              <label className="check">
+                <input type="checkbox" checked={s.disc.addMonitored === true} disabled={s.disc.addMissing === false} onChange={(e) => setS({ ...s, disc: { ...s.disc, addMonitored: e.target.checked } })} /> Monitor what is added
+              </label>
+              <div className="help">Off (recommended): Sonarr / Radarr keep the title for imports but download nothing. On: they may download the episodes you did not rip, and look for upgrades of the rip.</div>
+              {s.disc.addMissing !== false && <AddTargets value={s.disc.addTargets ?? {}} onChange={(addTargets) => setS({ ...s, disc: { ...s.disc, addTargets } })} />}
+          </div>
+          <div className="subhead">Testing</div>
           <div className="field stack">
             <label>Virtual drives folder (testing)</label>
             <input type="text" value={s.disc.virtualDriveDirectory} onChange={(e) => setS({ ...s, disc: { ...s.disc, virtualDriveDirectory: e.target.value } })} placeholder="e.g. /path/to/test-media/discs" />
             <div className="help">Every .iso file or DVD / Blu-ray folder (VIDEO_TS, BDMV) in this folder appears as a loaded drive and is ripped through MakeMKV without hardware. Run <code>npm run test-media</code> to generate a sample DVD image.</div>
-          </div>
-          <div className="grid-2">
-            <label className="check mb"><input type="checkbox" checked={s.disc.autoRip} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoRip: e.target.checked } })} /> Start ripping automatically once identified</label>
-            <label className="check mb"><input type="checkbox" checked={s.disc.autoTranscode} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoTranscode: e.target.checked } })} /> Transcode with the default profile</label>
-            <label className="check mb"><input type="checkbox" checked={s.disc.autoDeliver} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoDeliver: e.target.checked } })} /> Hand finished files to Radarr / Sonarr</label>
-            <label className="check mb"><input type="checkbox" checked={s.disc.autoEject} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoEject: e.target.checked } })} /> Eject when done</label>
-            <label className="check"><input type="checkbox" checked={s.disc.keepRaw} onChange={(e) => setS({ ...s, disc: { ...s.disc, keepRaw: e.target.checked } })} /> Keep the raw MakeMKV rip after transcoding</label>
           </div>
         </div>
       </div>
