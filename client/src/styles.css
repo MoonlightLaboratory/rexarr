@@ -415,7 +415,9 @@ select {
 select:hover { border-color: var(--inputFocusBorderColor); }
 select::-ms-expand { display: none; }
 textarea { height: auto; min-height: 70px; resize: vertical; }
-input:focus, select:focus, textarea:focus { border-color: var(--inputFocusBorderColor); box-shadow: inset 0 1px 1px var(--inputBoxShadowColor), 0 0 8px var(--inputFocusBoxShadowColor); }
+/* Focus marks itself with the border; no halo - except on the search boxes, where it is wanted. */
+input:focus, select:focus, textarea:focus { border-color: var(--inputFocusBorderColor); box-shadow: inset 0 1px 1px var(--inputBoxShadowColor); }
+input[type='search']:focus, .searchInput:focus, .headerSearch input:focus { box-shadow: inset 0 1px 1px var(--inputBoxShadowColor), 0 0 8px var(--inputFocusBoxShadowColor); }
 input:disabled, select:disabled { opacity: 0.7; cursor: not-allowed; background: var(--inputReadOnlyBackgroundColor); }
 input[type='checkbox'] { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; border: 1px solid #ccc; border-radius: 2px; background: var(--white); cursor: pointer; display: inline-grid; place-items: center; vertical-align: middle; flex-shrink: 0; }
 input[type='checkbox']:checked { border-color: var(--primaryColor); background: var(--primaryColor); }
