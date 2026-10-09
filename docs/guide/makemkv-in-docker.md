@@ -64,7 +64,15 @@ docker run -d --name rexarr -p 3939:3939 \
   survives rebuilds as long as `/config` is mounted. Blu-ray needs a registered key or the current free beta key.
 - **`MAKEMKV_VERSION`** must be a version still on makemkv.com — they remove old ones. Rebuild with a new value
   when MakeMKV updates; nothing else changes.
-- Not built in CI, for the same redistribution reason, so you rebuild it yourself when you update Rexarr.
+- Not built in CI, for the same redistribution reason, so you rebuild it yourself when you update Rexarr — and
+  that is also how you pick up an unreleased fix, since `ghcr.io/moonlightlaboratory/rexarr:main` has no MakeMKV
+  in it:
+
+  ```bash
+  git pull
+  docker compose -f docker/docker-compose.makemkv.yml build
+  docker compose -f docker/docker-compose.makemkv.yml up -d
+  ```
 
 ## 2. Rip in a MakeMKV container, let Rexarr take over
 

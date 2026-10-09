@@ -7,8 +7,15 @@ docker pull ghcr.io/moonlightlaboratory/rexarr:latest
 docker pull moonlightlaboratory/rexarr:latest
 ```
 
-Tags: `latest`, the branch name, and the version of each release (`0.1.7.0`), for linux/amd64 and linux/arm64,
-built by `.github/workflows/docker.yml`.
+Tags: `latest` for the newest release, the version of each release (`0.1.7.2`), and **`main`** — the branch,
+rebuilt on every push, which is how to try a fix before it is released:
+
+```bash
+docker pull ghcr.io/moonlightlaboratory/rexarr:main
+```
+
+All of them are linux/amd64 and linux/arm64, built by `.github/workflows/docker.yml`. `main` is where unreleased
+work lives, so it moves and can break; `latest` is the safe one.
 
 !!! tip "On a NAS?"
     Unraid, ZimaOS, TrueNAS SCALE, Synology DSM and OpenMediaVault have ready-made templates with the right paths
