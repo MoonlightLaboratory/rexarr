@@ -316,7 +316,7 @@ function IdentifyBox({ media, discType, onChange }: { media: RipMedia; discType:
   );
 }
 
-/** Audio CD: MusicBrainz match, tracks, music profile. */
+/** Audio CD: the matching release, tracks, music profile. */
 function CdBody({ rip, busy, act }: { rip: DiscRip; busy: boolean; act: (fn: () => Promise<unknown>, ok?: string) => Promise<void> }) {
   const { profiles, settings } = useApp();
   const [selected, setSelected] = useState<number[]>(rip.selectedTitleIds);
@@ -337,15 +337,17 @@ function CdBody({ rip, busy, act }: { rip: DiscRip; busy: boolean; act: (fn: () 
         <div className="cdCover">{rip.media.poster ? <img src={rip.media.poster} alt="" /> : <Icon.Disc />}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="field stack">
-            <label>{cd.releases[cd.selected]?.source === 'cddb' ? 'CDDB entry' : 'MusicBrainz release'}</label>
+            <label>{rel?.source === 'cddb' ? 'CDDB entry' : 'Release'}</label>
             {cd.releases.length > 0 ? (
               <select value={cd.selected} onChange={(e) => act(() => api.setCdRelease(rip.id, { index: Number(e.target.value) }))} disabled={busy}>
+                <option value={-1}>Generic track names (Track 1, Track 2, …)</option>
                 {cd.releases.map((r, i) => (
                   <option key={r.releaseId} value={i}>
                     {r.artist} – {r.title}
                     {r.date ? ` (${r.date.slice(0, 4)}${r.country ? `, ${r.country}` : ''})` : ''}
-                    {r.label ? ` · ${r.label}` : ''} · {r.trackCount} tracks{r.discCount > 1 ? ` · disc ${r.discNumber}/${r.discCount}` : ''}
+                    {r.label ? ` · ${r.label}` : ''} · {r.trackCount ?? r.tracks.length} tracks{r.discCount > 1 ? ` · disc ${r.discNumber}/${r.discCount}` : ''}
                     {r.source === 'cddb' ? ' · CDDB' : ''}
+                    {r.fuzzy ? ' · similar length only, unconfirmed' : ''}
                   </option>
                 ))}
               </select>
@@ -354,6 +356,14 @@ function CdBody({ rip, busy, act }: { rip: DiscRip; busy: boolean; act: (fn: () 
                 Neither MusicBrainz nor CDDB knows this disc id ({cd.discId}). Search by artist and album below, or rip with generic track names.
               </div>
             )}
+            {cd.releases.length > 0 && cd.selected < 0 && (
+              <div className="warn small">
+                Nothing matches this disc id ({cd.discId}). The releases above only have track lengths like this
+                disc's – MusicBrainz suggests them, it has not recognised the disc. Check one before picking it,
+                search by artist and album below, or rip with generic track names.
+              </div>
+            )}
+            {rel?.fuzzy && <div className="warn small">Picked by track length, not by disc id – check the track titles below before ripping.</div>}
             {rel && (
               <div className="help">
                 {rel.source === 'cddb' ? (
@@ -1224,7 +1234,7 @@ export function DiscsPage() {
             busy={busy}
             onReadCd={() =>
               api.readCd(d.index)
-                .then((r) => toast('info', r.cd?.releases.length ? `Audio CD: ${r.media.artist} – ${r.media.title}` : 'Audio CD read (no MusicBrainz match yet)'))
+                .then((r) => toast('info', (r.cd?.selected ?? -1) >= 0 ? `Audio CD: ${r.media.artist} – ${r.media.title}` : 'Audio CD read – nothing identifies it yet, pick a release on the Discs page'))
                 .then(() => refresh(false))
                 .catch((e) => toast('error', e.message))
             }

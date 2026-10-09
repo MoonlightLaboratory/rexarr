@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import type { Release } from '../../../shared/types.js';
 import { BUILTIN_PROFILES } from '../../../shared/presets.js';
-import { discId, mapMbRelease, parseCdparanoiaToc, parseTocPlist, tocString } from './musicbrainz.js';
+import { discId, discLookupIsExact, mapMbRelease, parseCdparanoiaToc, parseTocPlist, tocString } from './musicbrainz.js';
 import { formatLabel, musicCategory, musicFormatFromText } from './format.js';
 import { cdTrackTags, VARIOUS_ARTISTS } from './tags.js';
 import { cddbDiscId, cddbQueryArgs, cddbUrl, DEFAULT_HELLO, parseCddbQuery, parseXmcd, toRelease } from './cddb.js';
@@ -294,7 +294,7 @@ test('CDDB disc id and query arguments match the freedb algorithm', () => {
 
 test('CDDB query answers: one match, a list, nothing, a refusal', () => {
   assert.deepEqual(parseCddbQuery('200 country a109d40d Pink Floyd / The Wall [1994 Digital Remaster] (Disc 2)'), [
-    { category: 'country', discId: 'a109d40d', artist: 'Pink Floyd', title: 'The Wall [1994 Digital Remaster] (Disc 2)' },
+    { category: 'country', discId: 'a109d40d', artist: 'Pink Floyd', title: 'The Wall [1994 Digital Remaster] (Disc 2)', inexact: false },
   ]);
   const list = parseCddbQuery(`210 Found exact matches, list follows (until terminating \`.')
 rock a109d489 Pink Floyd / The Wall cd 2
@@ -303,7 +303,16 @@ misc a109d493 Pink Floyd / The Wall (CD 2/2)
   assert.deepEqual(list.map((m) => `${m.category}/${m.discId}`), ['rock/a109d489', 'misc/a109d493']);
   assert.deepEqual(parseCddbQuery('202 No match found'), []);
   // a self-titled album has no " / " in its title line
-  assert.deepEqual(parseCddbQuery('200 rock abcd1234 Metallica')[0], { category: 'rock', discId: 'abcd1234', artist: 'Metallica', title: 'Metallica' });
+  assert.deepEqual(parseCddbQuery('200 rock abcd1234 Metallica')[0], { category: 'rock', discId: 'abcd1234', artist: 'Metallica', title: 'Metallica', inexact: false });
+  // 211 is the server saying "near enough", which is not the same as "this disc"
+  const near = parseCddbQuery(`211 Found inexact matches, list follows (until terminating \`.')
+classical c20a6a0f Daniel O'Donnell / The last waltz
+data b30a6a0f Daniel O'Donnell / The Last Waltz
+.`);
+  assert.deepEqual(near.map((m) => m.inexact), [true, true]);
+  // but the one filed under the disc id we asked about is this disc, whatever the server called the answer
+  assert.equal(toRelease({ artist: 'a', title: 'b', tracks: [] }, near[1], 'b30a6a0f').fuzzy, false);
+  assert.equal(toRelease({ artist: 'a', title: 'b', tracks: [] }, near[0], 'b30a6a0f').fuzzy, true);
   // gnudb refuses clients it does not know; the reason has to reach the disc log
   assert.throws(() => parseCddbQuery('500 Unknown application, developer email for rexarr 0.1.7.2'), /Unknown application/);
 });
@@ -368,5 +377,20 @@ test('the CDDB server setting may be a bare endpoint or a whole URL with the han
   assert.equal(u.searchParams.get('cmd'), 'cddb query a109d40d 1 150 2518');
   assert.match(pasted, /hello=emailname\+emailhost\.com\+applicationname\+0\.1/);
 
+  // cddbd parses the query string in order: cmd has to come first or it answers "500 Command syntax error"
+  const reordered = cddbUrl('https://gnudb.gnudb.org/~cddb/cddb.cgi?hello=name+host.com+app+0.1&proto=6', cmd);
+  assert.match(reordered, /\?cmd=cddb\+query\+.*&hello=name\+host\.com\+app\+0\.1&proto=6$/);
+
   assert.throws(() => cddbUrl('   ', cmd), /no CDDB server/);
+});
+
+test('a release MusicBrainz only guessed at is marked, and never becomes the disc on its own', () => {
+  // the shape of an answer for the disc id itself: it echoes the id and the TOC it was asked about
+  const exact = { id: 'disc-one', sectors: 188875, offsets: [150], releases: [{ id: 'rel-1', title: 'The Wall', media: [{ position: 1, discs: [{ id: 'disc-one' }], tracks: [{ position: 1, number: '1', title: 'Hey You' }] }] }] };
+  // and of a ?toc= answer, which is a search result for releases of a similar length and nothing more
+  const fuzzy = { 'release-count': 1, 'release-offset': 0, releases: exact.releases };
+  assert.equal(discLookupIsExact(exact, 'disc-one'), true);
+  assert.equal(discLookupIsExact(fuzzy, 'disc-one'), false);
+  // the id of a different disc is not this disc either
+  assert.equal(discLookupIsExact({ ...exact, id: 'disc-two' }, 'disc-one'), false);
 });

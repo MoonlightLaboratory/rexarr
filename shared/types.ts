@@ -452,6 +452,11 @@ export interface MqaInfo {
 export interface MusicBrainzRelease {
   /** Where this match came from. Absent on matches stored before CDDB existed, which were all MusicBrainz. */
   source?: 'musicbrainz' | 'cddb';
+  /**
+   * True when MusicBrainz did not have this disc id and offered the release because its track lengths are
+   * similar. That is a suggestion, not an identification: it is never applied to a rip on its own.
+   */
+  fuzzy?: boolean;
   /** A MusicBrainz release MBID, or "<category>/<disc id>" for a CDDB entry. */
   releaseId: string;
   releaseGroupId?: string;
@@ -496,7 +501,7 @@ export interface CdInfo {
   toc: string;
   tracks: { number: number; startSector: number; sectors: number }[];
   releases: MusicBrainzRelease[];
-  /** Index into releases of the chosen match. */
+  /** Index into releases of the chosen match, or -1 when none is chosen and track names stay generic. */
   selected: number;
   mqa?: MqaInfo;
 }

@@ -80,6 +80,12 @@ Turn it off in **Settings → Connections → Lidarr**.
 `cdparanoia -Q`), computes the MusicBrainz disc id and lists matching releases — pick one, or search by artist and
 album when the disc is not in MusicBrainz.
 
+A release is only *the* disc when it was found by disc id. MusicBrainz will also offer releases whose track
+lengths merely resemble the disc, which is a guess and is labelled *similar length only, unconfirmed*: such a
+release is listed but never applied on its own, the disc stays on **Generic track names** until you pick one, and
+auto-rip leaves it alone. A disc of the wrong album with fifteen tracks of roughly the right length is exactly
+how a rip ends up filed as someone else's record.
+
 When MusicBrainz has no entry for the disc id, Rexarr asks **CDDB** instead, using that disc's CDDB id. Plenty of
 discs MusicBrainz has never been told about have been in CDDB for twenty years. Such an entry is labelled *CDDB*
 in the list and gives artist, album, year, genre and the track titles — no cover art, and none of the MusicBrainz

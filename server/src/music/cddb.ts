@@ -36,6 +36,8 @@ export interface CddbMatch {
   discId: string;
   artist: string;
   title: string;
+  /** The server answered 211: these are near misses, not the disc it was asked about. */
+  inexact: boolean;
 }
 
 const splitSlash = (s: string): [string, string] => {
@@ -50,11 +52,12 @@ const splitSlash = (s: string): [string, string] => {
 export function parseCddbQuery(text: string): CddbMatch[] {
   const lines = text.split(/\r?\n/);
   const code = Number(lines[0]?.slice(0, 3));
+  const inexact = code === 211;
   const one = (line: string): CddbMatch | null => {
     const m = line.match(/^(\S+)\s+([0-9a-fA-F]{8})\s+(.*)$/);
     if (!m) return null;
     const [artist, title] = splitSlash(m[3]);
-    return { category: m[1], discId: m[2].toLowerCase(), artist, title };
+    return { category: m[1], discId: m[2].toLowerCase(), artist, title, inexact };
   };
   if (code === 202 || code === 403) return [];
   if (code === 200) return [one(lines[0].slice(4))].filter((x): x is CddbMatch => Boolean(x));
@@ -107,9 +110,12 @@ export function parseXmcd(text: string): XmcdEntry | null {
 }
 
 /** An xmcd entry as one of the release matches shown for a disc. */
-export function toRelease(entry: XmcdEntry, match: Pick<CddbMatch, 'category' | 'discId'>): MusicBrainzRelease {
+export function toRelease(entry: XmcdEntry, match: Pick<CddbMatch, 'category' | 'discId'> & { inexact?: boolean }, discIdAsked?: string): MusicBrainzRelease {
   return {
     source: 'cddb',
+    // a near miss is a suggestion – unless it carries the very disc id that was asked for, whatever the server
+    // called it: servers answer 211 over a track length that differs by a second
+    fuzzy: Boolean(match.inexact) && match.discId !== discIdAsked,
     releaseId: `${match.category}/${match.discId}`,
     cddbId: match.discId,
     title: entry.title,
@@ -136,10 +142,15 @@ export function cddbUrl(server: string, cmd: string[], hello = DEFAULT_HELLO): s
   const text = server.trim();
   if (!text) throw new Error('no CDDB server is set');
   const url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `https://${text}`);
-  url.searchParams.set('cmd', cmd.join(' '));
-  if (!url.searchParams.get('hello')?.trim()) url.searchParams.set('hello', hello);
-  if (!url.searchParams.get('proto')?.trim()) url.searchParams.set('proto', '6');
-  // the protocol wants spaces as "+", which is what URLSearchParams writes them as
+  const given = url.searchParams;
+  // cddbd reads the query string in order and answers "500 Command syntax error" if cmd is not first, so the
+  // whole string is rebuilt rather than appended to. Spaces go out as "+", which is what the protocol wants.
+  const params = new URLSearchParams();
+  params.set('cmd', cmd.join(' '));
+  params.set('hello', given.get('hello')?.trim() || hello);
+  params.set('proto', given.get('proto')?.trim() || '6');
+  for (const [k, v] of given) if (!params.has(k)) params.append(k, v);
+  url.search = params.toString();
   return url.toString();
 }
 
@@ -152,11 +163,14 @@ async function cddbCommand(cmd: string[]): Promise<string> {
 /** Every CDDB entry for a disc, best match first. Returns nothing when CDDB is off or the disc is unknown. */
 export async function cddbLookup(toc: CdToc, limit = 5): Promise<MusicBrainzRelease[]> {
   if (!store.settings.cddb.enabled) return [];
+  const id = cddbDiscId(toc);
   const matches = parseCddbQuery(await cddbCommand(['cddb', 'query', ...cddbQueryArgs(toc)]));
+  // the entry filed under this disc's own id first, whatever order the server listed them in
+  const ordered = [...matches].sort((a, b) => Number(b.discId === id) - Number(a.discId === id));
   const out: MusicBrainzRelease[] = [];
-  for (const m of matches.slice(0, limit)) {
+  for (const m of ordered.slice(0, limit)) {
     const entry = parseXmcd(await cddbCommand(['cddb', 'read', m.category, m.discId]));
-    if (entry) out.push(toRelease(entry, m));
+    if (entry) out.push(toRelease(entry, m, id));
   }
   return out;
 }

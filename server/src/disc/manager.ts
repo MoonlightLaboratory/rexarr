@@ -314,28 +314,35 @@ export class DiscManager {
     rip.cd = { discId: discId(toc), toc: tocString(toc), tracks: toc.tracks, releases: [], selected: 0 };
     rip.options = { ...rip.options, transcode: false, keepRaw: false };
     this.log(rip, `Audio CD: ${toc.tracks.length} track(s), MusicBrainz disc id ${rip.cd.discId}`);
+    let identified = false;
     if (store.settings.musicbrainz.enabled && cd.musicbrainz) {
       try {
         const found = await lookupDisc(toc);
         rip.cd.releases = found.releases;
-        this.log(rip, found.releases.length ? `MusicBrainz: ${found.releases.length} matching release(s)` : 'MusicBrainz: no release for this disc id yet');
+        identified = found.exact && found.releases.length > 0;
+        if (identified) this.log(rip, `MusicBrainz: ${found.releases.length} release(s) for this disc id`);
+        else if (found.releases.length) this.log(rip, `MusicBrainz: no release has this disc id; ${found.releases.length} with similar track lengths, none of them confirmed`);
+        else this.log(rip, 'MusicBrainz: no release for this disc id yet');
       } catch (err) {
         this.log(rip, `MusicBrainz lookup failed: ${(err as Error).message}`);
       }
     }
-    // CDDB has track titles for plenty of discs MusicBrainz has never been told about; it is only asked when
-    // MusicBrainz came back empty, and it knows nothing beyond artist, album, year, genre and the titles.
-    if (!rip.cd.releases.length && store.settings.cddb.enabled) {
+    // CDDB has track titles for plenty of discs MusicBrainz has never been told about. It is asked whenever the
+    // disc id itself found nothing – a disc MusicBrainz only guessed at is still an unidentified disc.
+    if (!identified && store.settings.cddb.enabled) {
       try {
         const found = await cddbLookup(toc);
-        rip.cd.releases = found;
+        // a CDDB entry answers the disc id it was asked about, so it goes ahead of MusicBrainz's guesses
+        rip.cd.releases = [...found, ...rip.cd.releases];
+        identified = found.length > 0;
         this.log(rip, found.length ? `CDDB: ${found.length} matching entr${found.length === 1 ? 'y' : 'ies'} (${found[0].artist} – ${found[0].title})` : `CDDB: nothing for disc id ${cddbDiscId(toc)}`);
       } catch (err) {
         this.log(rip, `CDDB lookup failed: ${(err as Error).message}`);
       }
     }
-    if (!rip.cd.releases.length) this.log(rip, 'No match for this disc – search by title on the Discs page, or rip with generic track names');
-    this.applyCdRelease(rip, 0);
+    if (!identified) this.log(rip, `Nothing identifies this disc. Pick a release or search by title on the Discs page${rip.cd.releases.length ? ' – the suggestions are by track length only' : ''}, or rip with generic track names.`);
+    // a guess is never applied on its own: with only fuzzy suggestions the disc stays unnamed until one is picked
+    this.applyCdRelease(rip, rip.cd.releases.findIndex((r) => !r.fuzzy));
     const profile = store.getProfile(store.settings.defaultProfiles.music);
     if (profile && profile.audio.encoder !== 'copy') {
       rip.profileId = profile.id;
@@ -344,15 +351,15 @@ export class DiscManager {
     rip.status = 'ready';
     store.saveRips();
     this.emit(rip);
-    if (store.settings.disc.autoRip && rip.cd.releases.length) void this.startRip(rip.id, {}).catch((err: Error) => this.log(rip, `Could not start: ${err.message}`));
+    if (store.settings.disc.autoRip && rip.cd.selected >= 0) void this.startRip(rip.id, {}).catch((err: Error) => this.log(rip, `Could not start: ${err.message}`));
     return true;
   }
 
   /** Use one of the MusicBrainz matches for titles and naming. */
   private applyCdRelease(rip: DiscRip, index: number) {
-    const rel = rip.cd?.releases[index];
+    const rel = index >= 0 ? rip.cd?.releases[index] : undefined;
     if (!rip.cd) return;
-    rip.cd.selected = rel ? index : 0;
+    rip.cd.selected = rel ? index : -1;
     if (!rel) {
       rip.media = { ...rip.media, kind: 'album', title: rip.media.title || rip.label || 'Unknown Album', artist: rip.media.artist ?? 'Unknown Artist' };
       return;
@@ -373,8 +380,9 @@ export class DiscManager {
     if (choice.releaseId) {
       const rel = await getRelease(choice.releaseId, rip.cd.discId, rip.cd.tracks.length);
       rip.cd.releases = [rel, ...rip.cd.releases.filter((r) => r.releaseId !== rel.releaseId)];
+      // chosen by hand from the title search, so it is applied whatever the disc id lookup thought
       this.applyCdRelease(rip, 0);
-    } else this.applyCdRelease(rip, choice.index ?? 0);
+    } else this.applyCdRelease(rip, choice.index ?? -1);
     store.saveRips();
     this.emit(rip);
     return rip;

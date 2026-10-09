@@ -214,15 +214,29 @@ export function mapMbRelease(r: MbRelease, discIdForMedium?: string, trackCount?
   };
 }
 
-/** Releases matching a CD: exact disc id first, then a fuzzy TOC match. */
-export async function lookupDisc(toc: CdToc): Promise<{ discId: string; releases: MusicBrainzRelease[] }> {
+/**
+ * Did MusicBrainz answer for this disc id, or only offer releases that look similar? An answer for the disc id
+ * echoes it back along with the TOC; a fuzzy one is a search result and says `release-count` instead.
+ */
+export function discLookupIsExact(answer: { id?: string }, discIdAsked: string): boolean {
+  return answer.id === discIdAsked;
+}
+
+/**
+ * Releases for a CD. Passing ?toc= means MusicBrainz answers even when it has never seen this disc id, by
+ * looking for releases whose track lengths are near enough – which is a different claim entirely, and has
+ * handed Rexarr a completely unrelated album before now. Those come back marked fuzzy.
+ */
+export async function lookupDisc(toc: CdToc): Promise<{ discId: string; releases: MusicBrainzRelease[]; exact: boolean }> {
   const id = discId(toc);
   const inc = 'inc=artist-credits+recordings+release-groups+labels';
   try {
-    const r = await mb<{ releases?: MbRelease[] }>(`discid/${encodeURIComponent(id)}?${inc}&toc=${encodeURIComponent(tocString(toc))}`);
-    return { discId: id, releases: (r.releases ?? []).map((x) => mapMbRelease(x, id, toc.tracks.length)) };
+    const r = await mb<{ id?: string; 'release-count'?: number; releases?: MbRelease[] }>(`discid/${encodeURIComponent(id)}?${inc}&toc=${encodeURIComponent(tocString(toc))}`);
+    const exact = discLookupIsExact(r, id);
+    const releases = (r.releases ?? []).map((x) => ({ ...mapMbRelease(x, id, toc.tracks.length), fuzzy: !exact }));
+    return { discId: id, releases, exact };
   } catch (err) {
-    if ((err as { status?: number }).status === 404) return { discId: id, releases: [] };
+    if ((err as { status?: number }).status === 404) return { discId: id, releases: [], exact: false };
     throw err;
   }
 }
