@@ -20,6 +20,7 @@ import { proxiedImage } from '../routes/images.js';
 import { appEvents } from '../system.js';
 import { ejectDrive, emptyScanNote, labelToTitle, listDrives, listVirtualDrives, readDisc, resolveMakemkv, ripTitle, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
 import { audioSelectionFor, describeTracks } from './audio.js';
+import { ensureRipFolder } from './ripFolder.js';
 import { extraFileName, extraLabel, guessExtraRoles } from './extras.js';
 import { toLocalPath } from '../paths.js';
 import { canSeeFolder, deliveryProblem, folderIsSettled, importIntoRadarr, importIntoSonarr, type ImportOutcome, type KnownEpisode } from './arrImport.js';
@@ -407,8 +408,7 @@ export class DiscManager {
     const rel = rip.cd?.releases[rip.cd.selected];
     const artist = safeName(rip.media.artist || rel?.artist || 'Unknown Artist');
     const album = `${safeName(rip.media.title || 'Unknown Album')}${rip.media.year ? ` (${rip.media.year})` : ''}${rip.media.discNumber ? ` (Disc ${rip.media.discNumber})` : ''}`;
-    rip.outputDir = path.join(this.ripRoot(), artist, album);
-    fs.mkdirSync(rip.outputDir, { recursive: true });
+    rip.outputDir = ensureRipFolder(path.join(this.ripRoot(), artist, album));
     rip.status = 'ripping';
     rip.error = undefined;
     rip.files = [];
@@ -807,7 +807,9 @@ export class DiscManager {
     // moved to the rip folder they import from.
     rip.outputDir = path.join(PATHS.rips, folder);
     rip.deliveryDir = path.join(this.ripRoot(), folder);
-    fs.mkdirSync(rip.outputDir, { recursive: true });
+    ensureRipFolder(rip.outputDir!);
+    // the files are moved there at the end; finding out then that it cannot be written is an hour too late
+    ensureRipFolder(this.ripRoot());
     const titles = rip.titles.filter((t) => rip.selectedTitleIds.includes(t.id)).sort((a, b) => a.id - b.id);
     rip.progress = { percent: 0, step: '', titleIndex: 0, titleCount: titles.length };
     this.log(rip, `Ripping ${titles.length} title(s) to ${rip.outputDir}`);

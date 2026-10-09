@@ -54,6 +54,10 @@ See the [disc troubleshooting table](guide/disc-ripping.md#troubleshooting) for 
 - **No titles found on this disc** — the OS mounted it, or MakeMKV cannot decrypt it (Blu-ray needs a key).
 - **A title is missing** — it is shorter than *Minimum title length*; lower it or tick *Include extras and
   specials*.
+- **Cannot create the rip folder …** — the folder in **Settings → Disc ripping → Rip folder** cannot be made.
+  The message names the deepest folder that does exist and whether Rexarr can write to it. On macOS, a rip folder
+  under `/Volumes` that is not mounted reports as a permission problem, because only root may create folders
+  directly in `/Volumes` — mount the drive or share first, and check the volume name matches.
 - **The machine went to sleep mid-rip** — keep **Keep this computer awake while ripping or encoding** on
   (Settings → Encoding); **System → Status → Sleep** shows whether the inhibitor is held.
 
@@ -61,6 +65,10 @@ See the [disc troubleshooting table](guide/disc-ripping.md#troubleshooting) for 
 
 - **fre:ac missing** — install it and set the path in **Settings → Connections → fre:ac**. The Docker image has
   fre:ac but **no WavPack or Monkey's Audio** encoder.
+- **A CD is identified as the wrong album** — if the release is labelled *similar length only, unconfirmed*, it
+  was never recognised: MusicBrainz offered it because its track lengths are close. Pick another from the list,
+  search by artist and album, or leave it on *Generic track names*. Rexarr will not apply such a suggestion by
+  itself, and auto-rip will not start on one.
 - **An album will not import into Lidarr** — a single image + cue album is split automatically; if it already left
   Lidarr's queue, use **Music → Import Folder**.
 

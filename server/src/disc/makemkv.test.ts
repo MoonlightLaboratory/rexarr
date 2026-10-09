@@ -10,6 +10,7 @@ import { matchLibrary, nameScore, splitSequel, type LibraryCandidate } from './i
 import { extraFileName, extraLabel, guessExtraRoles } from './extras.js';
 import { canSeeFolder, deliveryProblem, isInsideFolder } from './arrImport.js';
 import { pickAddTarget } from './addTarget.js';
+import { ensureRipFolder, explainFolderError } from './ripFolder.js';
 
 test('splitRobot handles quoted fields with commas and escaped quotes', () => {
   assert.deepEqual(splitRobot('0,2,999,12,"BD-RE HL-DT-ST, WH16NS40","BLADE_RUNNER","/dev/sr0"'), ['0', '2', '999', '12', 'BD-RE HL-DT-ST, WH16NS40', 'BLADE_RUNNER', '/dev/sr0']);
@@ -420,4 +421,31 @@ test('MSG lines are kept with the disc info', () => {
   const info = parseDiscInfo(['MSG:3007,0,0,"Using direct disc access mode","%1",""', 'MSG:5021,260,2,"Title #1 has length of 95 seconds","..",""', 'CINFO:2,0,"Birdman"'].join('\n'));
   assert.deepEqual(info.messages, ['Using direct disc access mode', 'Title #1 has length of 95 seconds']);
   assert.equal(info.titles.length, 0);
+});
+
+test('a rip folder that cannot be made says what is actually wrong', () => {
+  // macOS: /Volumes belongs to root, so an unmounted share fails as EACCES one level up from the missing folder
+  assert.match(
+    explainFolderError('/Volumes/Media/Rips/Various Artists/Ultimate Country (2004)', 'EACCES', { deepestExisting: '/Volumes', writable: false }, 'darwin'),
+    /\/Volumes\/Media is not mounted.*only root can create folders directly in \/volumes/is,
+  );
+  // an ordinary folder that exists but is somebody else's
+  const denied = explainFolderError('/srv/media/rips/Album', 'EACCES', { deepestExisting: '/srv/media', writable: false }, 'linux');
+  assert.match(denied, /\/srv\/media is not writable/);
+  assert.match(denied, /\/srv\/media\/rips could not be made/);
+  // and the cases that are nothing to do with permissions
+  assert.match(explainFolderError('/mnt/x/Album', 'EROFS', { deepestExisting: '/mnt/x', writable: false }, 'linux'), /read-only filesystem/);
+  assert.match(explainFolderError('/mnt/x/Album', 'ENOSPC', { deepestExisting: '/mnt/x', writable: true }, 'linux'), /no space left/);
+  // /Volumes itself on Linux is just a folder, with no special explanation
+  assert.doesNotMatch(explainFolderError('/Volumes/Media/Rips', 'EACCES', { deepestExisting: '/Volumes', writable: false }, 'linux'), /not mounted/);
+});
+
+test('a rip folder that can be made is made, and one that cannot is explained', (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'rexarr-ripfolder-'));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const made = ensureRipFolder(path.join(base, 'Artist', 'Album (2004)'));
+  assert.ok(fs.existsSync(made));
+  // a file where a folder should be
+  fs.writeFileSync(path.join(base, 'file'), '');
+  assert.throws(() => ensureRipFolder(path.join(base, 'file', 'Album')), /Cannot create the rip folder/);
 });
