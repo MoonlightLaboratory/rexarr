@@ -41,6 +41,7 @@ Everything on these pages is also available as JSON: `GET /api/settings`, `PUT /
 | fre:ac | `freaccmd` path | empty = auto-detect |
 | Local media | extra folders, scan interval, folder kinds | see [Local media](../guide/local-media.md) |
 | MusicBrainz | on / off | CD and album lookups, Cover Art Archive |
+| TheDiscDB | on / off | barcodes and disc contents for physical releases |
 | Notifications | any number of targets | see below |
 
 ### Notifications
@@ -98,8 +99,15 @@ Auto transcode: `auto.enabled`, `auto.includeExisting`, `auto.sources.radarr` / 
 
 ## Metadata
 
-AniDB for anime (`anidb.enabled`), with a refresh button and the dataset status. See
-[AniDB](../guide/anidb.md).
+- **AniDB for anime** (`anidb.enabled`), with a refresh button and the dataset status. See
+  [AniDB](../guide/anidb.md).
+- **MusicBrainz & Cover Art Archive** (`musicbrainz.enabled`) — audio CDs by disc id, tags and cover art.
+- **TheDiscDB** (`thediscdb.enabled`, on by default) — [thediscdb.com](https://thediscdb.com) is a community
+  catalogue of *physical releases*: the barcode on the case, what is on each disc, and the IMDb / TMDb ids of that
+  exact edition. Rexarr asks it when a [scanned barcode](#barcode-scanning) needs turning into a title. A hit names
+  the film or series outright — `191329125670` comes back as *1917 (2019)* with TMDb 530915, so Radarr is told
+  which film it is rather than asked to search for a cleaned-up shop listing. No account; mostly US releases, and
+  it will not know every disc, in which case MusicBrainz and UPCitemdb are tried as before.
 
 ## Disc ripping
 

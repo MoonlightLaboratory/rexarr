@@ -1,4 +1,4 @@
-import { URL_BASE } from '../base';
+import { URL_BASE, withBase } from '../base';
 import { useEffect, useState } from 'react';
 import type { ArrConnection, LocalMediaSettings, LocalScanStatus, NotificationEvent, NotificationKind, NotificationSettings, NotificationTarget, Settings, SlskdConnection, SystemInfo } from '@shared/types';
 import { Modal } from '../components/Modal';
@@ -967,6 +967,26 @@ export function SettingsPage() {
         </div>
         <div className="card-b small dim">
           Identifies audio CDs by their disc id, tags rips with artist / album / track titles, MusicBrainz ids, label, barcode and release date, and embeds the front cover. Requests are limited to one per second.
+        </div>
+      </div>
+      <div className="card mb">
+        <div className="card-h">
+          <label className="check">
+            <input type="checkbox" checked={s.thediscdb?.enabled !== false} onChange={(e) => setS({ ...s, thediscdb: { enabled: e.target.checked } })} /> TheDiscDB
+          </label>
+          <span className="spacer" />
+          <span className="small dim">no account needed</span>
+        </div>
+        <div className="card-b small dim">
+          A community catalogue of physical releases at{' '}
+          <a href="https://thediscdb.com" target="_blank" rel="noreferrer">
+            thediscdb.com
+          </a>
+          : the barcode on the case, what is on each disc, and the IMDb / TMDb ids that go with that exact edition.
+          Rexarr asks it when a{' '}
+          <a href={withBase('/settings/experiments')}>scanned barcode</a> needs turning into a title – a hit names
+          the film or series outright, instead of a shop listing that has to be cleaned up and guessed at. Mostly
+          US releases, and it will not know every disc.
         </div>
       </div>
 

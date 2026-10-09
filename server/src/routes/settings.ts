@@ -127,6 +127,7 @@ export const settingsSchema = z.object({
     .object({ enabled: z.boolean(), url: z.string(), apiKey: z.string(), downloadsPath: z.string().default(''), maxQueueLength: z.number().int().min(0).max(10000).default(50), searchTimeoutSeconds: z.number().int().min(5).max(60).default(15) })
     .default({ enabled: false, url: 'http://localhost:5030', apiKey: '', downloadsPath: '', maxQueueLength: 50, searchTimeoutSeconds: 15 }),
   musicbrainz: z.object({ enabled: z.boolean() }).default({ enabled: true }),
+  thediscdb: z.object({ enabled: z.boolean() }).default({ enabled: true }),
   notifications: z
     .object({
       targets: z

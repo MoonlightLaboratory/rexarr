@@ -642,6 +642,8 @@ export interface Settings {
   slskd: SlskdConnection;
   /** MusicBrainz / Cover Art Archive lookups (CDs, music metadata). */
   musicbrainz: { enabled: boolean };
+  /** TheDiscDB: barcodes, disc contents and the ids that go with a physical release. */
+  thediscdb: { enabled: boolean };
   /** Discord, Slack, ntfy and friends: told when an encode or a rip finishes or fails. */
   notifications: NotificationSettings;
   /** Beta features, off unless you turn them on. */

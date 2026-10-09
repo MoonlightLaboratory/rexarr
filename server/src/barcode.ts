@@ -10,6 +10,7 @@ import type { ExpectedDisc } from '../../shared/types.js';
 import { APP_VERSION } from './config.js';
 import { httpFetch } from './net.js';
 import { matchLibrary, type LibraryCandidate } from './disc/identify.js';
+import { discDbByBarcode } from './discdb.js';
 
 export interface BarcodeProduct {
   code: string;
@@ -20,8 +21,13 @@ export interface BarcodeProduct {
   year?: number;
   seasonNumber?: number;
   kind: 'movie' | 'series' | 'album';
-  source: 'musicbrainz' | 'upcitemdb';
+  source: 'thediscdb' | 'musicbrainz' | 'upcitemdb';
   artist?: string;
+  /** TheDiscDB knows exactly which release this is, so the *arr apps can be told rather than asked. */
+  tmdbId?: number;
+  imdbId?: string;
+  /** Where the release can be read about. */
+  url?: string;
 }
 
 /** A barcode is 8–14 digits; people read them off the box with spaces and dashes in. */
@@ -118,6 +124,21 @@ export function guessKind(title: string, category?: string): 'movie' | 'series' 
 export async function lookupBarcode(code: string): Promise<BarcodeProduct | null> {
   const clean = normaliseCode(code);
   if (!clean) throw new Error(`"${code}" is not a barcode (8 to 14 digits)`);
+  // TheDiscDB first: it catalogues the disc itself, so a hit is the release, with its ids
+  const disc = await discDbByBarcode(clean).catch(() => null);
+  if (disc) {
+    return {
+      code: clean,
+      product: `${disc.title}${disc.year ? ` (${disc.year})` : ''}`,
+      title: disc.title,
+      year: disc.year,
+      kind: disc.kind,
+      source: 'thediscdb',
+      tmdbId: disc.tmdbId,
+      imdbId: disc.imdbId,
+      url: disc.url,
+    };
+  }
   const mb = await musicbrainz(clean).catch(() => null);
   if (mb) return mb;
   return upcitemdb(clean);

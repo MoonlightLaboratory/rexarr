@@ -60,7 +60,8 @@ export default async function barcodeRoutes(app: FastifyInstance) {
       // Not in the library: ask the *arr apps what the title is, so it can be added
       let lookup: { kind: 'movie' | 'series'; title: string; year?: number; externalId: number; poster?: string }[] = [];
       if (!inLibrary) {
-        const term = product.title;
+        // an id from TheDiscDB names the title outright; otherwise the cleaned-up product title is the best we have
+        const term = product.tmdbId && product.kind === 'movie' ? `tmdb:${product.tmdbId}` : product.imdbId ? `imdb:${product.imdbId}` : product.title;
         const [m, s] = await Promise.all([
           product.kind !== 'series' && radarr.configured ? radarr.lookup(term).catch(() => []) : Promise.resolve([]),
           product.kind !== 'movie' && sonarr.configured ? sonarr.lookup(term).catch(() => []) : Promise.resolve([]),
