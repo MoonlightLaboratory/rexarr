@@ -115,10 +115,18 @@ Auto transcode: `auto.enabled`, `auto.includeExisting`, `auto.sources.radarr` / 
   titles. A CDDB entry carries artist, album, year, genre and the titles, and nothing else: no cover art, and no
   MusicBrainz ids are written for it. The entry is shown on the Discs page as a release to pick, labelled *CDDB*.
 
-    The server is any freedb-protocol CGI endpoint. The default is
-    `https://freedbtest.dyndns.org/~cddb/cddb.cgi`. [gnudb.org](https://gnudb.org) is the maintained successor
-    and would otherwise be the obvious choice, but it answers only applications registered with it — anything
-    else gets `500 Unknown application, developer email for …`, which Rexarr writes to the disc log as it stands.
+    The server is any freedb-protocol CGI endpoint; the default is `https://freedbtest.dyndns.org/~cddb/cddb.cgi`,
+    which answers anyone. It can also be a whole URL with the handshake in it, which is how
+    [gnudb.org](https://gnudb.org) — the maintained freedb successor — publishes its service:
+
+    ```
+    gnudb.gnudb.org/~cddb/cddb.cgi?cmd=cddb+read+data+4105d789&hello=emailname+emailhost.com+applicationname+0.1&proto=6
+    ```
+
+    Paste that as it stands, with your own values in the `hello`, and Rexarr keeps the `hello` and `proto` and
+    replaces only the `cmd`. The handshake is `<email name>+<email host>+<application>+<version>`. gnudb answers
+    only application names it knows: its own example name is accepted, `rexarr` is not — that request comes back
+    `500 Unknown application, developer email for rexarr …`, which Rexarr writes to the disc log as it stands.
 
 ## Disc ripping
 

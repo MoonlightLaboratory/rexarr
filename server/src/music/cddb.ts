@@ -124,13 +124,27 @@ export function toRelease(entry: XmcdEntry, match: Pick<CddbMatch, 'category' | 
   };
 }
 
-const hello = () => `user ${process.env.HOSTNAME || 'localhost'} rexarr ${APP_VERSION}`;
+/** How Rexarr names itself when the server address does not say otherwise: user, host, client, version. */
+export const DEFAULT_HELLO = `user localhost rexarr ${APP_VERSION}`;
+
+/**
+ * The address to call. The setting is normally just an endpoint, but gnudb documents its service as a whole URL
+ * with the handshake in it – `…/cddb.cgi?cmd=cddb+read+…&hello=name+host.com+app+0.1&proto=6` – so a `hello` or
+ * `proto` pasted in that way is kept and used, and only `cmd` is replaced. A missing scheme is assumed https.
+ */
+export function cddbUrl(server: string, cmd: string[], hello = DEFAULT_HELLO): string {
+  const text = server.trim();
+  if (!text) throw new Error('no CDDB server is set');
+  const url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `https://${text}`);
+  url.searchParams.set('cmd', cmd.join(' '));
+  if (!url.searchParams.get('hello')?.trim()) url.searchParams.set('hello', hello);
+  if (!url.searchParams.get('proto')?.trim()) url.searchParams.set('proto', '6');
+  // the protocol wants spaces as "+", which is what URLSearchParams writes them as
+  return url.toString();
+}
 
 async function cddbCommand(cmd: string[]): Promise<string> {
-  const base = store.settings.cddb.server.trim();
-  if (!base) throw new Error('no CDDB server is set');
-  const url = `${base}${base.includes('?') ? '&' : '?'}cmd=${encodeURIComponent(cmd.join(' '))}&hello=${encodeURIComponent(hello())}&proto=6`;
-  const res = await httpFetch(url, { headers: { 'User-Agent': `rexarr/${APP_VERSION}` }, signal: AbortSignal.timeout(20_000) });
+  const res = await httpFetch(cddbUrl(store.settings.cddb.server, cmd), { headers: { 'User-Agent': `rexarr/${APP_VERSION}` }, signal: AbortSignal.timeout(20_000) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.text();
 }

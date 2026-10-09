@@ -83,7 +83,8 @@ album when the disc is not in MusicBrainz.
 When MusicBrainz has no entry for the disc id, Rexarr asks **CDDB** instead, using that disc's CDDB id. Plenty of
 discs MusicBrainz has never been told about have been in CDDB for twenty years. Such an entry is labelled *CDDB*
 in the list and gives artist, album, year, genre and the track titles — no cover art, and none of the MusicBrainz
-ids. Server and on/off live under **Settings → Metadata → CDDB / freedb**.
+ids. Server and on/off live under **Settings → Metadata → CDDB / freedb**, where the server may be a plain
+endpoint or the whole URL gnudb publishes, handshake included.
 
 Tracks are ripped by fre:ac with its paranoia reader (`device://cdda:<drive>/<track>`) to FLAC, given the Cover
 Art Archive front cover, optionally encoded with a second music profile and imported into Lidarr. FLAC compression

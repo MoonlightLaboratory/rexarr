@@ -6,7 +6,7 @@ import { BUILTIN_PROFILES } from '../../../shared/presets.js';
 import { discId, mapMbRelease, parseCdparanoiaToc, parseTocPlist, tocString } from './musicbrainz.js';
 import { formatLabel, musicCategory, musicFormatFromText } from './format.js';
 import { cdTrackTags, VARIOUS_ARTISTS } from './tags.js';
-import { cddbDiscId, cddbQueryArgs, parseCddbQuery, parseXmcd, toRelease } from './cddb.js';
+import { cddbDiscId, cddbQueryArgs, cddbUrl, DEFAULT_HELLO, parseCddbQuery, parseXmcd, toRelease } from './cddb.js';
 import { crashedAfterDone, freacEncoderArgs } from './freac.js';
 import { toolError } from '../spawnError.js';
 import { detectMqaInSamples, MQA_SYNC } from '../audio/mqa.js';
@@ -347,4 +347,26 @@ PLAYORDER=
   // a compilation puts the performer in front of each title
   const va = parseXmcd('DTITLE=Various / Now 42\nTTITLE0=Robbie Williams / Angels\n.')!;
   assert.deepEqual(va.tracks[0], { number: 1, title: 'Angels', artist: 'Robbie Williams' });
+});
+
+test('the CDDB server setting may be a bare endpoint or a whole URL with the handshake in it', () => {
+  const cmd = ['cddb', 'query', 'a109d40d', '1', '150', '2518'];
+  // the plain case: Rexarr adds the command, its own hello and the protocol level
+  const plain = new URL(cddbUrl('https://freedbtest.dyndns.org/~cddb/cddb.cgi', cmd));
+  assert.equal(plain.origin + plain.pathname, 'https://freedbtest.dyndns.org/~cddb/cddb.cgi');
+  assert.equal(plain.searchParams.get('cmd'), 'cddb query a109d40d 1 150 2518');
+  assert.equal(plain.searchParams.get('hello'), DEFAULT_HELLO);
+  assert.equal(plain.searchParams.get('proto'), '6');
+  // the protocol wants the spaces as +, not %20
+  assert.match(plain.toString(), /cmd=cddb\+query\+a109d40d/);
+
+  // gnudb publishes its service as a whole URL, handshake and all: keep that hello, replace only the command
+  const pasted = cddbUrl('gnudb.gnudb.org/~cddb/cddb.cgi?cmd=cddb+read+data+4105d789&hello=emailname+emailhost.com+applicationname+0.1&proto=6', cmd);
+  const u = new URL(pasted);
+  assert.equal(u.protocol, 'https:'); // no scheme pasted, so https
+  assert.equal(u.searchParams.get('hello'), 'emailname emailhost.com applicationname 0.1');
+  assert.equal(u.searchParams.get('cmd'), 'cddb query a109d40d 1 150 2518');
+  assert.match(pasted, /hello=emailname\+emailhost\.com\+applicationname\+0\.1/);
+
+  assert.throws(() => cddbUrl('   ', cmd), /no CDDB server/);
 });

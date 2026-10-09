@@ -1008,12 +1008,14 @@ export function SettingsPage() {
             <label>CDDB server</label>
             <input type="text" className="mono" value={s.cddb?.server ?? ''} placeholder="https://freedbtest.dyndns.org/~cddb/cddb.cgi" onChange={(e) => setS({ ...s, cddb: { ...s.cddb, server: e.target.value } })} />
             <div className="help">
-              Any freedb-protocol CGI endpoint.{' '}
+              Any freedb-protocol CGI endpoint, or a whole URL with the handshake in it the way{' '}
               <a href="https://gnudb.org" target="_blank" rel="noreferrer">
                 gnudb.org
               </a>{' '}
-              is the maintained successor, but it only answers applications registered with it, so the default is
-              a mirror that answers anyone.
+              publishes its service – paste theirs as it stands and the <span className="mono">hello=</span> in it
+              is used, with only the command replaced. gnudb answers only application names it knows, so its own
+              example name works and <span className="mono">rexarr</span> does not; the default is a mirror that
+              answers anyone.
             </div>
           </div>
         </div>
