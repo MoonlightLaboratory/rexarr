@@ -42,6 +42,7 @@ Everything on these pages is also available as JSON: `GET /api/settings`, `PUT /
 | Local media | extra folders, scan interval, folder kinds | see [Local media](../guide/local-media.md) |
 | MusicBrainz | on / off | CD and album lookups, Cover Art Archive |
 | TheDiscDB | on / off | barcodes and disc contents for physical releases |
+| CDDB / freedb | on / off, server | audio CD track titles when MusicBrainz has none |
 | Notifications | any number of targets | see below |
 
 ### Notifications
@@ -108,6 +109,16 @@ Auto transcode: `auto.enabled`, `auto.includeExisting`, `auto.sources.radarr` / 
   the film or series outright — `191329125670` comes back as *1917 (2019)* with TMDb 530915, so Radarr is told
   which film it is rather than asked to search for a cleaned-up shop listing. No account; mostly US releases, and
   it will not know every disc, in which case MusicBrainz and UPCitemdb are tried as before.
+- **CDDB / freedb** (`cddb.enabled`, on by default, and `cddb.server`) — the track listings CD players have used
+  since the nineties. Rexarr computes the CDDB disc id of the disc in the drive and asks for its entry, but only
+  when MusicBrainz has nothing for that disc id, so a CD too obscure for MusicBrainz still rips with real track
+  titles. A CDDB entry carries artist, album, year, genre and the titles, and nothing else: no cover art, and no
+  MusicBrainz ids are written for it. The entry is shown on the Discs page as a release to pick, labelled *CDDB*.
+
+    The server is any freedb-protocol CGI endpoint. The default is
+    `https://freedbtest.dyndns.org/~cddb/cddb.cgi`. [gnudb.org](https://gnudb.org) is the maintained successor
+    and would otherwise be the obvious choice, but it answers only applications registered with it — anything
+    else gets `500 Unknown application, developer email for …`, which Rexarr writes to the disc log as it stands.
 
 ## Disc ripping
 

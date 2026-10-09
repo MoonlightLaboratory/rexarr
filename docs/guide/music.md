@@ -80,6 +80,11 @@ Turn it off in **Settings → Connections → Lidarr**.
 `cdparanoia -Q`), computes the MusicBrainz disc id and lists matching releases — pick one, or search by artist and
 album when the disc is not in MusicBrainz.
 
+When MusicBrainz has no entry for the disc id, Rexarr asks **CDDB** instead, using that disc's CDDB id. Plenty of
+discs MusicBrainz has never been told about have been in CDDB for twenty years. Such an entry is labelled *CDDB*
+in the list and gives artist, album, year, genre and the track titles — no cover art, and none of the MusicBrainz
+ids. Server and on/off live under **Settings → Metadata → CDDB / freedb**.
+
 Tracks are ripped by fre:ac with its paranoia reader (`device://cdda:<drive>/<track>`) to FLAC, given the Cover
 Art Archive front cover, optionally encoded with a second music profile and imported into Lidarr. FLAC compression
 level and the Linux TOC reader are set under **Settings → Disc ripping → Audio CDs**.
@@ -97,6 +102,7 @@ ends up with two track numbers. Field names follow Picard, which is what Lidarr,
 | Dates | `DATE` is this pressing, `ORIGINALDATE` / `ORIGINALYEAR` the album — a 1994 remaster of a 1979 record keeps both |
 | Release | `LABEL`, `CATALOGNUMBER`, `BARCODE`, `RELEASECOUNTRY` |
 | MusicBrainz | `MUSICBRAINZ_ALBUMID`, `MUSICBRAINZ_RELEASEGROUPID`, `MUSICBRAINZ_ALBUMARTISTID`, `MUSICBRAINZ_ARTISTID`, `MUSICBRAINZ_TRACKID` (the recording), `MUSICBRAINZ_RELEASETRACKID`, `MUSICBRAINZ_DISCID` |
+| From CDDB | `GENRE` and `DISCID` (the freedb disc id, as rippers have always written it); no `MUSICBRAINZ_*` ids except the disc id Rexarr computed itself |
 
 The album folder is named after the original year for the same reason, which is also the year Lidarr files the
 album under.

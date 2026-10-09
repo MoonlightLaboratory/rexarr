@@ -372,6 +372,9 @@ export const DEFAULT_SETTINGS = {
   slskd: { enabled: false, url: 'http://localhost:5030', apiKey: '', downloadsPath: '', maxQueueLength: 50, searchTimeoutSeconds: 15 },
   musicbrainz: { enabled: true },
   thediscdb: { enabled: true },
+  // gnudb.org is the maintained freedb successor but only answers applications registered with it; this mirror
+  // answers anyone, and is only asked when MusicBrainz has nothing for the disc.
+  cddb: { enabled: true, server: 'https://freedbtest.dyndns.org/~cddb/cddb.cgi' },
   notifications: { targets: [] },
   experiments: { barcode: false, wanted: false },
   ffmpegPath: 'ffmpeg',

@@ -190,6 +190,7 @@ export function mapMbRelease(r: MbRelease, discIdForMedium?: string, trackCount?
     trackId: t.id,
   }));
   return {
+    source: 'musicbrainz',
     releaseId: r.id,
     releaseGroupId: r['release-group']?.id,
     title: r.title,

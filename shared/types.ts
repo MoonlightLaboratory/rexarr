@@ -448,7 +448,11 @@ export interface MqaInfo {
 }
 
 /** A MusicBrainz release matched to a CD. */
+/** A release matching the CD in the drive – from MusicBrainz, or from CDDB when MusicBrainz has no entry. */
 export interface MusicBrainzRelease {
+  /** Where this match came from. Absent on matches stored before CDDB existed, which were all MusicBrainz. */
+  source?: 'musicbrainz' | 'cddb';
+  /** A MusicBrainz release MBID, or "<category>/<disc id>" for a CDDB entry. */
   releaseId: string;
   releaseGroupId?: string;
   title: string;
@@ -456,6 +460,10 @@ export interface MusicBrainzRelease {
   artistId?: string;
   /** "Floyd, Pink" – what Picard writes as ALBUMARTISTSORT. */
   artistSort?: string;
+  /** CDDB's one-word genre. MusicBrainz genres are not fetched. */
+  genre?: string;
+  /** The disc's CDDB id, when the match came from there – written as the DISCID tag, as rippers do. */
+  cddbId?: string;
   date?: string;
   country?: string;
   label?: string;
@@ -473,6 +481,12 @@ export interface MusicBrainzRelease {
   trackCount: number;
   tracks: { number: number; title: string; artist?: string; artistId?: string; artistSort?: string; lengthMs?: number; recordingId?: string; trackId?: string }[];
   coverUrl?: string;
+}
+
+export interface CddbSettings {
+  enabled: boolean;
+  /** A freedb-protocol CGI endpoint, e.g. https://freedbtest.dyndns.org/~cddb/cddb.cgi */
+  server: string;
 }
 
 /** Audio CD details on a rip. */
@@ -655,6 +669,8 @@ export interface Settings {
   musicbrainz: { enabled: boolean };
   /** TheDiscDB: barcodes, disc contents and the ids that go with a physical release. */
   thediscdb: { enabled: boolean };
+  /** CDDB / freedb: track titles for audio CDs MusicBrainz does not have. */
+  cddb: CddbSettings;
   /** Discord, Slack, ntfy and friends: told when an encode or a rip finishes or fails. */
   notifications: NotificationSettings;
   /** Beta features, off unless you turn them on. */

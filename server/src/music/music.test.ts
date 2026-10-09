@@ -6,6 +6,7 @@ import { BUILTIN_PROFILES } from '../../../shared/presets.js';
 import { discId, mapMbRelease, parseCdparanoiaToc, parseTocPlist, tocString } from './musicbrainz.js';
 import { formatLabel, musicCategory, musicFormatFromText } from './format.js';
 import { cdTrackTags, VARIOUS_ARTISTS } from './tags.js';
+import { cddbDiscId, cddbQueryArgs, parseCddbQuery, parseXmcd, toRelease } from './cddb.js';
 import { crashedAfterDone, freacEncoderArgs } from './freac.js';
 import { toolError } from '../spawnError.js';
 import { detectMqaInSamples, MQA_SYNC } from '../audio/mqa.js';
@@ -277,4 +278,73 @@ test('a Various Artists disc is tagged as a compilation', () => {
   assert.equal(tags.COMPILATION, 1);
   // the track keeps its own artist, the album stays with Various Artists
   assert.deepEqual([tags.ARTIST, tags.ALBUMARTIST, tags.MUSICBRAINZ_ARTISTID], ['Someone', 'Various Artists', 'a1']);
+});
+
+test('CDDB disc id and query arguments match the freedb algorithm', () => {
+  // The Wall, disc 2 of the 1994 remaster – the TOC MusicBrainz holds for disc id uDAm7lKUREWYqiy5SA5BJ.OI6QM-
+  const offsets = [150, 21265, 33285, 48625, 55605, 62142, 90770, 97980, 117235, 137015, 154892, 157160, 181140];
+  const toc = { firstTrack: 1, lastTrack: 13, leadout: 188875, offsets, tracks: [] };
+  // freedbtest.dyndns.org answers this id with "country a109d40d Pink Floyd / The Wall … (Disc 2)"
+  assert.equal(cddbDiscId(toc), 'a109d40d');
+  assert.deepEqual(cddbQueryArgs(toc), ['a109d40d', '13', ...offsets.map(String), '2518']);
+  // a disc whose checksum byte sets the top bit must not come out negative
+  const high = { firstTrack: 1, lastTrack: 1, leadout: 90000, offsets: [150], tracks: [] };
+  assert.match(cddbDiscId(high), /^[0-9a-f]{8}$/);
+});
+
+test('CDDB query answers: one match, a list, nothing, a refusal', () => {
+  assert.deepEqual(parseCddbQuery('200 country a109d40d Pink Floyd / The Wall [1994 Digital Remaster] (Disc 2)'), [
+    { category: 'country', discId: 'a109d40d', artist: 'Pink Floyd', title: 'The Wall [1994 Digital Remaster] (Disc 2)' },
+  ]);
+  const list = parseCddbQuery(`210 Found exact matches, list follows (until terminating \`.')
+rock a109d489 Pink Floyd / The Wall cd 2
+misc a109d493 Pink Floyd / The Wall (CD 2/2)
+.`);
+  assert.deepEqual(list.map((m) => `${m.category}/${m.discId}`), ['rock/a109d489', 'misc/a109d493']);
+  assert.deepEqual(parseCddbQuery('202 No match found'), []);
+  // a self-titled album has no " / " in its title line
+  assert.deepEqual(parseCddbQuery('200 rock abcd1234 Metallica')[0], { category: 'rock', discId: 'abcd1234', artist: 'Metallica', title: 'Metallica' });
+  // gnudb refuses clients it does not know; the reason has to reach the disc log
+  assert.throws(() => parseCddbQuery('500 Unknown application, developer email for rexarr 0.1.7.2'), /Unknown application/);
+});
+
+test('an xmcd entry becomes a release match', () => {
+  const xmcd = `# xmcd CD database file
+#
+# Track frame offsets:
+#  150
+#
+# Disc length: 2518 seconds
+#
+DISCID=a109d40d
+DTITLE=Pink Floyd / The Wall [1994 Digital
+DTITLE= Remaster] (Disc 2)
+DYEAR=1979
+DGENRE=Rock
+TTITLE0=Hey You
+TTITLE1=Is There Anybody Out There?
+EXTD=
+PLAYORDER=
+.`;
+  const entry = parseXmcd(xmcd)!;
+  // a value split over two lines is joined with nothing between the halves
+  assert.equal(entry.title, 'The Wall [1994 Digital Remaster] (Disc 2)');
+  assert.deepEqual([entry.artist, entry.year, entry.genre], ['Pink Floyd', 1979, 'Rock']);
+  assert.deepEqual(entry.tracks, [
+    { number: 1, title: 'Hey You', artist: undefined },
+    { number: 2, title: 'Is There Anybody Out There?', artist: undefined },
+  ]);
+
+  const rel = toRelease(entry, { category: 'country', discId: 'a109d40d' });
+  assert.deepEqual([rel.source, rel.releaseId, rel.date, rel.trackCount], ['cddb', 'country/a109d40d', '1979', 2]);
+
+  // no MusicBrainz ids are invented from a CDDB entry, and the genre and freedb id are written
+  const tags = cdTrackTags({ rel, cd: { discId: 'mb-disc-id', toc: '', tracks: [], releases: [rel], selected: 0 }, media: { kind: 'album', title: rel.title }, track: 1, trackTotal: 2 });
+  assert.deepEqual([tags.TITLE, tags.GENRE, tags.DISCID, tags.MEDIA], ['Hey You', 'Rock', 'a109d40d', 'CD']);
+  assert.deepEqual([tags.MUSICBRAINZ_ALBUMID, tags.MUSICBRAINZ_TRACKID, tags.MUSICBRAINZ_ALBUMARTISTID], [undefined, undefined, undefined]);
+  // the disc id Rexarr computed itself is still true, whoever named the disc
+  assert.equal(tags.MUSICBRAINZ_DISCID, 'mb-disc-id');
+  // a compilation puts the performer in front of each title
+  const va = parseXmcd('DTITLE=Various / Now 42\nTTITLE0=Robbie Williams / Angels\n.')!;
+  assert.deepEqual(va.tracks[0], { number: 1, title: 'Angels', artist: 'Robbie Williams' });
 });

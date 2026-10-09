@@ -337,7 +337,7 @@ function CdBody({ rip, busy, act }: { rip: DiscRip; busy: boolean; act: (fn: () 
         <div className="cdCover">{rip.media.poster ? <img src={rip.media.poster} alt="" /> : <Icon.Disc />}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="field stack">
-            <label>MusicBrainz release</label>
+            <label>{cd.releases[cd.selected]?.source === 'cddb' ? 'CDDB entry' : 'MusicBrainz release'}</label>
             {cd.releases.length > 0 ? (
               <select value={cd.selected} onChange={(e) => act(() => api.setCdRelease(rip.id, { index: Number(e.target.value) }))} disabled={busy}>
                 {cd.releases.map((r, i) => (
@@ -345,18 +345,32 @@ function CdBody({ rip, busy, act }: { rip: DiscRip; busy: boolean; act: (fn: () 
                     {r.artist} – {r.title}
                     {r.date ? ` (${r.date.slice(0, 4)}${r.country ? `, ${r.country}` : ''})` : ''}
                     {r.label ? ` · ${r.label}` : ''} · {r.trackCount} tracks{r.discCount > 1 ? ` · disc ${r.discNumber}/${r.discCount}` : ''}
+                    {r.source === 'cddb' ? ' · CDDB' : ''}
                   </option>
                 ))}
               </select>
             ) : (
-              <div className="warn small">No MusicBrainz release has this disc id ({cd.discId}) yet. Search by artist and album below, or rip with generic track names.</div>
+              <div className="warn small">
+                Neither MusicBrainz nor CDDB knows this disc id ({cd.discId}). Search by artist and album below, or rip with generic track names.
+              </div>
             )}
             {rel && (
               <div className="help">
-                <a href={`https://musicbrainz.org/release/${rel.releaseId}`} target="_blank" rel="noreferrer">
-                  View on MusicBrainz
-                </a>
-                {rel.barcode ? ` · barcode ${rel.barcode}` : ''} · disc id <span className="mono">{cd.discId}</span>
+                {rel.source === 'cddb' ? (
+                  <>
+                    From CDDB – artist, album, year, genre and track titles, nothing else. Entry{' '}
+                    <span className="mono">{rel.releaseId}</span>
+                    {rel.genre ? ` · ${rel.genre}` : ''}
+                  </>
+                ) : (
+                  <>
+                    <a href={`https://musicbrainz.org/release/${rel.releaseId}`} target="_blank" rel="noreferrer">
+                      View on MusicBrainz
+                    </a>
+                    {rel.barcode ? ` · barcode ${rel.barcode}` : ''}
+                  </>
+                )}{' '}
+                · disc id <span className="mono">{cd.discId}</span>
               </div>
             )}
           </div>

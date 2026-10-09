@@ -990,6 +990,35 @@ export function SettingsPage() {
         </div>
       </div>
 
+      <div className="card mb">
+        <div className="card-h">
+          <label className="check">
+            <input type="checkbox" checked={s.cddb?.enabled !== false} onChange={(e) => setS({ ...s, cddb: { ...s.cddb, enabled: e.target.checked } })} /> CDDB / freedb
+          </label>
+          <span className="spacer" />
+          <span className="small dim">no account needed</span>
+        </div>
+        <div className="card-b">
+          <div className="small dim mb">
+            The track listings CD players have used since the nineties. Asked only when MusicBrainz has no entry
+            for a disc id, and it gives artist, album, year, genre and the track titles – no cover art, no
+            MusicBrainz ids. Pick its entry on the Discs page as you would a MusicBrainz release.
+          </div>
+          <div className="field stack">
+            <label>CDDB server</label>
+            <input type="text" className="mono" value={s.cddb?.server ?? ''} placeholder="https://freedbtest.dyndns.org/~cddb/cddb.cgi" onChange={(e) => setS({ ...s, cddb: { ...s.cddb, server: e.target.value } })} />
+            <div className="help">
+              Any freedb-protocol CGI endpoint.{' '}
+              <a href="https://gnudb.org" target="_blank" rel="noreferrer">
+                gnudb.org
+              </a>{' '}
+              is the maintained successor, but it only answers applications registered with it, so the default is
+              a mirror that answers anyone.
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="legend">Disc ripping</div>
       <div className="card mb">
         <div className="card-h">

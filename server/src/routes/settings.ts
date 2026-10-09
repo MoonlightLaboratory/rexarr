@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { testTarget } from '../notify.js';
 import type { ArrStatus, Settings } from '../../../shared/types.js';
 import { store } from '../store.js';
+import { DEFAULT_SETTINGS } from '../../../shared/presets.js';
 import { Radarr } from '../arr/radarr.js';
 import { Sonarr } from '../arr/sonarr.js';
 import { Prowlarr } from '../arr/prowlarr.js';
@@ -128,6 +129,7 @@ export const settingsSchema = z.object({
     .default({ enabled: false, url: 'http://localhost:5030', apiKey: '', downloadsPath: '', maxQueueLength: 50, searchTimeoutSeconds: 15 }),
   musicbrainz: z.object({ enabled: z.boolean() }).default({ enabled: true }),
   thediscdb: z.object({ enabled: z.boolean() }).default({ enabled: true }),
+  cddb: z.object({ enabled: z.boolean(), server: z.string() }).default(DEFAULT_SETTINGS.cddb),
   notifications: z
     .object({
       targets: z

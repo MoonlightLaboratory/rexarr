@@ -13,6 +13,8 @@ export function cdTrackTags(opts: { rel?: MusicBrainzRelease; cd?: CdInfo; media
   const { rel, cd, media, track, trackTotal } = opts;
   const mt = rel?.tracks.find((x) => x.number === track);
   const various = rel?.artistId === VARIOUS_ARTISTS || /^various artists$/i.test(rel?.artist ?? '');
+  // a CDDB entry knows nothing about MusicBrainz, so none of its ids are invented from it
+  const mb = rel?.source === 'cddb' ? undefined : rel;
   return {
     TITLE: mt?.title ?? `Track ${track}`,
     ARTIST: mt?.artist ?? rel?.artist ?? media.artist,
@@ -36,14 +38,17 @@ export function cdTrackTags(opts: { rel?: MusicBrainzRelease; cd?: CdInfo; media
     BARCODE: rel?.barcode,
     RELEASECOUNTRY: rel?.country,
     COMPILATION: various ? 1 : undefined,
+    GENRE: rel?.genre,
     MEDIA: rel?.format || 'CD',
-    MUSICBRAINZ_ALBUMID: rel?.releaseId,
-    MUSICBRAINZ_RELEASEGROUPID: rel?.releaseGroupId,
-    MUSICBRAINZ_ALBUMARTISTID: rel?.artistId,
-    MUSICBRAINZ_ARTISTID: mt?.artistId ?? rel?.artistId,
+    // DISCID is what rippers have always written the freedb id as
+    DISCID: rel?.cddbId,
+    MUSICBRAINZ_ALBUMID: mb?.releaseId,
+    MUSICBRAINZ_RELEASEGROUPID: mb?.releaseGroupId,
+    MUSICBRAINZ_ALBUMARTISTID: mb?.artistId,
+    MUSICBRAINZ_ARTISTID: mb && (mt?.artistId ?? mb.artistId),
     // Picard's convention: TRACKID is the recording, RELEASETRACKID the track on this release
-    MUSICBRAINZ_TRACKID: mt?.recordingId,
-    MUSICBRAINZ_RELEASETRACKID: mt?.trackId,
+    MUSICBRAINZ_TRACKID: mb && mt?.recordingId,
+    MUSICBRAINZ_RELEASETRACKID: mb && mt?.trackId,
     MUSICBRAINZ_DISCID: cd?.discId,
     MQA: cd?.mqa?.detected ? 'MQA-CD' : undefined,
     ORIGINALSAMPLERATE: cd?.mqa?.detected ? cd.mqa.originalSampleRate : undefined,

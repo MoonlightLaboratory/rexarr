@@ -13,6 +13,7 @@ import { canonicalDevice, probePhysicalDrive } from './devices.js';
 import { execFile } from 'node:child_process';
 import { discId, downloadCover, getRelease, lookupDisc, readCdToc, tocString } from '../music/musicbrainz.js';
 import { freacInfo, ripCdTrack } from '../music/freac.js';
+import { cddbDiscId, cddbLookup } from '../music/cddb.js';
 import { cdTrackTags } from '../music/tags.js';
 import { detectMqa } from '../audio/mqa.js';
 import { proxiedImage } from '../routes/images.js';
@@ -317,11 +318,23 @@ export class DiscManager {
       try {
         const found = await lookupDisc(toc);
         rip.cd.releases = found.releases;
-        this.log(rip, found.releases.length ? `MusicBrainz: ${found.releases.length} matching release(s)` : 'MusicBrainz: no release for this disc id yet – search by title on the Discs page');
+        this.log(rip, found.releases.length ? `MusicBrainz: ${found.releases.length} matching release(s)` : 'MusicBrainz: no release for this disc id yet');
       } catch (err) {
         this.log(rip, `MusicBrainz lookup failed: ${(err as Error).message}`);
       }
     }
+    // CDDB has track titles for plenty of discs MusicBrainz has never been told about; it is only asked when
+    // MusicBrainz came back empty, and it knows nothing beyond artist, album, year, genre and the titles.
+    if (!rip.cd.releases.length && store.settings.cddb.enabled) {
+      try {
+        const found = await cddbLookup(toc);
+        rip.cd.releases = found;
+        this.log(rip, found.length ? `CDDB: ${found.length} matching entr${found.length === 1 ? 'y' : 'ies'} (${found[0].artist} – ${found[0].title})` : `CDDB: nothing for disc id ${cddbDiscId(toc)}`);
+      } catch (err) {
+        this.log(rip, `CDDB lookup failed: ${(err as Error).message}`);
+      }
+    }
+    if (!rip.cd.releases.length) this.log(rip, 'No match for this disc – search by title on the Discs page, or rip with generic track names');
     this.applyCdRelease(rip, 0);
     const profile = store.getProfile(store.settings.defaultProfiles.music);
     if (profile && profile.audio.encoder !== 'copy') {
