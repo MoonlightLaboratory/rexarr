@@ -796,7 +796,9 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
           </div>
         </div>
       )}
-      {editable && rip.titles.length === 0 && rip.status !== 'failed' && <div className="empty">No titles found on this disc (all shorter than the minimum length?).</div>}
+      {editable && rip.titles.length === 0 && rip.status !== 'failed' && (
+        <div className="empty">{rip.scanNote ?? 'No titles found on this disc.'}</div>
+      )}
 
       {rip.files.length > 0 && (
         <div className="card-b" style={{ borderTop: '1px solid var(--border)' }}>

@@ -41,9 +41,16 @@ docker run -d --name rexarr -p 3939:3939 \
   rexarr:makemkv
 ```
 
-- **Pass both device nodes.** `/dev/sr0` is the drive, `/dev/sg0` is its generic SCSI node — MakeMKV needs the
-  second one for Blu-ray. `ls -l /dev/sr* /dev/sg*` on the host shows what you have; a second drive is `/dev/sr1`
-  with its own `sg` node.
+- **Pass both device nodes.** `/dev/sr0` is the drive, and it has a generic SCSI node beside it that MakeMKV needs
+  for Blu-ray. **It is not always `/dev/sg0`** — hard drives take `sg` numbers too, so the drive's node may be
+  `/dev/sg1` or higher. Check which one is the optical drive before passing it:
+
+  ```bash
+  lsscsi -g            # the row of type "cd/dvd" shows its /dev/sg node
+  ls -l /dev/sr* /dev/sg*
+  ```
+
+  A scan that opens the disc but finds no titles at all is usually this node missing or wrong.
 - **The key** goes in once under **Settings → Disc ripping** and is kept in `/config/.MakeMKV/settings.conf`, so it
   survives rebuilds as long as `/config` is mounted. Blu-ray needs a registered key or the current free beta key.
 - **`MAKEMKV_VERSION`** must be a version still on makemkv.com — they remove old ones. Rebuild with a new value

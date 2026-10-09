@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { findDiscImages, labelToTitle, listVirtualDrives, parseDiscInfo, parseDrives, parseDurationSeconds, splitRobot } from './makemkv.js';
+import { emptyScanNote, findDiscImages, labelToTitle, listVirtualDrives, parseDiscInfo, parseDrives, parseDurationSeconds, splitRobot } from './makemkv.js';
 import { audioSelectionFor, bestAudioPerLanguage, codecRank } from './audio.js';
 import type { DiscAudioTrack } from '../../../shared/types.js';
 import { matchLibrary, nameScore, splitSequel, type LibraryCandidate } from './identify.js';
@@ -376,4 +376,21 @@ test('a label of generic words matches nothing', () => {
   // real titles still match
   assert.equal(matchLibrary('Severance', library)?.item.id, 2);
   assert.equal(matchLibrary('No Game No Life Zero', library)?.item.id, 1);
+});
+
+test('an empty scan says which of the two reasons it was', () => {
+  const filtered = emptyScanNote('disc:0', 600, { count: 14, longestSeconds: 95 });
+  assert.match(filtered, /found 14 title\(s\)/);
+  assert.match(filtered, /none reached the 600s minimum/);
+  assert.match(filtered, /longest is 2 min/);
+  assert.match(filtered, /Minimum title length/);
+
+  const nothing = emptyScanNote('dev:/dev/sr0', 600, { count: 0, longestSeconds: 0 });
+  assert.match(nothing, /no titles at all/);
+  assert.match(nothing, /MakeMKV key/);
+  assert.match(nothing, /\/dev\/sg/, 'the Docker case people actually hit');
+  assert.doesNotMatch(nothing, /Minimum title length/, 'not the minimum, so do not send them there');
+
+  const broken = emptyScanNote('disc:0', 600, null);
+  assert.match(broken, /did not work either/);
 });

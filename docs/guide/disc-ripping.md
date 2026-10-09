@@ -269,7 +269,7 @@ cover art. See [Music → Audio CDs](music.md#audio-cds).
 
 | Symptom | Cause and fix |
 | --- | --- |
-| *No titles found on this disc* in a second | The disc was mounted by the OS, or MakeMKV cannot decrypt it. Rexarr unmounts on macOS; check the MakeMKV key for Blu-ray |
+| *No titles found on this disc* | The disc page says which of the two it is: MakeMKV found titles but all were under *Minimum title length*, or it found none at all — which is usually the MakeMKV key (Blu-ray needs one), a disc it cannot decrypt, or, in Docker, the drive's `/dev/sg` node not being passed through next to `/dev/sr0` |
 | Nothing is imported, rip says *cannot see …* | The rip directory is not visible to the app at that path — fix **Settings → Path mappings** or the rip directory, then *Import rip folder now* |
 | Some files imported, others not | The error names each file; usually a rejection (sample, unknown episode) — the disc log has the app's own reason |
 | Episodes land on the wrong numbers | Set season and first episode before ripping; check the title order in the Episode column |

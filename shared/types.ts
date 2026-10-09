@@ -1388,6 +1388,8 @@ export interface DiscRip {
   /** Audio CDs: TOC, MusicBrainz matches and MQA detection. */
   cd?: CdInfo;
   status: RipStatus;
+  /** Why a scan came back with no titles, when it did. */
+  scanNote?: string;
   media: RipMedia;
   titles: DiscTitle[];
   selectedTitleIds: number[];

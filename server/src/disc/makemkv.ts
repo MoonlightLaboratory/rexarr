@@ -233,6 +233,23 @@ export async function readDisc(makemkv: string, source: string, minLengthSeconds
   return parseDiscInfo(stdout);
 }
 
+/**
+ * What to tell the user when a scan comes back with nothing. "All shorter than the minimum?" was a guess;
+ * re-reading the disc with no minimum says which of the two it actually is.
+ */
+export function emptyScanNote(source: string, minSeconds: number, withoutMinimum: { count: number; longestSeconds: number } | null): string {
+  const where = `MakeMKV read ${source}`;
+  if (withoutMinimum === null) return `${where} and found no titles. Running it again without a minimum length did not work either – the disc log has what was run.`;
+  if (withoutMinimum.count > 0) {
+    const longest = withoutMinimum.longestSeconds >= 60 ? `${Math.round(withoutMinimum.longestSeconds / 60)} min` : `${withoutMinimum.longestSeconds}s`;
+    return `${where} and found ${withoutMinimum.count} title(s), but none reached the ${minSeconds}s minimum – the longest is ${longest}. Lower “Minimum title length” in Settings → Disc ripping, or tick “Include extras and specials”.`;
+  }
+  return (
+    `${where} and found no titles at all, even with no minimum length. The disc is in the drive and MakeMKV opened it, so this is usually the MakeMKV key ` +
+    `(Blu-ray needs a registered or current beta key), a disc MakeMKV cannot decrypt, or – in Docker – the drive's own /dev/sg node not being passed through alongside /dev/sr0.`
+  );
+}
+
 export interface RipHandle {
   process: ChildProcess;
   done: Promise<number | null>;

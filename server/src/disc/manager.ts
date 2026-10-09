@@ -16,7 +16,7 @@ import { freacInfo, ripCdTrack } from '../music/freac.js';
 import { detectMqa } from '../audio/mqa.js';
 import { proxiedImage } from '../routes/images.js';
 import { appEvents } from '../system.js';
-import { ejectDrive, labelToTitle, listDrives, listVirtualDrives, readDisc, resolveMakemkv, ripTitle, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
+import { ejectDrive, emptyScanNote, labelToTitle, listDrives, listVirtualDrives, readDisc, resolveMakemkv, ripTitle, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
 import { audioSelectionFor, describeTracks } from './audio.js';
 import { extraFileName, extraLabel, guessExtraRoles } from './extras.js';
 import { toLocalPath } from '../paths.js';
@@ -258,7 +258,9 @@ export class DiscManager {
       rip.scanMinSeconds = d.includeExtras ? Math.min(d.extraMinSeconds ?? 30, d.minTitleSeconds) : d.minTitleSeconds;
       const abort = new AbortController();
       this.scans.set(rip.id, abort);
-      const info = await readDisc(this.makemkv(), rip.source ?? `disc:${rip.driveIndex}`, rip.scanMinSeconds, abort.signal).finally(() => this.scans.delete(rip.id));
+      const source = rip.source ?? `disc:${rip.driveIndex}`;
+      this.log(rip, `makemkvcon info ${source}, minimum title length ${rip.scanMinSeconds}s`);
+      const info = await readDisc(this.makemkv(), source, rip.scanMinSeconds, abort.signal).finally(() => this.scans.delete(rip.id));
       if ((rip.status as RipStatus) === 'cancelled') return;
       for (const t of info.titles) if (t.durationSeconds < d.minTitleSeconds) t.short = true;
       rip.discType = info.type;
@@ -267,6 +269,17 @@ export class DiscManager {
       if (!rip.label && info.name) rip.label = info.name;
       const shorts = info.titles.filter((t) => t.short).length;
       this.log(rip, `${info.type} disc, ${info.titles.length - shorts} title(s) of at least ${d.minTitleSeconds}s${shorts ? ` and ${shorts} shorter extra(s)` : ''}`);
+      rip.scanNote = undefined;
+      if (!info.titles.length) {
+        // Nothing came back: read it again with no minimum, so the note can say which of the two reasons it is.
+        const plain = rip.scanMinSeconds > 0 ? await readDisc(this.makemkv(), source, 0, abort.signal).catch(() => null) : info;
+        rip.scanNote = emptyScanNote(
+          source,
+          rip.scanMinSeconds,
+          plain ? { count: plain.titles.length, longestSeconds: Math.max(0, ...plain.titles.map((t) => t.durationSeconds)) } : null,
+        );
+        this.log(rip, rip.scanNote);
+      }
       if (!rip.media.title) {
         const g = labelToTitle(info.name || info.volumeName);
         rip.media = { ...rip.media, title: g.title, year: g.year, seasonNumber: g.season ?? rip.media.seasonNumber, kind: g.season ? 'series' : rip.media.kind, discNumber: g.disc ?? rip.media.discNumber };
