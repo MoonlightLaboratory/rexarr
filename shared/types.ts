@@ -454,13 +454,24 @@ export interface MusicBrainzRelease {
   title: string;
   artist: string;
   artistId?: string;
+  /** "Floyd, Pink" – what Picard writes as ALBUMARTISTSORT. */
+  artistSort?: string;
   date?: string;
   country?: string;
   label?: string;
   barcode?: string;
+  /** Earliest release of this album in any edition, so a remaster still carries the original year. */
+  originalDate?: string;
+  catalogNumber?: string;
   discNumber: number;
   discCount: number;
-  tracks: { number: number; title: string; artist?: string; lengthMs?: number; recordingId?: string }[];
+  /** "CD", "SACD", "Enhanced CD" … as MusicBrainz records the medium. */
+  format?: string;
+  /** The medium's own subtitle, when a disc in a set has one. */
+  discTitle?: string;
+  /** Tracks on this disc. Search results carry no track list, so trackCount can be set without tracks. */
+  trackCount: number;
+  tracks: { number: number; title: string; artist?: string; artistId?: string; artistSort?: string; lengthMs?: number; recordingId?: string; trackId?: string }[];
   coverUrl?: string;
 }
 

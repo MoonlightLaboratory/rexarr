@@ -13,6 +13,7 @@ import { canonicalDevice, probePhysicalDrive } from './devices.js';
 import { execFile } from 'node:child_process';
 import { discId, downloadCover, getRelease, lookupDisc, readCdToc, tocString } from '../music/musicbrainz.js';
 import { freacInfo, ripCdTrack } from '../music/freac.js';
+import { cdTrackTags } from '../music/tags.js';
 import { detectMqa } from '../audio/mqa.js';
 import { proxiedImage } from '../routes/images.js';
 import { appEvents } from '../system.js';
@@ -343,7 +344,9 @@ export class DiscManager {
       rip.media = { ...rip.media, kind: 'album', title: rip.media.title || rip.label || 'Unknown Album', artist: rip.media.artist ?? 'Unknown Artist' };
       return;
     }
-    rip.media = { ...rip.media, kind: 'album', title: rel.title, artist: rel.artist, year: rel.date ? Number(rel.date.slice(0, 4)) || undefined : undefined, discNumber: rel.discCount > 1 ? rel.discNumber : undefined, poster: rel.coverUrl ? proxiedImage('lidarr', { remoteUrl: rel.coverUrl.replace('front-500', 'front-500.jpg') }, 'poster') : undefined };
+    // the year of the album, not of this pressing: a 1994 remaster of a 1979 record still belongs to 1979
+    const year = Number((rel.originalDate || rel.date || '').slice(0, 4)) || undefined;
+    rip.media = { ...rip.media, kind: 'album', title: rel.title, artist: rel.artist, year, discNumber: rel.discCount > 1 ? rel.discNumber : undefined, poster: rel.coverUrl ? proxiedImage('lidarr', { remoteUrl: rel.coverUrl.replace('front-500', 'front-500.jpg') }, 'poster') : undefined };
     for (const t of rip.titles) {
       const mt = rel.tracks.find((x) => x.number === t.id);
       if (mt) t.name = mt.title;
@@ -355,7 +358,7 @@ export class DiscManager {
     const rip = this.get(id);
     if (!rip?.cd) throw new Error('not an audio CD');
     if (choice.releaseId) {
-      const rel = await getRelease(choice.releaseId);
+      const rel = await getRelease(choice.releaseId, rip.cd.discId, rip.cd.tracks.length);
       rip.cd.releases = [rel, ...rip.cd.releases.filter((r) => r.releaseId !== rel.releaseId)];
       this.applyCdRelease(rip, 0);
     } else this.applyCdRelease(rip, choice.index ?? 0);
@@ -501,33 +504,15 @@ export class DiscManager {
 
   /** Write MusicBrainz tags, MQA markers and cover art (stream copy: the audio stays bit-perfect). */
   private async tagCdTrack(raw: string, dest: string, rip: DiscRip, track: number, trackTotal: number, cover?: string) {
-    const rel = rip.cd?.releases[rip.cd.selected];
-    const mt = rel?.tracks.find((x) => x.number === track);
-    const tags: Record<string, string | number | undefined> = {
-      TITLE: mt?.title ?? `Track ${track}`,
-      ARTIST: mt?.artist ?? rel?.artist ?? rip.media.artist,
-      ALBUMARTIST: rel?.artist ?? rip.media.artist,
-      ALBUM: rel?.title ?? rip.media.title,
-      TRACKNUMBER: track,
-      TRACKTOTAL: rel?.tracks.length || trackTotal,
-      DISCNUMBER: rel?.discNumber,
-      DISCTOTAL: rel?.discCount,
-      DATE: rel?.date,
-      LABEL: rel?.label,
-      BARCODE: rel?.barcode,
-      RELEASECOUNTRY: rel?.country,
-      MEDIA: 'CD',
-      MUSICBRAINZ_ALBUMID: rel?.releaseId,
-      MUSICBRAINZ_RELEASEGROUPID: rel?.releaseGroupId,
-      MUSICBRAINZ_ALBUMARTISTID: rel?.artistId,
-      MUSICBRAINZ_TRACKID: mt?.recordingId,
-      MUSICBRAINZ_DISCID: rip.cd?.discId,
-      MQA: rip.cd?.mqa?.detected ? 'MQA-CD' : undefined,
-      ORIGINALSAMPLERATE: rip.cd?.mqa?.detected ? rip.cd.mqa.originalSampleRate : undefined,
-    };
+    const tags = cdTrackTags({ rel: rip.cd?.releases[rip.cd.selected], cd: rip.cd, media: rip.media, track, trackTotal });
     const args = ['-hide_banner', '-nostdin', '-y', '-loglevel', 'error', '-i', raw];
     if (cover) args.push('-i', cover, '-map', '0:a', '-map', '1:v', '-disposition:v', 'attached_pic', '-metadata:s:v', 'comment=Cover (front)');
     else args.push('-map', '0:a');
+    // Nothing of the ripped file's own tags is kept. FFmpeg reads TRACKNUMBER, DISCNUMBER and ALBUMARTIST under
+    // its own names, so the ones written here land beside them rather than replacing them: a file that reached
+    // this point already tagged came out with two TRACKNUMBERs, and players that read the first showed the
+    // wrong track. MusicBrainz is the only source of what goes in.
+    args.push('-map_metadata', '-1');
     args.push('-c', 'copy');
     for (const [k, v] of Object.entries(tags)) if (v !== undefined && v !== '') args.push('-metadata', `${k}=${v}`);
     args.push(dest);

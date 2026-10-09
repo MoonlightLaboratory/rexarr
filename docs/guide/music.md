@@ -80,10 +80,30 @@ Turn it off in **Settings → Connections → Lidarr**.
 `cdparanoia -Q`), computes the MusicBrainz disc id and lists matching releases — pick one, or search by artist and
 album when the disc is not in MusicBrainz.
 
-Tracks are ripped by fre:ac with its paranoia reader (`device://cdda:<drive>/<track>`) to FLAC, tagged (album,
-artist, track / disc numbers, date, label, barcode, MusicBrainz ids), given the Cover Art Archive front cover,
-optionally encoded with a second music profile and imported into Lidarr. FLAC compression level and the Linux TOC
-reader are set under **Settings → Disc ripping → Audio CDs**.
+Tracks are ripped by fre:ac with its paranoia reader (`device://cdda:<drive>/<track>`) to FLAC, given the Cover
+Art Archive front cover, optionally encoded with a second music profile and imported into Lidarr. FLAC compression
+level and the Linux TOC reader are set under **Settings → Disc ripping → Audio CDs**.
+
+### The tags a rip gets
+
+MusicBrainz is the only source of a rip's tags: whatever fre:ac itself wrote is dropped first, so a track never
+ends up with two track numbers. Field names follow Picard, which is what Lidarr, Plex, Navidrome and Picard read:
+
+| | |
+| --- | --- |
+| Track | `TITLE`, `ARTIST`, `ARTISTSORT`, `TRACKNUMBER`, `TRACKTOTAL` / `TOTALTRACKS` |
+| Album | `ALBUM`, `ALBUMARTIST`, `ALBUMARTISTSORT`, `COMPILATION` for a Various Artists disc |
+| Disc | `DISCNUMBER`, `DISCTOTAL` / `TOTALDISCS`, `DISCSUBTITLE`, `MEDIA` (`CD`, `SACD`, `Enhanced CD`, …) |
+| Dates | `DATE` is this pressing, `ORIGINALDATE` / `ORIGINALYEAR` the album — a 1994 remaster of a 1979 record keeps both |
+| Release | `LABEL`, `CATALOGNUMBER`, `BARCODE`, `RELEASECOUNTRY` |
+| MusicBrainz | `MUSICBRAINZ_ALBUMID`, `MUSICBRAINZ_RELEASEGROUPID`, `MUSICBRAINZ_ALBUMARTISTID`, `MUSICBRAINZ_ARTISTID`, `MUSICBRAINZ_TRACKID` (the recording), `MUSICBRAINZ_RELEASETRACKID`, `MUSICBRAINZ_DISCID` |
+
+The album folder is named after the original year for the same reason, which is also the year Lidarr files the
+album under.
+
+A disc from a box set is tagged as that disc. The disc id identifies which medium of the release is in the drive,
+and that holds when the release is picked by hand from the title search as well — a disc without its own
+MusicBrainz entry is only assumed to be disc 1 when nothing else can tell the discs apart.
 
 ## MQA / MQA-CD
 

@@ -257,8 +257,11 @@ export async function splitCueImage(opts: { freac: string; ffmpeg: string; image
       .map((f) => path.join(outDir, f));
     if (tracks.length !== image.trackCount) throw new Error(`fre:ac wrote ${tracks.length} of ${image.trackCount} tracks`);
     const extra: string[] = [];
-    if (image.sheet.performer) extra.push('-metadata', `ALBUMARTIST=${image.sheet.performer}`);
-    if (image.sheet.discNumber) extra.push('-metadata', `DISCNUMBER=${image.sheet.discNumber}`);
+    // album_artist / disc, not ALBUMARTIST / DISCNUMBER: FFmpeg reads those two Vorbis comments under its own
+    // names, so a literal key is written beside what fre:ac wrote instead of replacing it, and players that
+    // read the first of two ALBUMARTISTs would show the wrong one.
+    if (image.sheet.performer) extra.push('-metadata', `album_artist=${image.sheet.performer}`);
+    if (image.sheet.discNumber) extra.push('-metadata', `disc=${image.sheet.discNumber}`);
     if (image.sheet.totalDiscs) extra.push('-metadata', `DISCTOTAL=${image.sheet.totalDiscs}`);
     if (image.sheet.catalog) extra.push('-metadata', `CATALOGNUMBER=${image.sheet.catalog}`);
     const cover = findCover(path.dirname(image.cue));

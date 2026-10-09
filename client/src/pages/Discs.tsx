@@ -344,7 +344,7 @@ function CdBody({ rip, busy, act }: { rip: DiscRip; busy: boolean; act: (fn: () 
                   <option key={r.releaseId} value={i}>
                     {r.artist} – {r.title}
                     {r.date ? ` (${r.date.slice(0, 4)}${r.country ? `, ${r.country}` : ''})` : ''}
-                    {r.label ? ` · ${r.label}` : ''} · {r.tracks.length} tracks{r.discCount > 1 ? ` · disc ${r.discNumber}/${r.discCount}` : ''}
+                    {r.label ? ` · ${r.label}` : ''} · {r.trackCount} tracks{r.discCount > 1 ? ` · disc ${r.discNumber}/${r.discCount}` : ''}
                   </option>
                 ))}
               </select>
@@ -385,7 +385,7 @@ function CdBody({ rip, busy, act }: { rip: DiscRip; busy: boolean; act: (fn: () 
                     {r.artist} – {r.title}
                   </span>
                   <span className="small dim">
-                    {r.date?.slice(0, 4)} {r.country} · {r.tracks.length} tracks
+                    {r.date?.slice(0, 4)} {r.country} · {r.trackCount} tracks{r.discCount > 1 ? ` on ${r.discCount} discs` : ''}
                   </span>
                 </div>
               ))}

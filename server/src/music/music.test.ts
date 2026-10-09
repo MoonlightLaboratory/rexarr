@@ -3,8 +3,9 @@ import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import type { Release } from '../../../shared/types.js';
 import { BUILTIN_PROFILES } from '../../../shared/presets.js';
-import { discId, parseCdparanoiaToc, parseTocPlist, tocString } from './musicbrainz.js';
+import { discId, mapMbRelease, parseCdparanoiaToc, parseTocPlist, tocString } from './musicbrainz.js';
 import { formatLabel, musicCategory, musicFormatFromText } from './format.js';
+import { cdTrackTags, VARIOUS_ARTISTS } from './tags.js';
 import { crashedAfterDone, freacEncoderArgs } from './freac.js';
 import { toolError } from '../spawnError.js';
 import { detectMqaInSamples, MQA_SYNC } from '../audio/mqa.js';
@@ -185,4 +186,95 @@ test('tool errors explain themselves', () => {
   assert.match(toolError({ code: 'ENOENT' }, '/usr/bin/freaccmd'), /freaccmd was not found/);
   assert.match(toolError({ code: 'EACCES' }, '/opt/x/ffmpeg'), /not executable/);
   assert.equal(toolError({ message: 'something else' }, 'ffmpeg'), 'something else');
+});
+
+test('a disc of a box set maps to its own medium, not to disc 1', () => {
+  // shaped like /ws/2/discid/<id>: every medium comes back, each with its disc ids
+  const release = {
+    id: 'rel-1',
+    title: 'The Wall',
+    date: '1994-10-10',
+    'artist-credit': [{ name: 'Pink Floyd', joinphrase: '', artist: { id: 'pf', name: 'Pink Floyd', 'sort-name': 'Pink Floyd' } }],
+    'release-group': { id: 'rg-1', 'first-release-date': '1979-11-30' },
+    'label-info': [{ label: { name: 'EMI' }, 'catalog-number': '7243 8 31243 2 9' }],
+    media: [
+      { position: 1, format: 'CD', discs: [{ id: 'disc-one' }], tracks: [{ id: 't1', position: 1, number: '1', title: 'In the Flesh?', recording: { id: 'r1', title: 'In the Flesh?' } }] },
+      { position: 2, format: 'CD', title: 'Side C', discs: [{ id: 'disc-two' }], tracks: [{ id: 't2', position: 1, number: '1', title: 'Hey You', recording: { id: 'r2', title: 'Hey You' } }] },
+    ],
+  };
+  const second = mapMbRelease(release, 'disc-two');
+  assert.equal(second.discNumber, 2);
+  assert.equal(second.discCount, 2);
+  assert.equal(second.tracks[0].title, 'Hey You');
+  assert.equal(second.discTitle, 'Side C');
+  assert.equal(second.trackCount, 1);
+  // the album's year, not this pressing's, and the catalogue number of the physical release
+  assert.equal(second.originalDate, '1979-11-30');
+  assert.equal(second.date, '1994-10-10');
+  assert.equal(second.catalogNumber, '7243 8 31243 2 9');
+  // without a disc id it falls back to the first medium
+  assert.equal(mapMbRelease(release).tracks[0].title, 'In the Flesh?');
+  // two discs of 13 tracks each cannot be told apart by their length, so guessing is refused
+  const sameLength = { ...release, media: release.media.map((m) => ({ ...m, discs: [] })) };
+  assert.equal(mapMbRelease(sameLength, 'disc-two', 1).discNumber, 1);
+});
+
+test('a release search result reports its track count even though it carries no tracks', () => {
+  // /ws/2/release?query=… returns media with a track-count and nothing else
+  const found = mapMbRelease({
+    id: 'rel-2',
+    title: 'The Wall',
+    'artist-credit': [{ name: 'Pink Floyd', joinphrase: '' }],
+    media: [
+      { position: 1, format: 'CD', 'track-count': 13 },
+      { position: 2, format: 'CD', 'track-count': 13 },
+    ],
+  });
+  assert.deepEqual([found.tracks.length, found.trackCount, found.discCount], [0, 26, 2]);
+  assert.equal(found.artist, 'Pink Floyd');
+});
+
+test('a ripped CD track is tagged from MusicBrainz, Picard field names and all', () => {
+  const rel = mapMbRelease({
+    id: 'rel-1',
+    title: 'The Wall',
+    date: '1994-10-10',
+    country: 'XE',
+    barcode: '0724383124329',
+    'artist-credit': [{ name: 'Pink Floyd', joinphrase: '', artist: { id: 'pf', name: 'Pink Floyd', 'sort-name': 'Floyd, Pink' } }],
+    'release-group': { id: 'rg-1', 'first-release-date': '1979-11-30' },
+    'label-info': [{ label: { name: 'EMI' }, 'catalog-number': 'CAT-1' }],
+    media: [
+      { position: 1, format: 'CD', 'track-count': 1, discs: [{ id: 'disc-one' }], tracks: [{ id: 't1', position: 1, number: '1', title: 'In the Flesh?', recording: { id: 'r1', title: 'In the Flesh?' } }] },
+      { position: 2, format: 'CD', 'track-count': 1, discs: [{ id: 'disc-two' }], tracks: [{ id: 't2', position: 1, number: '1', title: 'Hey You', recording: { id: 'r2', title: 'Hey You' } }] },
+    ],
+  }, 'disc-two');
+  const tags = cdTrackTags({ rel, cd: { discId: 'disc-two', toc: '', tracks: [], releases: [rel], selected: 0 }, media: { kind: 'album', title: 'The Wall' }, track: 1, trackTotal: 1 });
+  assert.equal(tags.TITLE, 'Hey You');
+  assert.equal(tags.ALBUMARTISTSORT, 'Floyd, Pink');
+  assert.deepEqual([tags.DISCNUMBER, tags.DISCTOTAL, tags.TOTALDISCS], [2, 2, 2]);
+  // the pressing and the album both get a date, the way Picard writes them
+  assert.deepEqual([tags.DATE, tags.ORIGINALDATE, tags.ORIGINALYEAR], ['1994-10-10', '1979-11-30', '1979']);
+  assert.deepEqual([tags.MEDIA, tags.CATALOGNUMBER, tags.BARCODE, tags.RELEASECOUNTRY], ['CD', 'CAT-1', '0724383124329', 'XE']);
+  // a recording id and a release-track id are different things; Picard puts each in its own field
+  assert.deepEqual([tags.MUSICBRAINZ_TRACKID, tags.MUSICBRAINZ_RELEASETRACKID], ['r2', 't2']);
+  assert.equal(tags.MUSICBRAINZ_DISCID, 'disc-two');
+  assert.equal(tags.COMPILATION, undefined);
+  // no release at all: generic names, and nothing is invented
+  const bare = cdTrackTags({ media: { kind: 'album', title: 'Unknown Album', artist: 'Unknown Artist' }, track: 3, trackTotal: 8 });
+  assert.deepEqual([bare.TITLE, bare.ARTIST, bare.ALBUM, bare.TRACKNUMBER, bare.TRACKTOTAL], ['Track 3', 'Unknown Artist', 'Unknown Album', 3, 8]);
+  assert.deepEqual([bare.DATE, bare.MUSICBRAINZ_ALBUMID, bare.ORIGINALDATE], [undefined, undefined, undefined]);
+});
+
+test('a Various Artists disc is tagged as a compilation', () => {
+  const rel = mapMbRelease({
+    id: 'rel-va',
+    title: 'Now That’s What I Call Music! 42',
+    'artist-credit': [{ name: 'Various Artists', joinphrase: '', artist: { id: VARIOUS_ARTISTS, name: 'Various Artists' } }],
+    media: [{ position: 1, format: 'CD', tracks: [{ position: 1, number: '1', title: 'Song', 'artist-credit': [{ name: 'Someone', joinphrase: '', artist: { id: 'a1', name: 'Someone', 'sort-name': 'Someone' } }] }] }],
+  });
+  const tags = cdTrackTags({ rel, media: { kind: 'album', title: rel.title }, track: 1, trackTotal: 1 });
+  assert.equal(tags.COMPILATION, 1);
+  // the track keeps its own artist, the album stays with Various Artists
+  assert.deepEqual([tags.ARTIST, tags.ALBUMARTIST, tags.MUSICBRAINZ_ARTISTID], ['Someone', 'Various Artists', 'a1']);
 });

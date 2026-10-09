@@ -128,7 +128,24 @@ export function mb<T>(pathAndQuery: string): Promise<T> {
 interface MbCredit {
   name: string;
   joinphrase?: string;
-  artist?: { id: string; name: string };
+  artist?: { id: string; name: string; 'sort-name'?: string };
+}
+interface MbTrack {
+  id?: string;
+  position: number;
+  number: string;
+  title: string;
+  length?: number;
+  recording?: { id: string; title: string; length?: number };
+  'artist-credit'?: MbCredit[];
+}
+interface MbMedium {
+  position: number;
+  format?: string;
+  title?: string;
+  'track-count'?: number;
+  discs?: { id: string }[];
+  tracks?: MbTrack[];
 }
 interface MbRelease {
   id: string;
@@ -137,32 +154,61 @@ interface MbRelease {
   country?: string;
   barcode?: string;
   'artist-credit'?: MbCredit[];
-  'release-group'?: { id: string; 'primary-type'?: string };
-  'label-info'?: { label?: { name: string } }[];
+  'release-group'?: { id: string; 'primary-type'?: string; 'first-release-date'?: string };
+  'label-info'?: { label?: { name: string }; 'catalog-number'?: string }[];
   'cover-art-archive'?: { front?: boolean };
-  media?: { position: number; discs?: { id: string }[]; tracks?: { position: number; number: string; title: string; length?: number; recording?: { id: string; title: string; length?: number }; 'artist-credit'?: MbCredit[] }[] }[];
+  media?: MbMedium[];
 }
 
 const credit = (c?: MbCredit[]) => (c ?? []).map((x) => `${x.name}${x.joinphrase ?? ''}`).join('').trim();
+/** "Beatles, The" – what Picard writes as ARTISTSORT. */
+const sortName = (c?: MbCredit[]) => (c ?? []).map((x) => `${x.artist?.['sort-name'] ?? x.name}${x.joinphrase ?? ''}`).join('').trim() || undefined;
 
+/**
+ * One release as Rexarr uses it. `discIdForMedium` / `trackCount` say which disc of a set is in the drive: a box
+ * set's media all look alike otherwise, and taking media[0] would tag disc 5 with disc 1's track list.
+ */
 export function mapMbRelease(r: MbRelease, discIdForMedium?: string, trackCount?: number): MusicBrainzRelease {
   const media = r.media ?? [];
   let medium = media.find((m) => m.discs?.some((d) => d.id === discIdForMedium));
-  if (!medium && trackCount) medium = media.find((m) => m.tracks?.length === trackCount);
+  if (!medium && trackCount) {
+    const byCount = media.filter((m) => (m.tracks?.length ?? m['track-count']) === trackCount);
+    // only trust a track count when it singles one disc out
+    if (byCount.length === 1) medium = byCount[0];
+  }
+  // media[0] is a guess, not an answer: a search result that was never narrowed to one disc counts them all
+  const identified = Boolean(medium);
   medium ??= media[0];
+  const tracks = (medium?.tracks ?? []).map((t) => ({
+    number: t.position,
+    title: t.title || t.recording?.title || `Track ${t.position}`,
+    artist: credit(t['artist-credit']) || undefined,
+    artistId: t['artist-credit']?.[0]?.artist?.id,
+    artistSort: sortName(t['artist-credit']),
+    lengthMs: t.length ?? t.recording?.length,
+    recordingId: t.recording?.id,
+    trackId: t.id,
+  }));
   return {
     releaseId: r.id,
     releaseGroupId: r['release-group']?.id,
     title: r.title,
     artist: credit(r['artist-credit']) || 'Unknown Artist',
     artistId: r['artist-credit']?.[0]?.artist?.id,
+    artistSort: sortName(r['artist-credit']),
     date: r.date,
+    originalDate: r['release-group']?.['first-release-date'] || undefined,
     country: r.country,
     label: r['label-info']?.[0]?.label?.name,
+    catalogNumber: r['label-info']?.find((l) => l['catalog-number'])?.['catalog-number'],
     barcode: r.barcode || undefined,
     discNumber: medium?.position ?? 1,
     discCount: media.length || 1,
-    tracks: (medium?.tracks ?? []).map((t) => ({ number: t.position, title: t.title || t.recording?.title || `Track ${t.position}`, artist: credit(t['artist-credit']) || undefined, lengthMs: t.length ?? t.recording?.length, recordingId: t.recording?.id })),
+    format: medium?.format,
+    discTitle: medium?.title || undefined,
+    // a search result has no track list at all, only a count per medium
+    trackCount: tracks.length || (identified ? medium?.['track-count'] ?? 0 : media.reduce((n, m) => n + (m['track-count'] ?? 0), 0)),
+    tracks,
     coverUrl: r['cover-art-archive']?.front === false ? undefined : `https://coverartarchive.org/release/${r.id}/front-500`,
   };
 }
@@ -186,8 +232,10 @@ export async function searchReleases(query: string, limit = 8): Promise<MusicBra
   return (r.releases ?? []).map((x) => mapMbRelease(x));
 }
 
-export async function getRelease(releaseId: string): Promise<MusicBrainzRelease> {
-  return mapMbRelease(await mb<MbRelease>(`release/${encodeURIComponent(releaseId)}?inc=artist-credits+recordings+release-groups+labels`));
+/** One release in full. Pass the inserted disc's id / track count so the right medium of a set is used. */
+export async function getRelease(releaseId: string, discIdForMedium?: string, trackCount?: number): Promise<MusicBrainzRelease> {
+  const r = await mb<MbRelease>(`release/${encodeURIComponent(releaseId)}?inc=artist-credits+recordings+release-groups+labels+discids`);
+  return mapMbRelease(r, discIdForMedium, trackCount);
 }
 
 /** Download the front cover (Cover Art Archive redirects to archive.org). */
