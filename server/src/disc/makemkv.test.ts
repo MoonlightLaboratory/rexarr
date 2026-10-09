@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { emptyScanNote, findDiscImages, labelToTitle, listVirtualDrives, parseDiscInfo, parseDrives, parseDurationSeconds, splitRobot } from './makemkv.js';
+import { emptyScanNote, lastRealMessage, findDiscImages, labelToTitle, listVirtualDrives, parseDiscInfo, parseDrives, parseDurationSeconds, splitRobot } from './makemkv.js';
 import { audioSelectionFor, bestAudioPerLanguage, codecRank } from './audio.js';
 import type { DiscAudioTrack } from '../../../shared/types.js';
 import { matchLibrary, nameScore, splitSequel, type LibraryCandidate } from './identify.js';
@@ -393,4 +393,31 @@ test('an empty scan says which of the two reasons it was', () => {
 
   const broken = emptyScanNote('disc:0', 600, null);
   assert.match(broken, /did not work either/);
+});
+
+test('the note quotes MakeMKV when it has something to say', () => {
+  const said = emptyScanNote('disc:0', 600, { count: 0, longestSeconds: 0 }, [
+    'MakeMKV v1.17.8 linux(x64-release) started',
+    'Using direct disc access mode',
+    "Error 'Scsi error - ILLEGAL REQUEST:READ OF SCRAMBLED SECTOR WITHOUT AUTHENTICATION' occurred while reading '/BDMV/STREAM/00800.m2ts'",
+  ]);
+  assert.match(said, /no titles at all/);
+  assert.match(said, /SCRAMBLED SECTOR/, 'what MakeMKV said is the answer here');
+  assert.match(said, /firmware cannot decrypt/, 'and that error means the drive');
+
+  const quiet = emptyScanNote('disc:0', 600, { count: 0, longestSeconds: 0 }, ['MakeMKV v1.18.1 linux(x64-release) started']);
+  assert.doesNotMatch(quiet, /MakeMKV said/, 'the banner is not a message');
+});
+
+test('the last message that means anything wins', () => {
+  assert.equal(lastRealMessage([]), null);
+  assert.equal(lastRealMessage(['MakeMKV v1.18.1 started', 'Opening disc', 'Scanning CD-ROM devices']), null, 'all chatter');
+  assert.equal(lastRealMessage(['Opening disc', 'Drive BD-RE needs a firmware update', 'Operation successfully completed']), 'Drive BD-RE needs a firmware update');
+  assert.equal(lastRealMessage(['x'.repeat(400)])!.length, 238, 'a wall of text is trimmed');
+});
+
+test('MSG lines are kept with the disc info', () => {
+  const info = parseDiscInfo(['MSG:3007,0,0,"Using direct disc access mode","%1",""', 'MSG:5021,260,2,"Title #1 has length of 95 seconds","..",""', 'CINFO:2,0,"Birdman"'].join('\n'));
+  assert.deepEqual(info.messages, ['Using direct disc access mode', 'Title #1 has length of 95 seconds']);
+  assert.equal(info.titles.length, 0);
 });

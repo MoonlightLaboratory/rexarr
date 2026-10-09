@@ -119,14 +119,21 @@ export interface DiscInfo {
   name: string;
   volumeName: string;
   titles: DiscTitle[];
+  /** MakeMKV's own MSG lines, in order. When a scan finds nothing, these say why far better than we can. */
+  messages: string[];
 }
 
 export function parseDiscInfo(stdout: string): DiscInfo {
   const disc: Record<number, string> = {};
+  const messages: string[] = [];
   const titles = new Map<number, Record<number, string>>();
   const streams = new Map<number, Map<number, Record<number, string>>>();
   for (const line of stdout.split('\n')) {
-    if (line.startsWith('CINFO:')) {
+    if (line.startsWith('MSG:')) {
+      const f = splitRobot(line.slice(4));
+      const text = (f[3] ?? '').trim();
+      if (text) messages.push(text);
+    } else if (line.startsWith('CINFO:')) {
       const f = splitRobot(line.slice(6));
       disc[Number(f[0])] = f[2];
     } else if (line.startsWith('TINFO:')) {
@@ -197,7 +204,7 @@ export function parseDiscInfo(stdout: string): DiscInfo {
       subtitles: subs,
     });
   }
-  return { type, name: disc[A.name] ?? disc[A.volumeName] ?? '', volumeName: disc[A.volumeName] ?? '', titles: out.sort((a, b) => a.id - b.id) };
+  return { type, name: disc[A.name] ?? disc[A.volumeName] ?? '', volumeName: disc[A.volumeName] ?? '', messages, titles: out.sort((a, b) => a.id - b.id) };
 }
 
 /**
@@ -237,17 +244,30 @@ export async function readDisc(makemkv: string, source: string, minLengthSeconds
  * What to tell the user when a scan comes back with nothing. "All shorter than the minimum?" was a guess;
  * re-reading the disc with no minimum says which of the two it actually is.
  */
-export function emptyScanNote(source: string, minSeconds: number, withoutMinimum: { count: number; longestSeconds: number } | null): string {
+export function emptyScanNote(source: string, minSeconds: number, withoutMinimum: { count: number; longestSeconds: number } | null, messages: string[] = []): string {
   const where = `MakeMKV read ${source}`;
-  if (withoutMinimum === null) return `${where} and found no titles. Running it again without a minimum length did not work either – the disc log has what was run.`;
+  // MakeMKV's own words beat anything we can guess - a drive that cannot decrypt says so here
+  const said = lastRealMessage(messages);
+  const quote = said ? ` MakeMKV said: “${said}”.` : '';
+  if (withoutMinimum === null) return `${where} and found no titles. Running it again without a minimum length did not work either – the disc log has what was run.${quote}`;
   if (withoutMinimum.count > 0) {
     const longest = withoutMinimum.longestSeconds >= 60 ? `${Math.round(withoutMinimum.longestSeconds / 60)} min` : `${withoutMinimum.longestSeconds}s`;
     return `${where} and found ${withoutMinimum.count} title(s), but none reached the ${minSeconds}s minimum – the longest is ${longest}. Lower “Minimum title length” in Settings → Disc ripping, or tick “Include extras and specials”.`;
   }
   return (
-    `${where} and found no titles at all, even with no minimum length. The disc is in the drive and MakeMKV opened it, so this is usually the MakeMKV key ` +
-    `(Blu-ray needs a registered or current beta key), a disc MakeMKV cannot decrypt, or – in Docker – the drive's own /dev/sg node not being passed through alongside /dev/sr0.`
+    `${where} and found no titles at all, even with no minimum length.${quote} Usually that is the MakeMKV key (Blu-ray needs a registered or current beta key), ` +
+    `a drive whose firmware cannot decrypt the disc (makemkv.com's forum keeps a list), or – in Docker – the drive's own /dev/sg node not being passed through alongside /dev/sr0.`
   );
+}
+
+/** The last message that says something, skipping MakeMKV's banner and progress chatter. */
+export function lastRealMessage(messages: string[]): string | null {
+  const noise = /^(MakeMKV v|Using direct disc access|Opening|Scanning|Processing title sets|Title #|Operation successfully completed|Saved \d|Loaded content hash|Using Java)/i;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i].trim();
+    if (m && !noise.test(m)) return m.length > 240 ? `${m.slice(0, 237)}…` : m;
+  }
+  return null;
 }
 
 export interface RipHandle {

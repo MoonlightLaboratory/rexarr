@@ -277,6 +277,7 @@ export class DiscManager {
           source,
           rip.scanMinSeconds,
           plain ? { count: plain.titles.length, longestSeconds: Math.max(0, ...plain.titles.map((t) => t.durationSeconds)) } : null,
+          [...(info.messages ?? []), ...(plain?.messages ?? [])],
         );
         this.log(rip, rip.scanNote);
       }
