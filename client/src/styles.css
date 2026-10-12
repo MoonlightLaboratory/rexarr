@@ -1279,32 +1279,6 @@ table.metaTags td.mono { word-break: break-word; }
   line-height: 1.4;
 }
 
-/* ---- smart profiles: a chain of nodes, each one asking a question about the file ---- */
-.smartFlow { display: flex; flex-direction: column; }
-.smartNode { position: relative; border: 1px solid var(--borderColor); border-radius: 4px; background: var(--cardBackgroundColor); }
-.smartNode.hit { border-color: var(--gray); }
-.smartNode.chosen { border-color: var(--successColor); box-shadow: inset 2px 0 0 var(--successColor); }
-.smartNode-h { display: flex; align-items: center; gap: 8px; padding: 8px 11px; border-bottom: 1px solid var(--borderColor); }
-.smartNode-h .spacer { flex: 1; }
-.smartNode-n { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; border-radius: 3px; background: var(--themeLightColor); color: var(--textColor); font-size: 12px; font-variant-numeric: tabular-nums; }
-.smartNode.chosen .smartNode-n { background: var(--successColor); color: var(--white); }
-.smartNode-b { display: flex; flex-direction: column; gap: 9px; padding: 11px; }
-.smartNode-b > .inline { align-items: center; gap: 9px; }
-.smartNode-b select { max-width: 320px; }
-
-/* the "otherwise" line that links one node to the next */
-.smartEdge { position: relative; margin: 0 0 0 21px; padding: 7px 0 7px 14px; border-left: 1px solid var(--borderColor); color: var(--gray); font-size: var(--smallFontSize); }
-
-.smartCond { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.smartCond > select { flex: 0 1 auto; max-width: 230px; }
-.smartCond > input[type='number'] { width: 90px; }
-.smartCond .spacer { flex: 1; }
-.smartCond .chips { flex: 1 1 100%; }
-.smartHelp.smartHelp { flex: 1 1 100%; margin: 0; }
-
-.smartTry { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--borderColor); border-radius: 4px; background: var(--inputBackgroundColor); }
-.smartTry .spacer { flex: 1; }
-
 /* the read-only version on a smart profile's card */
 .smartSummary { display: flex; flex-direction: column; gap: 4px; margin-top: 9px; }
 .smartSummary-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
@@ -1331,18 +1305,15 @@ table.metaTags td.mono { word-break: break-word; }
 .graphLayer { position: absolute; inset: 0; transform-origin: 0 0; }
 .graphWires { position: absolute; left: -4000px; top: -4000px; width: 12000px; height: 12000px; overflow: visible; pointer-events: none; }
 .graphWires > path { transform: translate(4000px, 4000px); }
-.gWire { fill: none; stroke-width: 2; transition: opacity 0.15s ease; }
+.gWire { fill: none; stroke-width: 2; }
 .gWire.flow { stroke: var(--gray); opacity: 0.8; }
 .gWire.data { stroke: #d9a441; opacity: 0.8; }
-.gWire.live { stroke: var(--successColor); opacity: 1; stroke-width: 2.5; }
-.gWire.dim { opacity: 0.22; }
 
 .gNode { position: absolute; width: 250px; border: 1px solid var(--borderColor); border-radius: 7px; background: var(--cardBackgroundColor); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); user-select: none; }
 /* a name is long and an operator is short: let the node be the size of what is in it */
 .gNode.outcome { width: 290px; }
 .gNode.branch { width: 220px; }
 .gNode.all { width: 190px; }
-.gNode.chosen { border-color: var(--successColor); box-shadow: 0 0 0 1px var(--successColor), 0 6px 18px rgba(0, 0, 0, 0.35); }
 .gNode.start { width: auto; border: 0; background: transparent; box-shadow: none; }
 .gStart { position: relative; padding: 9px 17px; border-radius: 999px; background: var(--themeLightColor); color: var(--textColor); cursor: grab; white-space: nowrap; }
 
@@ -1381,8 +1352,6 @@ table.metaTags td.mono { word-break: break-word; }
 .gBranchRows { display: flex; flex-direction: column; }
 .gRow { position: relative; padding: 11px 15px; text-align: right; color: var(--gray); font-size: var(--smallFontSize); }
 .gRow + .gRow { border-top: 1px solid var(--borderColor); }
-.gRow.taken { color: var(--textColor); background: rgba(255, 255, 255, 0.04); }
-.gRow.taken .gPort { background: var(--successColor); }
 .gInputs { display: flex; justify-content: space-around; }
 
 /* ports: a dot on the edge of a node, with its name alongside */
@@ -1401,11 +1370,6 @@ table.metaTags td.mono { word-break: break-word; }
 .gPort.bottom .gPortLabel { top: 13px; }
 .gPort.value .gPortLabel { color: #4caf7d; }
 
-/* the sample-disc panel, pinned over the canvas */
-.graphTry { position: absolute; right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 8px; width: 290px; padding: 12px; border: 1px solid var(--borderColor); border-radius: 7px; background: var(--cardBackgroundColor); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
-.graphTry .gResult { padding-top: 8px; border-top: 1px solid var(--borderColor); }
-.graphTry .inline { align-items: center; }
-.graphTryShow { position: absolute; right: 14px; bottom: 14px; }
 
 /* a Start from / Set node is a short list of settings */
 .gAssigns { display: flex; flex-direction: column; gap: 6px; }
@@ -1418,12 +1382,10 @@ table.metaTags td.mono { word-break: break-word; }
 .gNode.base .gHead { border-top-color: var(--gray); }
 .gNode.result .gHead { border-top-color: var(--successColor); }
 
-/* what the sample disc ends up with, and which branch set each line */
+/* what a file that matches no branch is encoded with */
 .gResultRows { display: flex; flex-direction: column; gap: 4px; font-size: var(--smallFontSize); }
 .gResultRow { display: flex; align-items: baseline; gap: 6px; color: var(--gray); }
 .gResultRow .spacer { flex: 1; }
-.gResultRow.set { color: var(--textColor); }
-.gResultRow.set .gTag { background: var(--successColor); color: var(--white); }
 
 /* a branch can be named, switched off, and ask for any of its conditions rather than all */
 .gName { flex: 1 1 auto; min-width: 0; padding: 2px 6px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--textColor); font-size: 14px; }

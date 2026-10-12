@@ -308,7 +308,8 @@ const asList = (v: SmartAssignment['value']): string[] => (Array.isArray(v) ? v 
  * answer is an ordinary profile, so everything downstream – the ffmpeg command, the size estimate, the output
  * name – works on it without knowing a decision was made.
  */
-export function decide(smart: SmartProfile, facts: SourceFacts): SmartDecision {
+/** The profile before any branch: what a file that matches nothing is encoded with. */
+export function baseProfile(smart: SmartProfile): Profile {
   const stock = stockBase();
   const profile: Profile = {
     id: smart.id,
@@ -324,8 +325,13 @@ export function decide(smart: SmartProfile, facts: SourceFacts): SmartDecision {
     createdAt: smart.createdAt,
     updatedAt: smart.updatedAt,
   };
-  const from: SmartDecision['from'] = {};
   for (const a of smart.base ?? []) assign(profile, a);
+  return profile;
+}
+
+export function decide(smart: SmartProfile, facts: SourceFacts): SmartDecision {
+  const profile = baseProfile(smart);
+  const from: SmartDecision['from'] = {};
   const applied: SmartDecision['applied'] = [];
   smart.rules.forEach((rule, index) => {
     if (!ruleMatches(rule, facts)) return;
@@ -443,62 +449,4 @@ export function explainDecision(smart: SmartProfile, facts: SourceFacts, decisio
   const lossy = p.audio.encoder !== 'copy' && !AUDIO_ENCODER_INFO[p.audio.encoder]?.lossless;
   const result = `${p.video.encoder}${p.video.encoder !== 'copy' ? ` CRF ${p.video.quality}${p.video.tune !== 'none' ? ` tune ${p.video.tune}` : ''}` : ''} + ${p.audio.encoder}${lossy && p.audio.bitrate ? ` ${p.audio.bitrate}k` : ''}`;
   return `${smart.name}: ${audio}, ${facts.video.height || '?'}p${facts.video.hdr ? ' HDR' : ''} – ${where} → ${result}`;
-}
-
-// ---------------------------------------------------------------- trying one out
-
-/** Discs to try a rule against in the editor, covering the cases these rules exist for. */
-export const SAMPLE_SOURCES: { name: string; facts: SourceFacts }[] = [
-  sample('UHD, TrueHD 7.1 Atmos', {
-    audio: { maxChannels: 8, codecs: ['truehd', 'ac3'], objectBased: true, lossless: true, profiles: ['Dolby TrueHD + Dolby Atmos'] },
-    audioExtra: { languages: ['eng', 'fre'], hasCommentary: true, trackCount: 4, maxBitrateKbps: 640 },
-    video: { height: 2160, width: 3840, codec: 'hevc', hdr: true, dolbyVision: false, bitDepth: 10, frameRate: 23.976, interlaced: false },
-    subtitles: { count: 12, languages: ['eng', 'fre', 'ger'], hasForced: true, hasText: false },
-    source: { durationMinutes: 130, sizeGB: 58, bitrateMbps: 60, container: 'mkv' },
-    media: { kind: 'movie', genres: ['action'], year: 2019 },
-  }),
-  sample('UHD, DTS-HD MA 7.1 + DTS:X', {
-    audio: { maxChannels: 8, codecs: ['dts-hd-ma'], objectBased: true, lossless: true, profiles: ['DTS-HD MA + DTS:X'] },
-    audioExtra: { languages: ['eng'], hasCommentary: false, trackCount: 2, maxBitrateKbps: 0 },
-    video: { height: 2160, width: 3840, codec: 'hevc', hdr: true, dolbyVision: true, bitDepth: 10, frameRate: 24, interlaced: false },
-    subtitles: { count: 6, languages: ['eng', 'spa'], hasForced: true, hasText: false },
-    source: { durationMinutes: 115, sizeGB: 54, bitrateMbps: 62, container: 'mkv' },
-    media: { kind: 'movie', genres: ['science fiction'], year: 2021 },
-  }),
-  sample('Blu-ray, DTS-HD MA 5.1', {
-    audio: { maxChannels: 6, codecs: ['dts-hd-ma', 'ac3'], objectBased: false, lossless: true, profiles: ['DTS-HD MA'] },
-    audioExtra: { languages: ['eng', 'jpn'], hasCommentary: true, trackCount: 3, maxBitrateKbps: 448 },
-    video: { height: 1080, width: 1920, codec: 'h264', hdr: false, dolbyVision: false, bitDepth: 8, frameRate: 23.976, interlaced: false },
-    subtitles: { count: 4, languages: ['eng'], hasForced: false, hasText: false },
-    source: { durationMinutes: 105, sizeGB: 24, bitrateMbps: 30, container: 'mkv' },
-    media: { kind: 'movie', genres: ['drama'], year: 2009 },
-  }),
-  sample('Blu-ray, TrueHD 2.0 only', {
-    audio: { maxChannels: 2, codecs: ['truehd'], objectBased: false, lossless: true, profiles: ['Dolby TrueHD'] },
-    audioExtra: { languages: ['eng'], hasCommentary: false, trackCount: 1, maxBitrateKbps: 0 },
-    video: { height: 1080, width: 1920, codec: 'h264', hdr: false, dolbyVision: false, bitDepth: 8, frameRate: 23.976, interlaced: false },
-    subtitles: { count: 2, languages: ['eng'], hasForced: false, hasText: false },
-    source: { durationMinutes: 96, sizeGB: 18, bitrateMbps: 25, container: 'mkv' },
-    media: { kind: 'movie', genres: ['documentary'], year: 1974 },
-  }),
-  sample('DVD, AC-3 2.0, interlaced', {
-    audio: { maxChannels: 2, codecs: ['ac3'], objectBased: false, lossless: false, profiles: [] },
-    audioExtra: { languages: ['eng'], hasCommentary: false, trackCount: 1, maxBitrateKbps: 192 },
-    video: { height: 576, width: 720, codec: 'mpeg2video', hdr: false, dolbyVision: false, bitDepth: 8, frameRate: 25, interlaced: true },
-    subtitles: { count: 3, languages: ['eng', 'dut'], hasForced: false, hasText: false },
-    source: { durationMinutes: 92, sizeGB: 4, bitrateMbps: 6, container: 'mkv' },
-    media: { kind: 'movie', genres: ['comedy'], year: 1988 },
-  }),
-  sample('Anime episode, AAC 5.1', {
-    audio: { maxChannels: 6, codecs: ['aac'], objectBased: false, lossless: false, profiles: [] },
-    audioExtra: { languages: ['jpn', 'eng'], hasCommentary: false, trackCount: 2, maxBitrateKbps: 320 },
-    video: { height: 1080, width: 1920, codec: 'h264', hdr: false, dolbyVision: false, bitDepth: 8, frameRate: 23.976, interlaced: false },
-    subtitles: { count: 2, languages: ['eng'], hasForced: false, hasText: true },
-    source: { durationMinutes: 24, sizeGB: 1.4, bitrateMbps: 7, container: 'mkv' },
-    media: { kind: 'anime', genres: ['animation'], year: 2023 },
-  }),
-];
-
-function sample(name: string, facts: SourceFacts): { name: string; facts: SourceFacts } {
-  return { name, facts };
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Profile, SmartAssignment, SmartCondition, SmartProfile, SmartRule, SmartSettingPath } from '@shared/types';
-import { decide, describeCondition, isPassThrough, fieldInfo, operatorsFor, OPERATOR_LABELS, ruleMatches, SAMPLE_SOURCES, settingInfo, SMART_FIELDS, SMART_SETTINGS } from '@shared/smart';
+import { baseProfile, describeCondition, isPassThrough, fieldInfo, operatorsFor, OPERATOR_LABELS, settingInfo, SMART_FIELDS, SMART_SETTINGS } from '@shared/smart';
 import { AUDIO_ENCODER_INFO, CONTAINER_INFO, VIDEO_ENCODER_INFO } from '@shared/presets';
 import { api } from '../api';
 import { useApp } from '../App';
@@ -32,9 +32,6 @@ interface Wire {
   from: string;
   to: string;
   kind: 'flow' | 'data';
-  /** Which branch this leaves, so the path the sample disc takes can be drawn differently. */
-  rule?: number;
-  branch?: 'yes' | 'no';
 }
 
 const condNodeId = (ruleId: string, i: number, kind: 'compare' | 'read') => `${kind}:${ruleId}:${i}`;
@@ -73,10 +70,9 @@ function Port({ id, side, tone, label }: { id: string; side: 'left' | 'right' | 
   );
 }
 
-/** Which way the sample disc leaves a branch, so the row it takes can be marked. */
-function BranchRow({ id, label, taken }: { id: string; label: string; taken?: boolean }) {
+function BranchRow({ id, label }: { id: string; label: string }) {
   return (
-    <div className={`gRow${taken ? ' taken' : ''}`}>
+    <div className="gRow">
       {label}
       <Port id={id} side="right" />
     </div>
@@ -88,8 +84,6 @@ export function SmartGraphPage() {
   const nav = useNavigate();
   const { profiles, smartProfiles, reloadSmartProfiles, toast } = useApp();
   const [sp, setSp] = useState<SmartProfile | null>(null);
-  const [sample, setSample] = useState(0);
-  const [showTry, setShowTry] = useState(true);
   const [details, setDetails] = useState(false);
   const [saved, setSaved] = useState('');
   const [busy, setBusy] = useState(false);
@@ -129,15 +123,14 @@ export function SmartGraphPage() {
   }, [id, smartProfiles, sp]);
 
   const readOnly = Boolean(sp?.builtin);
+  // the settings before any branch, which is what the end of the chain shows
+  const baseline = useMemo(() => (sp ? baseProfile(sp) : null), [sp]);
   // layout moves count as changes too: where a node sits is part of the profile
   const dirty = Boolean(sp) && JSON.stringify(sp) !== saved;
   const leave = () => {
     if (dirty && !readOnly && !confirm('Leave without saving? The changes to this smart profile will be lost.')) return;
     nav('/profiles');
   };
-  const profileName = useCallback((pid: string) => profiles.find((p) => p.id === pid)?.name, [profiles]);
-  const facts = SAMPLE_SOURCES[sample].facts;
-  const decision = useMemo(() => (sp ? decide(sp, facts) : null), [sp, facts]);
 
   // ---- the nodes and wires this profile draws as -------------------------------------------------
   const { nodes, wires } = useMemo(() => {
@@ -158,7 +151,7 @@ export function SmartGraphPage() {
       previous = `${branchId}:next`;
       // what this branch changes when it fits
       nodes.push({ id: `set:${rule.id}`, kind: 'set', pos: at(`set:${rule.id}`), ruleIndex: i });
-      wires.push({ from: `${branchId}:then`, to: `set:${rule.id}:in`, kind: 'flow', rule: i, branch: 'yes' });
+      wires.push({ from: `${branchId}:then`, to: `set:${rule.id}:in`, kind: 'flow' });
       // and where the question comes from
       const many = rule.when.length > 1;
       const allId = `all:${rule.id}`;
@@ -259,11 +252,10 @@ export function SmartGraphPage() {
     const w = Math.max(...nodes.map((n) => n.pos.x + size(n.id).w)) - minX;
     const h = Math.max(...nodes.map((n) => n.pos.y + size(n.id).h)) - minY;
     // never shrink past readable – panning is there for the rest – and sit the graph in the middle of the space
-    // leave the sample-disc panel its corner rather than framing nodes underneath it
-    const usable = rect.width - (showTry ? 340 : 80);
+    const usable = rect.width - 80;
     const z = Math.max(0.6, Math.min(1, Math.min(usable / w, (rect.height - 80) / h)));
     setView({ z, x: Math.max(30, (usable - w * z) / 2) - minX * z, y: Math.max(30, (rect.height - h * z) / 2) - minY * z });
-  }, [nodes, showTry]);
+  }, [nodes]);
   useEffect(() => {
     if (sp && nodes.length) fit();
     // only when the profile first loads
@@ -321,14 +313,7 @@ export function SmartGraphPage() {
     }
   };
 
-  if (!sp) return <div className="graphPage"><div className="empty">Loading…</div></div>;
-
-  /** Does this wire carry anything for the sample disc? Only the branches that fit change its settings. */
-  const onPath = (w: Wire) => {
-    if (!decision || w.rule === undefined) return undefined;
-    return decision.applied.some((a) => a.index === w.rule);
-  };
-  const passThrough = decision ? isPassThrough(decision.profile) : false;
+  if (!sp || !baseline) return <div className="graphPage"><div className="empty">Loading…</div></div>;
 
   const wire = (w: Wire) => {
     const a = ports[w.from];
@@ -338,8 +323,7 @@ export function SmartGraphPage() {
     const d = vertical
       ? `M ${a.x} ${a.y} C ${a.x} ${(a.y + b.y) / 2}, ${b.x} ${(a.y + b.y) / 2}, ${b.x} ${b.y}`
       : `M ${a.x} ${a.y} C ${a.x + Math.max(40, (b.x - a.x) / 2)} ${a.y}, ${b.x - Math.max(40, (b.x - a.x) / 2)} ${b.y}, ${b.x} ${b.y}`;
-    const live = onPath(w);
-    return <path key={`${w.from}->${w.to}`} d={d} className={`gWire ${w.kind}${live === true ? ' live' : live === false ? ' dim' : ''}`} />;
+    return <path key={`${w.from}->${w.to}`} d={d} className={`gWire ${w.kind}`} />;
   };
 
   return (
@@ -409,10 +393,8 @@ export function SmartGraphPage() {
           )}
           {nodes.map((n) => {
             const rule = n.ruleIndex !== undefined ? sp.rules[n.ruleIndex] : undefined;
-            const chosen = Boolean(decision && n.ruleIndex !== undefined && decision.applied.some((a) => a.index === n.ruleIndex));
-            const live = rule ? ruleMatches(rule, facts) : false;
             return (
-              <div key={n.id} data-node={n.id} className={`gNode ${n.kind}${chosen ? ' chosen' : ''}${rule?.enabled === false ? ' off' : ''}`} style={{ left: n.pos.x, top: n.pos.y }}>
+              <div key={n.id} data-node={n.id} className={`gNode ${n.kind}${rule?.enabled === false ? ' off' : ''}`} style={{ left: n.pos.x, top: n.pos.y }}>
                 {/* ---- the entry pill ---- */}
                 {n.kind === 'start' && (
                   <div className="gStart" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
@@ -434,7 +416,6 @@ export function SmartGraphPage() {
                         onChange={(e) => setRule(n.ruleIndex!, { ...rule, label: e.target.value })}
                       />
                       <span className="spacer" />
-                      {live && rule.enabled !== false && <span className="gTag">true</span>}
                       <button
                         className={`gIcon${rule.enabled === false ? ' off' : ''}`}
                         disabled={readOnly}
@@ -464,7 +445,7 @@ export function SmartGraphPage() {
                       </span>
                     </div>
                     <div className="gBranchRows">
-                      <BranchRow id={`rule:${rule.id}:then`} label="Then" taken={live} />
+                      <BranchRow id={`rule:${rule.id}:then`} label="Then" />
                       <BranchRow id={`rule:${rule.id}:next`} label="Carry on" />
                     </div>
                     <Port id={`rule:${rule.id}:in`} side="left" />
@@ -605,8 +586,6 @@ export function SmartGraphPage() {
                   <>
                     <div className="gHead" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
                       <span>Set</span>
-                      <span className="spacer" />
-                      {chosen && <span className="gTag on">applied</span>}
                     </div>
                     <div className="gBody">
                       <Assignments list={rule.set} readOnly={readOnly} onChange={(set) => setRule(n.ruleIndex!, { ...rule, set })} />
@@ -615,30 +594,23 @@ export function SmartGraphPage() {
                   </>
                 )}
 
-                {/* ---- and what that comes to for the disc being tried ---- */}
-                {n.kind === 'result' && decision && (
+                {/* ---- where the chain ends, before any branch has had a say ---- */}
+                {n.kind === 'result' && (
                   <>
                     <div className="gHead" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
-                      <span>Encode with</span>
-                      <span className="spacer" />
-                      <span className="gTag">{SAMPLE_SOURCES[sample].name}</span>
+                      <span>If nothing matches</span>
                     </div>
                     <div className="gBody">
                       <div className="gResultRows">
-                        {RESULT_ROWS.map(({ path, show }) => {
-                          const value = show(decision.profile);
-                          const branch = decision.from[path];
-                          return (
-                            <div key={path} className={`gResultRow${branch !== undefined ? ' set' : ''}`}>
-                              <span className="gLabel">{settingInfo(path)?.label ?? path}</span>
-                              <span className="spacer" />
-                              <span>{value}</span>
-                              {branch !== undefined && <span className="gTag">#{branch + 1}</span>}
-                            </div>
-                          );
-                        })}
+                        {RESULT_ROWS.map(({ path, show }) => (
+                          <div key={path} className="gResultRow">
+                            <span className="gLabel">{settingInfo(path)?.label ?? path}</span>
+                            <span className="spacer" />
+                            <span>{show(baseline)}</span>
+                          </div>
+                        ))}
                       </div>
-                      {passThrough && <div className="gHelp">Every stream copied into the same container – Rexarr queues no encode at all for this one.</div>}
+                      {isPassThrough(baseline) && <div className="gHelp">Every stream copied into the same container – such a file is left alone, with no encode queued.</div>}
                     </div>
                     <Port id="result:in" side="left" />
                   </>
@@ -648,42 +620,6 @@ export function SmartGraphPage() {
           })}
         </div>
 
-        {showTry && decision && (
-          <div className="graphTry">
-            <div className="inline">
-              <strong className="small">Try it</strong>
-              <span className="spacer" />
-              <button className="gIcon" onClick={() => setShowTry(false)} title="Hide">
-                <Icon.X />
-              </button>
-            </div>
-            <select value={sample} onChange={(e) => setSample(Number(e.target.value))}>
-              {SAMPLE_SOURCES.map((s, i) => (
-                <option key={s.name} value={i}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <div className="small dim mono">
-              {facts.audio.maxChannels}ch {facts.audio.codecs.join('/')}
-              {facts.audio.objectBased ? ' · object audio' : ''} · {facts.video.height}p{facts.video.hdr ? ' HDR' : ''}
-            </div>
-            <div className="small gResult">
-              →{' '}
-              <strong>
-                {passThrough
-                  ? 'nothing to encode'
-                  : `${decision.profile.video.encoder === 'copy' ? 'video kept' : `${decision.profile.video.encoder} CRF ${decision.profile.video.quality}`} · ${decision.profile.audio.encoder === 'copy' ? 'audio kept' : decision.profile.audio.encoder}`}
-              </strong>
-              <div className="dim">{decision.applied.length ? `branch ${decision.applied.map((a) => a.index + 1).join(', ')} applied` : 'no branch matched'}</div>
-            </div>
-          </div>
-        )}
-        {!showTry && (
-          <button className="btn sm graphTryShow" onClick={() => setShowTry(true)}>
-            Try it
-          </button>
-        )}
       </div>
     </div>
   );

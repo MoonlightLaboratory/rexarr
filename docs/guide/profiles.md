@@ -102,8 +102,8 @@ change it for the discs you want changed.
 holds the settings every encode begins with. A *Branch* asks a question and has a **Then**, which goes to a *Set*
 node listing what it changes, and a **Carry on**, which continues to the next branch. A branch's **Condition**
 comes up from the nodes below it — a *Comparison* fed by a *Read from the file*, or a plain read for a yes/no
-question, gathered by an *All of* when a branch asks more than one thing. At the end, **Encode with** shows what
-the settings come to for the disc you are trying.
+question, gathered by an *All of* when a branch asks more than one thing. At the end, **If nothing matches**
+shows what a file that fits no branch is encoded with.
 
 Everything is edited in the node itself, and a branch says what it asks in its own body, so the graph still reads
 when it is zoomed out. Drag nodes anywhere — where they sit is saved with the profile, **Tidy up** puts them
@@ -159,13 +159,6 @@ so whatever a branch can change, a profile can also simply be.
   at settings that suit film grain; UHD HDR adds 10-bit and HDR passthrough.
 
 Both are read-only. Clone one to change it.
-
-### Trying one out
-
-The canvas has a **Try it** panel: pick one of a handful of sample discs — UHD with TrueHD 7.1 Atmos, a DTS:X
-disc, a 5.1 Blu-ray, a stereo-only disc, a DVD, an episode — and the branches that fit light up, the settings
-they change are marked in **Encode with**, and the wires they are on are drawn in green. It runs the same code
-the server does.
 
 ## Command preview
 
