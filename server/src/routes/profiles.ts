@@ -223,12 +223,14 @@ export default async function profileRoutes(app: FastifyInstance) {
 
   /** Preview the ffmpeg command a profile would produce, for a real file or a sample UHD remux. */
   app.post('/api/profiles/preview', async (req, reply) => {
-    const body = z.object({ profile: profileSchema.optional(), profileId: z.string().optional(), path: z.string().optional() }).safeParse(req.body);
+    const body = z.object({ profile: profileSchema.optional(), profileId: z.string().optional(), path: z.string().optional(), audioOnly: z.boolean().optional() }).safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: 'invalid body' });
     let profile: Profile | undefined;
     if (body.data.profile) profile = { ...body.data.profile, id: body.data.profile.id ?? 'preview', builtin: false, createdAt: '', updatedAt: '' } as Profile;
     else if (body.data.profileId) profile = store.getProfile(body.data.profileId);
     if (!profile) return reply.code(400).send({ error: 'profile required' });
+    // an audio-only job copies the video whatever the profile says, so the command has to show that
+    if (body.data.audioOnly) profile = { ...profile, video: { ...profile.video, encoder: 'copy', maxHeight: 0 } };
     if (profile.mediaType === 'music' || CONTAINER_INFO[profile.container]?.music) {
       // Music profiles run through fre:ac: describe that pipeline instead of an ffmpeg command
       const input = body.data.path || '/music/Artist/Album (2024)/01 - Track.flac';

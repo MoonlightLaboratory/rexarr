@@ -545,7 +545,10 @@ table.tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
 .seasonHeader .left { display: flex; align-items: center; flex: 0 1 auto; padding: 15px 10px; gap: 10px; }
 .seasonHeader .seasonNumber { margin: 0 10px 0 5px; white-space: nowrap; }
 .seasonHeader .sizeOnDisk { margin-left: 10px; color: #777; font-size: var(--defaultFontSize); }
-.seasonHeader .expandButton { flex-grow: 1; margin: 0 20px; text-align: center; background: none; border: none; color: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; align-self: stretch; }
+/* The chevron sits in the middle of the row, not in the middle of whatever space the two sides left over –
+   otherwise it lands somewhere different on every season, depending on how many badges that one has. */
+.seasonHeader .expandButton { flex-grow: 1; margin: 0 20px; background: none; border: none; color: inherit; cursor: pointer; align-self: stretch; }
+.seasonHeader .expandButton svg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
 .seasonHeader .expandButton svg { width: 24px; height: 24px; color: var(--helpTextColor); }
 .seasonHeader .actions { display: flex; align-items: center; gap: 4px; padding: 15px 10px; font-size: var(--defaultFontSize); }
 .episodes { border-top: 1px solid var(--borderColor); background: var(--episodesBackgroundColor); }

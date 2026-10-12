@@ -14,6 +14,11 @@ video and audio codecs, and how many episodes of a season are present.
 - A title's page shows the backdrop header, the files it has, and per-file actions: transcode with a profile, look
   at [tags and stream details](music.md#metadata), or search for a remux (**Search remux**, and
   **Search remux for this season** on a season block).
+- **Audio only** sits beside *Transcode* on a movie or series page, and is a tickbox in the transcode dialog
+  everywhere else. The video is copied exactly as it is — not re-encoded, not downscaled, whatever the profile
+  says — and only the audio goes through the encoder. It is the quick way to turn a TrueHD or DTS-HD MA track
+  into FLAC or Opus without touching the picture, and it costs minutes rather than hours. A profile that copies
+  the audio as well is pointed out, since that would leave the file unchanged.
 - Titles that are missing, or already queued, are marked (*Missing*, *In queue*).
 
 ## Activity

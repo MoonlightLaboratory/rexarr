@@ -896,6 +896,8 @@ export interface Job {
   profileId: string;
   profileName: string;
   source: JobSource;
+  /** Keep the video exactly as it is and only re-encode the audio, whatever the profile says. */
+  audioOnly?: boolean;
   /** What created the job. */
   trigger?: 'manual' | 'grab' | 'auto' | 'disc';
   /** A live preview frame is available while encoding. */

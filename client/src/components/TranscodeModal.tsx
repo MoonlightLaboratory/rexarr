@@ -19,9 +19,10 @@ export interface TranscodeItem {
 }
 
 /** Pick a profile and queue one or more library files for encoding. */
-export function TranscodeModal({ items, mediaType, onClose, onQueued }: { items: TranscodeItem[]; mediaType: 'movie' | 'tv' | 'anime' | 'music'; onClose: () => void; onQueued?: () => void }) {
+export function TranscodeModal({ items, mediaType, onClose, onQueued, defaultAudioOnly }: { items: TranscodeItem[]; mediaType: 'movie' | 'tv' | 'anime' | 'music'; onClose: () => void; onQueued?: () => void; /** Open with "audio only" already ticked. */ defaultAudioOnly?: boolean }) {
   const { profiles, settings, toast } = useApp();
   const [profileId, setProfileId] = useState(settings?.defaultProfiles[mediaType] ?? profiles[0]?.id ?? '');
+  const [audioOnly, setAudioOnly] = useState(Boolean(defaultAudioOnly));
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
@@ -30,7 +31,7 @@ export function TranscodeModal({ items, mediaType, onClose, onQueued }: { items:
   const doPreview = async () => {
     setPreviewBusy(true);
     try {
-      setPreview(await api.preview({ profileId, path: previewPath }));
+      setPreview(await api.preview({ profileId, path: previewPath, audioOnly }));
     } catch (e) {
       toast('error', (e as Error).message);
     } finally {
@@ -61,10 +62,10 @@ export function TranscodeModal({ items, mediaType, onClose, onQueued }: { items:
     setBusy(true);
     try {
       if (items.length === 1) {
-        await api.createJob({ ...items[0], profileId });
+        await api.createJob({ ...items[0], profileId, audioOnly });
         toast('info', `Queued ${items[0].title}`);
       } else {
-        const r = await api.bulkJobs({ profileId, items });
+        const r = await api.bulkJobs({ profileId, items, audioOnly });
         toast(r.errors.length ? 'warn' : 'info', `Queued ${r.created} of ${items.length}${r.errors.length ? `; ${r.errors[0]}` : ''}`);
       }
       onQueued?.();
@@ -78,7 +79,7 @@ export function TranscodeModal({ items, mediaType, onClose, onQueued }: { items:
 
   return (
     <Modal
-      title={items.length === 1 ? `Transcode · ${items[0].title}` : `Transcode ${items.length} files`}
+      title={`${audioOnly ? 'Re-encode audio' : 'Transcode'} · ${items.length === 1 ? items[0].title : `${items.length} files`}`}
       onClose={onClose}
       footer={
         <>
@@ -121,7 +122,19 @@ export function TranscodeModal({ items, mediaType, onClose, onQueued }: { items:
         <ProfileSelect profiles={profiles} value={profileId} onChange={setProfileId} mediaType={mediaType} suffix={suffix} />
         {profile && <div className="help">{profile.description}</div>}
       </div>
-      <SizeEstimatePanel est={est} loading={!estimates && !estimateError} error={estimateError} result={estimates} />
+      {mediaType !== 'music' && (
+        <label className="check mb">
+          <input type="checkbox" checked={audioOnly} onChange={(e) => setAudioOnly(e.target.checked)} /> Re-encode the audio only – the video is copied exactly as it is
+          <span className="hint" style={{ display: 'block', marginLeft: 22 }}>
+            For shrinking a TrueHD or DTS-HD MA track without touching the picture. Whatever the profile says about video is ignored.
+          </span>
+        </label>
+      )}
+      {audioOnly && profile?.audio.encoder === 'copy' && (
+        <div className="warn">This profile copies the audio too, so the file would come out unchanged. Pick a profile that encodes audio.</div>
+      )}
+      {!audioOnly && <SizeEstimatePanel est={est} loading={!estimates && !estimateError} error={estimateError} result={estimates} />}
+      {audioOnly && <div className="info">The size estimate assumes the video is re-encoded, so it is not shown here: the picture is copied, and only the audio changes size.</div>}
       {profile && (
         <div className="grid-2 small">
           <div>
@@ -131,10 +144,16 @@ export function TranscodeModal({ items, mediaType, onClose, onQueued }: { items:
           <div>
             <div className="dim">Video</div>
             <div>
-              {profile.video.encoder} · q{profile.video.quality}
-              {profile.video.preset ? ` · ${profile.video.preset}` : ''}
-              {profile.video.tune !== 'none' ? ` · tune ${profile.video.tune}` : ''}
-              {profile.video.maxHeight ? ` · ≤${profile.video.maxHeight}p` : ''}
+              {audioOnly ? (
+                'copied, as it is'
+              ) : (
+                <>
+                  {profile.video.encoder} · q{profile.video.quality}
+                  {profile.video.preset ? ` · ${profile.video.preset}` : ''}
+                  {profile.video.tune !== 'none' ? ` · tune ${profile.video.tune}` : ''}
+                  {profile.video.maxHeight ? ` · ≤${profile.video.maxHeight}p` : ''}
+                </>
+              )}
             </div>
           </div>
           <div>

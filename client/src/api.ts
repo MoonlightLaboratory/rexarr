@@ -88,7 +88,7 @@ export const api = {
   updateProfile: (id: string, p: Partial<Profile>) => req<Profile>('PUT', `/api/profiles/${id}`, p),
   cloneProfile: (id: string) => req<Profile>('POST', `/api/profiles/${id}/clone`),
   deleteProfile: (id: string) => req<{ ok: true }>('DELETE', `/api/profiles/${id}`),
-  preview: (body: { profile?: Partial<Profile>; profileId?: string; path?: string }) => req<PreviewResult>('POST', '/api/profiles/preview', body),
+  preview: (body: { profile?: Partial<Profile>; profileId?: string; path?: string; audioOnly?: boolean }) => req<PreviewResult>('POST', '/api/profiles/preview', body),
 
   smartProfiles: () => req<SmartProfile[]>('GET', '/api/smart-profiles'),
   createSmartProfile: (p: Partial<SmartProfile>) => req<SmartProfile>('POST', '/api/smart-profiles', p),
@@ -139,8 +139,8 @@ export const api = {
     req<{ grabbed: boolean; job: Job | null; note?: string }>('POST', '/api/search/grab', body),
 
   jobs: () => req<Job[]>('GET', '/api/jobs'),
-  createJob: (body: { title: string; subtitle?: string; poster?: string; profileId: string; source: Job['source'] }) => req<Job>('POST', '/api/jobs', body),
-  bulkJobs: (body: { profileId: string; items: { title: string; subtitle?: string; poster?: string; source: Job['source'] }[] }) => req<{ created: number; errors: string[] }>('POST', '/api/jobs/bulk', body),
+  createJob: (body: { title: string; subtitle?: string; poster?: string; profileId: string; audioOnly?: boolean; source: Job['source'] }) => req<Job>('POST', '/api/jobs', body),
+  bulkJobs: (body: { profileId: string; audioOnly?: boolean; items: { title: string; subtitle?: string; poster?: string; source: Job['source'] }[] }) => req<{ created: number; errors: string[] }>('POST', '/api/jobs/bulk', body),
   cancelJob: (id: string) => req<{ ok: true }>('POST', `/api/jobs/${id}/cancel`),
   retryJob: (id: string) => req<{ ok: true }>('POST', `/api/jobs/${id}/retry`),
   reorderJob: (id: string, direction: 'top' | 'bottom') => req<{ ok: true }>('POST', `/api/jobs/${id}/reorder`, { direction }),

@@ -31,6 +31,8 @@ export interface CreateJobInput {
   source: JobSource;
   /** Start as "waiting" (release grabbed, file not yet imported) instead of "queued". */
   waiting?: boolean;
+  /** Keep the video as it is and only re-encode the audio. */
+  audioOnly?: boolean;
   trigger?: Job['trigger'];
 }
 
@@ -119,7 +121,8 @@ class JobQueue {
       poster: input.poster,
       status: input.waiting ? 'waiting' : 'queued',
       profileId: profile.id,
-      profileName: profile.name,
+      profileName: input.audioOnly ? `${profile.name} · audio only` : profile.name,
+      audioOnly: input.audioOnly,
       trigger: input.trigger ?? (input.waiting ? 'grab' : 'manual'),
       source: { ...input.source },
       progress: initialProgress(),
@@ -769,6 +772,11 @@ class JobQueue {
         }
       }
       if (!profile) throw new Error(`Profile "${job.profileName}" no longer exists`);
+      if (job.audioOnly) {
+        // the point is to leave the picture untouched, so a downscale would defeat it as surely as an encode
+        profile = { ...profile, video: { ...profile.video, encoder: 'copy', maxHeight: 0 } };
+        this.log(job, `Audio only: the video is copied as it is, ${profile.audio.encoder === 'copy' ? 'and the audio is copied too (nothing to do)' : `and the audio goes to ${profile.audio.encoder}`}`);
+      }
 
       const output = outputPathFor(profile, input);
 

@@ -187,6 +187,7 @@ function SeriesDetail({ id }: { id: number }) {
   const [open, setOpen] = useState<Set<number>>(new Set());
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [modal, setModal] = useState<TranscodeItem[] | null>(null);
+  const [audioOnly, setAudioOnly] = useState(false);
   const nav = useNavigate();
 
   const load = () => {
@@ -271,6 +272,7 @@ function SeriesDetail({ id }: { id: number }) {
           <ToolbarButton icon={<Icon.Search />} label="Search remux" wide to={`/search?kind=series&id=${id}`} />
           <ToolbarSeparator />
           <ToolbarButton icon={<Icon.Play />} label={selectedEps.length ? `Transcode ${selectedEps.length}` : 'Transcode'} wide selected={selectedEps.length > 0} disabled={!selectedEps.length} onClick={() => setModal(selectedEps.map(toItem))} />
+          <ToolbarButton icon={<Icon.Music />} label="Audio only" wide disabled={!selectedEps.length} title="Re-encode the audio of the selected episodes and copy the video exactly as it is" onClick={() => (setAudioOnly(true), setModal(selectedEps.map(toItem)))} />
           <ToolbarButton icon={<Icon.Square />} label="Clear" onClick={() => setSelected(new Set())} disabled={!selected.size} />
         </>
       }
@@ -400,7 +402,9 @@ function SeriesDetail({ id }: { id: number }) {
           })}
         </div>
       )}
-      {modal && settings && <TranscodeModal items={modal} mediaType={mediaType} onClose={() => setModal(null)} onQueued={() => setSelected(new Set())} />}
+      {modal && settings && (
+        <TranscodeModal items={modal} mediaType={mediaType} defaultAudioOnly={audioOnly} onClose={() => { setModal(null); setAudioOnly(false); }} onQueued={() => setSelected(new Set())} />
+      )}
     </Page>
   );
 }

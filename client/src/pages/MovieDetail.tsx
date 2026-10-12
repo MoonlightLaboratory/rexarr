@@ -22,6 +22,7 @@ export function MovieDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [modal, setModal] = useState<TranscodeItem[] | null>(null);
+  const [audioOnly, setAudioOnly] = useState(false);
 
   const load = () => {
     setError(null);
@@ -76,6 +77,7 @@ export function MovieDetailPage() {
           <ToolbarButton icon={<Icon.Search />} label="Search remux" wide to={`/search?kind=movie&id=${movieId}`} />
           <ToolbarSeparator />
           <ToolbarButton icon={<Icon.Play />} label={inQueue ? 'In queue' : 'Transcode'} wide disabled={!movie?.file || inQueue} selected={Boolean(movie?.file) && !inQueue} onClick={() => movie && setModal([item(movie)])} />
+          <ToolbarButton icon={<Icon.Music />} label="Audio only" wide disabled={!movie?.file || inQueue} title="Re-encode the audio and copy the video exactly as it is" onClick={() => movie && (setAudioOnly(true), setModal([item(movie)]))} />
         </>
       }
     >
@@ -191,7 +193,7 @@ export function MovieDetailPage() {
           </div>
         </>
       )}
-      {modal && <TranscodeModal items={modal} mediaType={movie?.anime ? 'anime' : 'movie'} onClose={() => setModal(null)} />}
+      {modal && <TranscodeModal items={modal} mediaType={movie?.anime ? 'anime' : 'movie'} defaultAudioOnly={audioOnly} onClose={() => { setModal(null); setAudioOnly(false); }} />}
     </Page>
   );
 }

@@ -17,6 +17,7 @@ export default async function jobRoutes(app: FastifyInstance) {
         subtitle: z.string().optional(),
         poster: z.string().optional(),
         profileId: z.string(),
+        audioOnly: z.boolean().optional(),
         source: z.object({
           kind: z.enum(['movie', 'episode', 'file', 'album', 'track']),
           arr: z.enum(['radarr', 'sonarr', 'lidarr']).optional(),
@@ -44,6 +45,7 @@ export default async function jobRoutes(app: FastifyInstance) {
     const body = z
       .object({
         profileId: z.string(),
+        audioOnly: z.boolean().optional(),
         items: z.array(
           z.object({
             title: z.string(),
@@ -70,7 +72,7 @@ export default async function jobRoutes(app: FastifyInstance) {
     const errors: string[] = [];
     for (const item of body.data.items) {
       try {
-        created.push(queue.create({ ...item, profileId: body.data.profileId }));
+        created.push(queue.create({ ...item, profileId: body.data.profileId, audioOnly: body.data.audioOnly }));
       } catch (err) {
         errors.push(`${item.title}: ${(err as Error).message}`);
       }
