@@ -86,10 +86,14 @@ fed by a *Read from the file*, or a plain read for a yes/no question, gathered b
 more than one thing. Yes goes to what that branch does; No falls through to the next question, and the last stop
 is *Anything else*.
 
-Everything is edited in the node itself. Drag nodes anywhere — where they sit is saved with the profile, **Tidy
-up** puts them back — drag the background to pan, scroll to zoom, **Fit** frames the lot. The wires are drawn
-from the chain rather than dragged by hand: the order of the questions is what a smart profile *is*, and the ↑ ↓
-on a branch's header changes it.
+Everything is edited in the node itself, and a branch says what it asks in its own body, so the graph still reads
+when it is zoomed out. Drag nodes anywhere — where they sit is saved with the profile, **Tidy up** puts them
+back — drag the background to pan, scroll or use the zoom control to resize, and the percentage button frames the
+lot. **Details** holds the description and what the profile is for. Edits are kept until you press **Save**; an
+*Unsaved* mark appears in the bar and leaving the page asks first.
+
+The wires are drawn from the chain rather than dragged by hand: the order of the questions is what a smart
+profile *is*, and the ↑ ↓ on a branch's header changes it.
 
 ### Nodes
 
@@ -129,8 +133,9 @@ Both are read-only. Clone one to change it.
 ### Trying one out
 
 The canvas has a **Try it** panel: pick one of a handful of sample discs — UHD with TrueHD 7.1 Atmos, a DTS:X
-disc, a 5.1 Blu-ray, a stereo-only disc, a DVD, an episode — and the branch that would win lights up as you edit,
-along with what it would do. It runs the same code the server does.
+disc, a 5.1 Blu-ray, a stereo-only disc, a DVD, an episode — and the path that disc takes is drawn through the
+graph in green, with the branch rows it goes through marked and everything it misses faded back. It runs the same
+code the server does.
 
 ## Command preview
 

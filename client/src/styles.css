@@ -1313,9 +1313,14 @@ table.metaTags td.mono { word-break: break-word; }
 
 /* ---- smart profile canvas: the whole content area, sidebar aside ---- */
 .graphPage { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.graphBar { display: flex; align-items: center; gap: 9px; padding: 9px 14px; border-bottom: 1px solid var(--borderColor); background: var(--cardBackgroundColor); }
+.graphBar { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 9px 14px; border-bottom: 1px solid var(--borderColor); background: var(--cardBackgroundColor); }
 .graphBar .spacer { flex: 1; }
-.graphName { width: 280px; max-width: 40vw; }
+.graphName { width: 300px; max-width: 34vw; font-size: 15px; }
+.gZoom { display: flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--borderColor); border-radius: 4px; }
+.graphDetails { display: flex; flex-wrap: wrap; gap: 14px; padding: 12px 14px; border-bottom: 1px solid var(--borderColor); background: var(--cardBackgroundColor); }
+.graphDetails .field { flex: 1 1 260px; margin: 0; }
+.graphDetails .field.stack:last-child { flex: 0 0 190px; }
+.badge.amber { background: #d9a441; color: #1b1b1b; }
 
 .graphSurface {
   position: relative; flex: 1; min-height: 0; overflow: hidden; cursor: grab;
@@ -1326,16 +1331,30 @@ table.metaTags td.mono { word-break: break-word; }
 .graphLayer { position: absolute; inset: 0; transform-origin: 0 0; }
 .graphWires { position: absolute; left: -4000px; top: -4000px; width: 12000px; height: 12000px; overflow: visible; pointer-events: none; }
 .graphWires > path { transform: translate(4000px, 4000px); }
-.gWire { fill: none; stroke-width: 2; }
-.gWire.flow { stroke: var(--gray); opacity: 0.85; }
-.gWire.data { stroke: #d9a441; opacity: 0.85; }
+.gWire { fill: none; stroke-width: 2; transition: opacity 0.15s ease; }
+.gWire.flow { stroke: var(--gray); opacity: 0.8; }
+.gWire.data { stroke: #d9a441; opacity: 0.8; }
+.gWire.live { stroke: var(--successColor); opacity: 1; stroke-width: 2.5; }
+.gWire.dim { opacity: 0.22; }
 
-.gNode { position: absolute; width: 260px; border: 1px solid var(--borderColor); border-radius: 7px; background: var(--cardBackgroundColor); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); user-select: none; }
+.gNode { position: absolute; width: 250px; border: 1px solid var(--borderColor); border-radius: 7px; background: var(--cardBackgroundColor); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); user-select: none; }
+/* a name is long and an operator is short: let the node be the size of what is in it */
+.gNode.outcome { width: 290px; }
+.gNode.branch { width: 220px; }
+.gNode.all { width: 190px; }
 .gNode.chosen { border-color: var(--successColor); box-shadow: 0 0 0 1px var(--successColor), 0 6px 18px rgba(0, 0, 0, 0.35); }
 .gNode.start { width: auto; border: 0; background: transparent; box-shadow: none; }
 .gStart { position: relative; padding: 9px 17px; border-radius: 999px; background: var(--themeLightColor); color: var(--textColor); cursor: grab; white-space: nowrap; }
 
-.gHead { display: flex; align-items: center; gap: 6px; padding: 8px 11px; border-bottom: 1px solid var(--borderColor); cursor: grab; font-size: 15px; }
+/* the kind of node is readable at a glance from the colour of its head */
+.gNode.branch .gHead { border-top: 2px solid #5d9cec; }
+.gNode.compare .gHead { border-top: 2px solid #d9a441; }
+.gNode.read .gHead { border-top: 2px solid #4caf7d; }
+.gNode.all .gHead { border-top: 2px solid #b07fd0; }
+.gNode.outcome .gHead { border-top: 2px solid var(--gray); }
+.gNode > .gHead:first-child { border-radius: 6px 6px 0 0; }
+.gHead { display: flex; align-items: center; gap: 6px; padding: 7px 11px 8px; border-bottom: 1px solid var(--borderColor); cursor: grab; font-size: 14px; }
+.gHead:active { cursor: grabbing; }
 .gHead .spacer { flex: 1; }
 .gBody { display: flex; flex-direction: column; gap: 8px; padding: 10px 11px; }
 .gBody select, .gBody input { width: 100%; }
@@ -1346,16 +1365,24 @@ table.metaTags td.mono { word-break: break-word; }
 .gHelp { color: var(--gray); font-size: 11px; line-height: 1.35; }
 .gTag { padding: 1px 6px; border-radius: 3px; background: var(--themeLightColor); color: var(--gray); font-size: 11px; }
 .gTag.on { background: var(--successColor); color: var(--white); }
+.gHead .gIcon { opacity: 0; transition: opacity 0.12s ease; }
+.gNode:hover .gHead .gIcon, .gHead .gIcon:focus-visible { opacity: 1; }
 .gIcon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 3px; background: transparent; color: var(--gray); cursor: pointer; }
+.gIcon.wide { width: auto; padding: 0 8px; font-size: var(--smallFontSize); font-variant-numeric: tabular-nums; }
 .gIcon:hover:not(:disabled) { background: var(--themeLightColor); color: var(--textColor); }
 .gIcon:disabled { opacity: 0.35; cursor: default; }
 .gIcon.danger:hover:not(:disabled) { color: var(--dangerColor, #d9534f); }
 .gIcon svg { width: 13px; height: 13px; }
 
 /* a branch's Yes / No rows, each with its own way out */
+/* what this branch asks, so a node still says something when the canvas is zoomed out */
+.gAsk { padding: 9px 11px; border-bottom: 1px solid var(--borderColor); color: var(--gray); font-size: 11px; line-height: 1.4; }
+.gEmpty { position: absolute; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; max-width: 280px; color: var(--gray); font-size: var(--smallFontSize); }
 .gBranchRows { display: flex; flex-direction: column; }
-.gRow { position: relative; padding: 9px 13px; text-align: right; font-size: var(--smallFontSize); }
+.gRow { position: relative; padding: 11px 15px; text-align: right; color: var(--gray); font-size: var(--smallFontSize); }
 .gRow + .gRow { border-top: 1px solid var(--borderColor); }
+.gRow.taken { color: var(--textColor); background: rgba(255, 255, 255, 0.04); }
+.gRow.taken .gPort { background: var(--successColor); }
 .gInputs { display: flex; justify-content: space-around; }
 
 /* ports: a dot on the edge of a node, with its name alongside */
@@ -1375,6 +1402,7 @@ table.metaTags td.mono { word-break: break-word; }
 .gPort.value .gPortLabel { color: #4caf7d; }
 
 /* the sample-disc panel, pinned over the canvas */
-.graphTry { position: absolute; right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 7px; width: 280px; padding: 11px; border: 1px solid var(--borderColor); border-radius: 7px; background: var(--cardBackgroundColor); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+.graphTry { position: absolute; right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 8px; width: 290px; padding: 12px; border: 1px solid var(--borderColor); border-radius: 7px; background: var(--cardBackgroundColor); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+.graphTry .gResult { padding-top: 8px; border-top: 1px solid var(--borderColor); }
 .graphTry .inline { align-items: center; }
 .graphTryShow { position: absolute; right: 14px; bottom: 14px; }

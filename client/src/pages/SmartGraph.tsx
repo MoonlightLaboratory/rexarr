@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Profile, SmartCondition, SmartOutcome, SmartProfile, SmartRule } from '@shared/types';
-import { decide, fieldInfo, operatorsFor, OPERATOR_LABELS, ruleMatches, SAMPLE_SOURCES, SMART_FIELDS } from '@shared/smart';
+import { decide, describeCondition, fieldInfo, operatorsFor, OPERATOR_LABELS, ruleMatches, SAMPLE_SOURCES, SMART_FIELDS } from '@shared/smart';
 import { api } from '../api';
 import { useApp } from '../App';
 import { Icon } from '../components/Icons';
@@ -31,7 +31,9 @@ interface Wire {
   from: string;
   to: string;
   kind: 'flow' | 'data';
-  dim?: boolean;
+  /** Which branch this leaves, so the path the sample disc takes can be drawn differently. */
+  rule?: number;
+  branch?: 'yes' | 'no';
 }
 
 const condNodeId = (ruleId: string, i: number, kind: 'compare' | 'read') => `${kind}:${ruleId}:${i}`;
@@ -45,19 +47,19 @@ function autoLayout(sp: SmartProfile): Record<string, Pos> {
     out[branchId] = { x: 250, y };
     out[`out:${rule.id}`] = { x: 560, y: y - 70 };
     const many = rule.when.length > 1;
-    if (many) out[`all:${rule.id}`] = { x: 250, y: y + 180 };
-    const base = many ? y + 330 : y + 190;
+    if (many) out[`all:${rule.id}`] = { x: 250, y: y + 200 };
+    const base = many ? y + 330 : y + 210;
     let anyCompare = false;
     rule.when.forEach((c, ci) => {
       const kind = fieldInfo(c.field)?.kind === 'boolean' ? 'read' : 'compare';
       out[condNodeId(rule.id, ci, kind)] = { x: 210 + ci * 300, y: base };
       // a comparison reads its A side from a node below it, which is what makes a branch's stack tall
       if (kind === 'compare') {
-        out[`read:${rule.id}:${ci}`] = { x: 210 + ci * 300, y: base + 200 };
+        out[`read:${rule.id}:${ci}`] = { x: 210 + ci * 300, y: base + 210 };
         anyCompare = true;
       }
     });
-    y = base + (anyCompare ? 200 + 180 : 180) + 70;
+    y = base + (anyCompare ? 210 + 170 : 170) + 70;
   });
   out['else'] = { x: 560, y };
   return out;
@@ -71,6 +73,16 @@ function Port({ id, side, tone, label }: { id: string; side: 'left' | 'right' | 
   );
 }
 
+/** Which way the sample disc leaves a branch, so the row it takes can be marked. */
+function BranchRow({ id, label, taken }: { id: string; label: string; taken?: boolean }) {
+  return (
+    <div className={`gRow${taken ? ' taken' : ''}`}>
+      {label}
+      <Port id={id} side="right" />
+    </div>
+  );
+}
+
 export function SmartGraphPage() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -78,29 +90,44 @@ export function SmartGraphPage() {
   const [sp, setSp] = useState<SmartProfile | null>(null);
   const [sample, setSample] = useState(0);
   const [showTry, setShowTry] = useState(true);
+  const [details, setDetails] = useState(false);
+  const [saved, setSaved] = useState('');
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState({ x: 0, y: 0, z: 1 });
   const [ports, setPorts] = useState<Record<string, Pos>>({});
   const surface = useRef<HTMLDivElement>(null);
   const layer = useRef<HTMLDivElement>(null);
   const drag = useRef<{ node?: string; startPos: Pos; origin: Pos; panning?: boolean } | null>(null);
+  const nodeSizes = useRef<Record<string, { w: number; h: number }>>({});
 
   useEffect(() => {
     if (sp) return;
     if (id === 'new') {
-      setSp({
+      const blank: SmartProfile = {
         id: '', name: '', description: '', builtin: false, mediaType: 'any',
         rules: [{ id: 'r1', when: [{ field: 'audio.objectBased', op: 'isTrue' }], then: { kind: 'keep' } }],
         otherwise: { kind: 'profile', profileId: 'builtin-remux-flac' },
         createdAt: '', updatedAt: '',
-      });
+      };
+      setSp(blank);
+      // a new one starts dirty: there is something to save
+      setSaved('');
       return;
     }
     const found = smartProfiles.find((x) => x.id === id);
-    if (found) setSp(structuredClone(found));
+    if (found) {
+      setSp(structuredClone(found));
+      setSaved(JSON.stringify(found));
+    }
   }, [id, smartProfiles, sp]);
 
   const readOnly = Boolean(sp?.builtin);
+  // layout moves count as changes too: where a node sits is part of the profile
+  const dirty = Boolean(sp) && JSON.stringify(sp) !== saved;
+  const leave = () => {
+    if (dirty && !readOnly && !confirm('Leave without saving? The changes to this smart profile will be lost.')) return;
+    nav('/profiles');
+  };
   const profileName = useCallback((pid: string) => profiles.find((p) => p.id === pid)?.name, [profiles]);
   const facts = SAMPLE_SOURCES[sample].facts;
   const decision = useMemo(() => (sp ? decide(sp, facts) : null), [sp, facts]);
@@ -117,7 +144,7 @@ export function SmartGraphPage() {
       nodes.push({ id: branchId, kind: 'branch', pos: at(branchId), ruleIndex: i });
       // what happens when this branch says yes
       nodes.push({ id: `out:${rule.id}`, kind: 'outcome', pos: at(`out:${rule.id}`), ruleIndex: i });
-      wires.push({ from: `${branchId}:yes`, to: `out:${rule.id}:in`, kind: 'flow' });
+      wires.push({ from: `${branchId}:yes`, to: `out:${rule.id}:in`, kind: 'flow', rule: i, branch: 'yes' });
       // and where the question comes from
       const many = rule.when.length > 1;
       const allId = `all:${rule.id}`;
@@ -138,7 +165,7 @@ export function SmartGraphPage() {
       });
       // the chain: a No falls through to the next question
       const next = sp.rules[i + 1];
-      wires.push({ from: `${branchId}:no`, to: next ? `rule:${next.id}:in` : 'else:in', kind: 'flow' });
+      wires.push({ from: `${branchId}:no`, to: next ? `rule:${next.id}:in` : 'else:in', kind: 'flow', rule: i, branch: 'no' });
     });
     nodes.push({ id: 'else', kind: 'outcome', pos: at('else') });
     const first = sp.rules[0];
@@ -157,6 +184,13 @@ export function SmartGraphPage() {
       next[p.dataset.port!] = { x: (r.left + r.width / 2 - base.left) / view.z, y: (r.top + r.height / 2 - base.top) / view.z };
     });
     setPorts(next);
+    // how big each node actually came out, so Fit frames what is there rather than a guess at it
+    const sizes: Record<string, { w: number; h: number }> = {};
+    el.querySelectorAll<HTMLElement>('[data-node]').forEach((n) => {
+      const r = n.getBoundingClientRect();
+      sizes[n.dataset.node!] = { w: r.width / view.z, h: r.height / view.z };
+    });
+    nodeSizes.current = sizes;
   }, [nodes, view.z, sp]);
 
   // ---- dragging a node, panning the canvas --------------------------------------------------------
@@ -165,6 +199,11 @@ export function SmartGraphPage() {
     e.stopPropagation();
     drag.current = { node: nodeId, startPos: pos, origin: { x: e.clientX, y: e.clientY } };
   };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setDetails(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   useEffect(() => {
     const move = (e: MouseEvent) => {
       const d = drag.current;
@@ -201,14 +240,17 @@ export function SmartGraphPage() {
   const fit = useCallback(() => {
     const rect = surface.current?.getBoundingClientRect();
     if (!rect || !nodes.length) return;
-    const xs = nodes.map((n) => n.pos.x);
-    const ys = nodes.map((n) => n.pos.y);
-    const w = Math.max(...xs) + 300 - Math.min(...xs);
-    const h = Math.max(...ys) + 220 - Math.min(...ys);
-    // never shrink past readable; panning is there for the rest
-    const z = Math.max(0.65, Math.min(1, Math.min((rect.width - 60) / w, (rect.height - 60) / h)));
-    setView({ z, x: 30 - Math.min(...xs) * z, y: 30 - Math.min(...ys) * z });
-  }, [nodes]);
+    const size = (nid: string) => nodeSizes.current[nid] ?? { w: 260, h: 150 };
+    const minX = Math.min(...nodes.map((n) => n.pos.x));
+    const minY = Math.min(...nodes.map((n) => n.pos.y));
+    const w = Math.max(...nodes.map((n) => n.pos.x + size(n.id).w)) - minX;
+    const h = Math.max(...nodes.map((n) => n.pos.y + size(n.id).h)) - minY;
+    // never shrink past readable – panning is there for the rest – and sit the graph in the middle of the space
+    // leave the sample-disc panel its corner rather than framing nodes underneath it
+    const usable = rect.width - (showTry ? 340 : 80);
+    const z = Math.max(0.6, Math.min(1, Math.min(usable / w, (rect.height - 80) / h)));
+    setView({ z, x: Math.max(30, (usable - w * z) / 2) - minX * z, y: Math.max(30, (rect.height - h * z) / 2) - minY * z });
+  }, [nodes, showTry]);
   useEffect(() => {
     if (sp && nodes.length) fit();
     // only when the profile first loads
@@ -237,9 +279,13 @@ export function SmartGraphPage() {
     if (!sp) return;
     setBusy(true);
     try {
-      if (sp.id) await api.updateSmartProfile(sp.id, sp);
-      else {
+      if (sp.id) {
+        await api.updateSmartProfile(sp.id, sp);
+        setSaved(JSON.stringify(sp));
+      } else {
         const created = await api.createSmartProfile(sp);
+        setSp(created);
+        setSaved(JSON.stringify(created));
         nav(`/profiles/smart/${created.id}`, { replace: true });
       }
       await reloadSmartProfiles();
@@ -253,6 +299,13 @@ export function SmartGraphPage() {
 
   if (!sp) return <div className="graphPage"><div className="empty">Loading…</div></div>;
 
+  /** Does the sample disc travel this wire? Used to pick out the live path and fade the rest. */
+  const onPath = (w: Wire) => {
+    if (!decision || w.rule === undefined) return undefined;
+    const taken = decision.ruleIndex === -1 ? w.branch === 'no' && w.rule <= sp.rules.length - 1 : w.rule < decision.ruleIndex ? w.branch === 'no' : w.rule === decision.ruleIndex && w.branch === 'yes';
+    return taken;
+  };
+
   const wire = (w: Wire) => {
     const a = ports[w.from];
     const b = ports[w.to];
@@ -261,42 +314,81 @@ export function SmartGraphPage() {
     const d = vertical
       ? `M ${a.x} ${a.y} C ${a.x} ${(a.y + b.y) / 2}, ${b.x} ${(a.y + b.y) / 2}, ${b.x} ${b.y}`
       : `M ${a.x} ${a.y} C ${a.x + Math.max(40, (b.x - a.x) / 2)} ${a.y}, ${b.x - Math.max(40, (b.x - a.x) / 2)} ${b.y}, ${b.x} ${b.y}`;
-    return <path key={`${w.from}->${w.to}`} d={d} className={`gWire ${w.kind}${w.dim ? ' dim' : ''}`} />;
+    const live = onPath(w);
+    return <path key={`${w.from}->${w.to}`} d={d} className={`gWire ${w.kind}${live === true ? ' live' : live === false ? ' dim' : ''}`} />;
   };
 
   return (
     <div className="graphPage">
       <div className="graphBar">
-        <button className="btn sm" onClick={() => nav('/profiles')} title="Back to profiles">
+        <button className="btn sm" onClick={leave} title="Back to profiles">
           <Icon.ArrowLeftCircle /> Profiles
         </button>
         <input className="graphName" value={sp.name} readOnly={readOnly} placeholder="Name this smart profile" onChange={(e) => setSp({ ...sp, name: e.target.value })} />
-        {readOnly && <span className="badge muted">Built-in · read-only</span>}
-        <span className="spacer" />
-        <button className="btn sm" onClick={fit} title="Fit the whole graph">
-          <Icon.Search /> Fit
+        <button className={`btn sm${details ? ' primary' : ''}`} onClick={() => setDetails((d) => !d)} title="Description and what this is for">
+          Details
         </button>
+        {readOnly && <span className="badge muted">Built-in · read-only</span>}
+        {dirty && !readOnly && <span className="badge amber">Unsaved</span>}
+        <span className="spacer" />
+        <div className="gZoom">
+          <button className="gIcon" onClick={() => setView((v) => ({ ...v, z: Math.max(0.3, v.z / 1.15) }))} title="Zoom out">
+            –
+          </button>
+          <button className="gIcon wide" onClick={fit} title="Fit the whole graph">
+            {Math.round(view.z * 100)}%
+          </button>
+          <button className="gIcon" onClick={() => setView((v) => ({ ...v, z: Math.min(2, v.z * 1.15) }))} title="Zoom in">
+            +
+          </button>
+        </div>
         <button className="btn sm" onClick={() => setSp({ ...sp, layout: {} })} disabled={readOnly} title="Put every node back where it started">
           Tidy up
         </button>
         <button className="btn sm" onClick={addRule} disabled={readOnly}>
           <Icon.Plus /> Branch
         </button>
-        <button className="btn sm primary" onClick={save} disabled={busy || readOnly || !sp.name.trim()}>
+        <button className="btn sm primary" onClick={save} disabled={busy || readOnly || !sp.name.trim() || !dirty}>
           {busy ? <span className="spinner" /> : <Icon.Check />} Save
         </button>
       </div>
+
+      {details && (
+        <div className="graphDetails">
+          <div className="field stack">
+            <label>Description</label>
+            <input value={sp.description} readOnly={readOnly} placeholder="What this decides, and why" onChange={(e) => setSp({ ...sp, description: e.target.value })} />
+          </div>
+          <div className="field stack">
+            <label>For</label>
+            <select value={sp.mediaType} disabled={readOnly} onChange={(e) => setSp({ ...sp, mediaType: e.target.value as SmartProfile['mediaType'] })}>
+              <option value="any">Anything</option>
+              <option value="movie">Movies</option>
+              <option value="tv">TV</option>
+              <option value="anime">Anime</option>
+            </select>
+          </div>
+        </div>
+      )}
 
       <div className="graphSurface" ref={surface} onMouseDown={onSurfaceDown} onWheel={onWheel} style={{ backgroundSize: `${22 * view.z}px ${22 * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` }}>
         <div className="graphLayer" ref={layer} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})` }}>
           <svg className="graphWires">{wires.map(wire)}</svg>
 
+          {!sp.rules.length && (
+            <div className="gEmpty" style={{ left: 250, top: 150 }}>
+              No branches yet – every file goes straight to <em>Anything else</em>.
+              <button className="btn sm mt" onClick={addRule} disabled={readOnly}>
+                <Icon.Plus /> Add the first branch
+              </button>
+            </div>
+          )}
           {nodes.map((n) => {
             const rule = n.ruleIndex !== undefined ? sp.rules[n.ruleIndex] : undefined;
             const chosen = decision && ((n.kind === 'branch' && decision.ruleIndex === n.ruleIndex) || (n.id === 'else' && decision.ruleIndex === -1) || (n.kind === 'outcome' && rule && decision.ruleIndex === n.ruleIndex));
             const live = rule ? ruleMatches(rule, facts) : false;
             return (
-              <div key={n.id} className={`gNode ${n.kind}${chosen ? ' chosen' : ''}`} style={{ left: n.pos.x, top: n.pos.y }}>
+              <div key={n.id} data-node={n.id} className={`gNode ${n.kind}${chosen ? ' chosen' : ''}`} style={{ left: n.pos.x, top: n.pos.y }}>
                 {/* ---- the entry pill ---- */}
                 {n.kind === 'start' && (
                   <div className="gStart" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
@@ -318,15 +410,12 @@ export function SmartGraphPage() {
                         <Icon.Trash />
                       </button>
                     </div>
+                    <div className="gAsk" title={rule.when.map(describeCondition).join(' and ')}>
+                      {rule.when.map(describeCondition).join(' and ') || 'Nothing yet – this branch never matches'}
+                    </div>
                     <div className="gBranchRows">
-                      <div className="gRow">
-                        Yes
-                        <Port id={`rule:${rule.id}:yes`} side="right" />
-                      </div>
-                      <div className="gRow">
-                        No
-                        <Port id={`rule:${rule.id}:no`} side="right" />
-                      </div>
+                      <BranchRow id={`rule:${rule.id}:yes`} label="Yes" taken={live} />
+                      <BranchRow id={`rule:${rule.id}:no`} label="No" taken={!live} />
                     </div>
                     <Port id={`rule:${rule.id}:in`} side="left" />
                     <Port id={`rule:${rule.id}:cond`} side="bottom" tone="data" label="Condition" />
@@ -339,8 +428,8 @@ export function SmartGraphPage() {
                     <div className="gHead" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
                       <span>All of</span>
                     </div>
-                    <div className="gBody small dim">Every one has to hold</div>
-                    <Port id={`all:${rule.id}:out`} side="top" tone="data" label="Output" />
+                    <div className="gBody small dim">All {rule.when.length} have to hold</div>
+                    <Port id={`all:${rule.id}:out`} side="top" tone="data" />
                     <div className="gInputs">
                       {rule.when.map((_, ci) => (
                         <Port key={ci} id={`all:${rule.id}:in${ci}`} side="bottom" tone="data" label={String(ci + 1)} />
@@ -391,7 +480,7 @@ export function SmartGraphPage() {
                         </div>
                       )}
                     </div>
-                    <Port id={`${n.id}:out`} side="top" tone="data" label="Output" />
+                    <Port id={`${n.id}:out`} side="top" tone="data" />
                     <Port id={`${n.id}:a`} side="bottom" tone="value" label="A" />
                   </>
                 )}
@@ -433,7 +522,7 @@ export function SmartGraphPage() {
                       )}
                       <div className="gHelp">{fieldInfo(rule.when[n.condIndex].field)?.help}</div>
                     </div>
-                    <Port id={`${n.id}:out`} side="top" tone="data" label="Output" />
+                    <Port id={`${n.id}:out`} side="top" tone="data" />
                   </>
                 )}
 
@@ -481,8 +570,9 @@ export function SmartGraphPage() {
               {facts.audio.maxChannels}ch {facts.audio.codecs.join('/')}
               {facts.audio.objectBased ? ' · object audio' : ''} · {facts.video.height}p{facts.video.hdr ? ' HDR' : ''}
             </div>
-            <div className="small">
+            <div className="small gResult">
               → <strong>{decision.outcome.kind === 'keep' ? 'left as it is' : (profileName(decision.outcome.profileId) ?? decision.outcome.profileId)}</strong>
+              <div className="dim">{decision.ruleIndex >= 0 ? `branch ${decision.ruleIndex + 1} said yes` : 'nothing matched'}</div>
             </div>
           </div>
         )}
