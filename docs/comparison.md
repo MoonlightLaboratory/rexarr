@@ -62,6 +62,11 @@ library), using the profile for that media type, and it knows what a file *is*: 
 episode, which it can rename so Sonarr stops calling it a remux, and whose source it can replace and rescan.
 There is no worker fleet and no library-wide sweep.
 
+The part of Tdarr that Rexarr does have is conditional encoding: a
+[smart profile](guide/profiles.md#smart-profiles) decides part of itself from the file in front of it — whether
+the audio carries Atmos or DTS:X, how many channels it has, whether the title is animation — the way a Tdarr flow
+decides with plugins. It is a chain of branches rather than a plugin graph, and it runs on one machine.
+
 Use Tdarr or Unmanic to re-encode a 20 TB back catalogue across three machines. Use Rexarr to keep new remuxes and
 disc rips in the shape you want as they arrive — and for everything to do with discs and search, which neither of
 them does. A library-wide option [is on the roadmap](roadmap.md#a-library-optimiser-option), behind stability.

@@ -40,8 +40,8 @@ Docker `HEALTHCHECK` uses it.
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/api/jobs` | job list |
-| POST | `/api/jobs` | create a job (`source.localPath` or an \*arr file id, plus `profileId`) |
-| POST | `/api/jobs/bulk` | many jobs at once |
+| POST | `/api/jobs` | create a job (`source.localPath` or an \*arr file id, plus `profileId`; `audioOnly` copies the video) |
+| POST | `/api/jobs/bulk` | many jobs at once (takes `audioOnly` too) |
 | POST | `/api/jobs/:id/cancel` · `/retry` · `/reorder` | job actions |
 | DELETE | `/api/jobs/:id` | remove a finished job |
 | GET | `/api/jobs/:id/log` | the full ffmpeg log |
@@ -57,7 +57,7 @@ Docker `HEALTHCHECK` uses it.
 | GET | `/api/jobs/:id/preview/live.jpg` | current source frame while encoding |
 | GET | `/api/jobs/:id/preview/encoded.jpg` | frame from the file being written |
 | GET | `/api/jobs/:id/frame?which=source\|output&t=&w=` | a frame at a timestamp |
-| POST | `/api/estimate` | estimated output size for a profile and file |
+| POST | `/api/estimate` | estimated output size for a profile and file; `audioOnly` estimates the video as copied |
 | GET | `/api/image?url=` | cached poster / backdrop proxy |
 
 ## Profiles
@@ -67,7 +67,7 @@ Docker `HEALTHCHECK` uses it.
 | GET | `/api/profiles` | profiles and built-in presets |
 | POST | `/api/profiles` · PUT `/api/profiles/:id` · DELETE `/api/profiles/:id` | manage profiles |
 | POST | `/api/profiles/:id/clone` | clone (the only way to change a preset) |
-| POST | `/api/profiles/preview` | the ffmpeg command and output name a profile would produce |
+| POST | `/api/profiles/preview` | the ffmpeg command and output name a profile would produce; `audioOnly` shows the audio-only command |
 | GET | `/api/smart-profiles` | smart profiles and the two built-in ones |
 | POST | `/api/smart-profiles` · PUT `/api/smart-profiles/:id` · DELETE `/api/smart-profiles/:id` | manage smart profiles |
 | POST | `/api/smart-profiles/:id/clone` | clone (the only way to change a built-in one) |

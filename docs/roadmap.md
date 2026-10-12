@@ -20,7 +20,10 @@ only encoding what Radarr and Sonarr have just imported. It would reuse what alr
 what would be queued, and the ability to stop halfway without leaving a mess.
 
 The hard parts are the ones that make this a "big" item: knowing when a file is already good enough to leave alone,
-not touching files the \*arr apps are mid-import, and surviving a run that spans days.
+not touching files the \*arr apps are mid-import, and surviving a run that spans days. The first of those is
+partly answered already — a [smart profile](guide/profiles.md#smart-profiles) can ask about a file's codec,
+bitrate, bit depth and audio before deciding what to do with it — which is a piece of the groundwork rather than
+the feature itself.
 
 *Today:* [Tdarr or Unmanic](comparison.md#tdarr-and-unmanic) do exactly this, and do it well. Rexarr covers new
 arrivals and anything you select by hand in the library.

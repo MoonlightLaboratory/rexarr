@@ -72,6 +72,16 @@ See the [disc troubleshooting table](guide/disc-ripping.md#troubleshooting) for 
 - **An album will not import into Lidarr** — a single image + cue album is split automatically; if it already left
   Lidarr's queue, use **Music → Import Folder**.
 
+## "Could not reach Rexarr" or a route that is not there
+
+Two different failures, and the message says which:
+
+- **Could not reach Rexarr** — the request got no answer at all. Rexarr is restarting, stopped, or on a different
+  address than the page was opened from (a changed port, a reverse proxy, a container that was recreated).
+- **This Rexarr server has no PUT /api/…** — the page is from a newer build than the server answering it. Rexarr
+  serves the web files by reading them per request, so rebuilding the client goes live immediately while the
+  server keeps running the code it started with. Restart Rexarr after a rebuild, then reload the page.
+
 ## Locked out of the UI
 
 Start Rexarr once with `REXARR_RESET_AUTH=1` to turn authentication off, then set it up again under

@@ -38,10 +38,12 @@ on first start (logged under **System → Events**).
 | --- | --- |
 | `settings.json` | everything on the Settings pages |
 | `profiles.json` | your profiles (built-in presets are in the code) |
+| `smart-profiles.json` | your [smart profiles](../guide/profiles.md#smart-profiles), their branches and where the nodes sit |
 | `jobs.json`, `queue.json` | job history and the queue |
 | `rips.json` | discs and rips |
 | `auto.json` | auto-transcode history, so nothing is encoded twice |
 | `local-media.json`, `local-meta.json` | the local media index and its metadata matches |
+| `expected-discs.json` | discs a [scanned barcode](settings.md#barcode-scanning) said to expect |
 | `events.json` | the Events list |
 
 Back these up with **System → Backup** rather than by hand while Rexarr is running.

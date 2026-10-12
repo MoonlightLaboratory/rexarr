@@ -106,7 +106,8 @@ Rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  opt
     ---
 
     Interactive search through Radarr / Sonarr and raw Prowlarr search, filtered to remuxes, with a smart score
-    that explains itself. Full-disc releases — `BR-DISK`, BD-ISO, BDMV, `VIDEO_TS` — are recognised too.
+    that explains itself. Full-disc releases — `COMPLETE … BLURAY`, `BR-DISK`, BD-ISO, BDMV, `VIDEO_TS` — are
+    recognised too, and grabbing one rips it when the download lands.
 
     [:octicons-arrow-right-24: Search](guide/search.md)
 
@@ -115,9 +116,19 @@ Rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  opt
     ---
 
     Container, encoder, quality, audio, subtitles and output naming, with presets for movies, TV, anime and music —
-    and a preview of the exact ffmpeg command.
+    and a preview of the exact ffmpeg command. *Audio only* re-encodes the sound of a file you already have and
+    copies the picture untouched.
 
     [:octicons-arrow-right-24: Profiles](guide/profiles.md)
+
+-   :material-sitemap:{ .lg .middle } **Smart profiles**
+
+    ---
+
+    A profile that decides part of itself from the file: object audio, channels, bit depth, genre, 27 things in
+    all. Edited as a graph, and it encodes on its own — no second profile behind it.
+
+    [:octicons-arrow-right-24: Smart profiles](guide/profiles.md#smart-profiles)
 
 -   :material-expansion-card:{ .lg .middle } **Hardware acceleration**
 
@@ -150,8 +161,8 @@ Rexarr notices the import  →  ffprobe  →  ffmpeg with your profile  →  opt
 
     ---
 
-    Lidarr library, album search through indexers and Soulseek, audio CD ripping to FLAC with MusicBrainz tags,
-    image + cue splitting, fre:ac profiles.
+    Lidarr library, album search through indexers and Soulseek, audio CD ripping to FLAC with MusicBrainz tags —
+    and CDDB for the discs MusicBrainz has never been told about — image + cue splitting, fre:ac profiles.
 
     [:octicons-arrow-right-24: Music](guide/music.md)
 
