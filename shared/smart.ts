@@ -2,7 +2,8 @@
  * The rules engine behind smart profiles. Pure: the server runs it on what FFprobe found, and the editor runs
  * the same code on made-up discs so a rule can be tried before it is saved.
  */
-import type { Profile, SmartCondition, SmartField, SmartOperator, SmartOutcome, SmartProfile, SmartRule, SourceFacts } from './types.js';
+import type { AudioEncoder, Container, Profile, SmartAssignment, SmartCondition, SmartField, SmartOperator, SmartProfile, SmartRule, SmartSettingPath, SourceFacts, SubtitleMode, VideoEncoder, VideoTune } from './types.js';
+import { AUDIO_ENCODER_INFO, CONTAINER_INFO, SMART_STOCK, VIDEO_ENCODER_INFO } from './presets.js';
 
 export interface SmartFieldInfo {
   field: SmartField;
@@ -49,6 +50,21 @@ export const SMART_FIELDS: SmartFieldInfo[] = [
   { field: 'source.durationMinutes', label: 'Running time', kind: 'number', unit: 'min' },
   { field: 'source.sizeGB', label: 'File size', kind: 'number', unit: 'GB' },
   { field: 'source.bitrateMbps', label: 'Bitrate', kind: 'number', unit: 'Mbps' },
+  { field: 'media.kind', label: 'This is a', kind: 'list', options: [
+    { value: 'movie', label: 'Movie' },
+    { value: 'series', label: 'Series' },
+    { value: 'anime', label: 'Anime' },
+  ] },
+  { field: 'media.genres', label: 'Genre', kind: 'list', options: [
+    { value: 'animation', label: 'Animation' },
+    { value: 'documentary', label: 'Documentary' },
+    { value: 'concert', label: 'Concert' },
+    { value: 'action', label: 'Action' },
+    { value: 'horror', label: 'Horror' },
+    { value: 'comedy', label: 'Comedy' },
+    { value: 'drama', label: 'Drama' },
+    { value: 'family', label: 'Family' },
+  ], help: 'Genres as Radarr or Sonarr have them, lower-cased. Looked up only when a branch asks.' },
 ];
 
 export const fieldInfo = (field: SmartField): SmartFieldInfo | undefined => SMART_FIELDS.find((f) => f.field === field);
@@ -94,6 +110,10 @@ export function factValue(field: SmartField, facts: SourceFacts): number | boole
       return facts.source.sizeGB;
     case 'source.bitrateMbps':
       return facts.source.bitrateMbps;
+    case 'media.kind':
+      return [facts.media.kind];
+    case 'media.genres':
+      return facts.media.genres;
   }
 }
 
@@ -123,16 +143,113 @@ export function ruleMatches(rule: SmartRule, facts: SourceFacts): boolean {
 }
 
 export interface SmartDecision {
-  /** Index of the rule that decided, or -1 for the fallback. */
-  ruleIndex: number;
-  rule?: SmartRule;
-  outcome: SmartOutcome;
+  /** Every rule that fits, in order. A later one wins where two touch the same setting. */
+  applied: { index: number; rule: SmartRule }[];
+  /** The settings the encode ends up with. */
+  profile: Profile;
+  /** Which rule set each path, for showing where a value came from. */
+  from: Partial<Record<SmartSettingPath, number>>;
 }
 
+/** The settings a smart profile starts from before its own base. */
+export function stockBase(): Pick<Profile, 'video' | 'audio' | 'subtitles' | 'output'> {
+  return {
+    video: { ...SMART_STOCK.video },
+    audio: { ...SMART_STOCK.audio },
+    subtitles: { ...SMART_STOCK.subtitles },
+    output: { ...SMART_STOCK.output },
+  };
+}
+
+/** Apply one assignment to a profile being built. Unknown paths are ignored rather than throwing. */
+export function assign(profile: Profile, a: SmartAssignment): void {
+  switch (a.path) {
+    case 'container':
+      profile.container = a.value as Container;
+      break;
+    case 'video.encoder':
+      profile.video.encoder = a.value as VideoEncoder;
+      break;
+    case 'video.quality':
+      profile.video.quality = Number(a.value);
+      break;
+    case 'video.preset':
+      profile.video.preset = String(a.value);
+      break;
+    case 'video.tune':
+      profile.video.tune = a.value as VideoTune;
+      break;
+    case 'video.maxHeight':
+      profile.video.maxHeight = Number(a.value);
+      break;
+    case 'video.pixelFormat':
+      profile.video.pixelFormat = a.value as Profile['video']['pixelFormat'];
+      break;
+    case 'video.hdrPassthrough':
+      profile.video.hdrPassthrough = Boolean(a.value);
+      break;
+    case 'audio.encoder':
+      profile.audio.encoder = a.value as AudioEncoder;
+      break;
+    case 'audio.bitrate':
+      profile.audio.bitrate = Number(a.value);
+      break;
+    case 'audio.channels':
+      profile.audio.channels = Number(a.value);
+      break;
+    case 'audio.dropCommentary':
+      profile.audio.dropCommentary = Boolean(a.value);
+      break;
+    case 'subtitles.mode':
+      profile.subtitles.mode = a.value as SubtitleMode;
+      break;
+  }
+}
+
+/**
+ * What this smart profile comes to for one file: its own settings, then every branch that fits, in order. The
+ * answer is an ordinary profile, so everything downstream – the ffmpeg command, the size estimate, the output
+ * name – works on it without knowing a decision was made.
+ */
 export function decide(smart: SmartProfile, facts: SourceFacts): SmartDecision {
-  const ruleIndex = smart.rules.findIndex((r) => ruleMatches(r, facts));
-  if (ruleIndex < 0) return { ruleIndex: -1, outcome: smart.otherwise };
-  return { ruleIndex, rule: smart.rules[ruleIndex], outcome: smart.rules[ruleIndex].then };
+  const stock = stockBase();
+  const profile: Profile = {
+    id: smart.id,
+    name: smart.name,
+    description: smart.description,
+    builtin: false,
+    mediaType: smart.mediaType,
+    container: smart.container ?? 'mkv',
+    video: stock.video,
+    audio: stock.audio,
+    subtitles: stock.subtitles,
+    output: stock.output,
+    createdAt: smart.createdAt,
+    updatedAt: smart.updatedAt,
+  };
+  const from: SmartDecision['from'] = {};
+  for (const a of smart.base ?? []) assign(profile, a);
+  const applied: SmartDecision['applied'] = [];
+  smart.rules.forEach((rule, index) => {
+    if (!ruleMatches(rule, facts)) return;
+    applied.push({ index, rule });
+    for (const a of rule.set ?? []) {
+      assign(profile, a);
+      from[a.path] = index;
+    }
+  });
+  return { applied, profile, from };
+}
+
+/** Nothing is re-encoded and the container is unchanged: there is no point running ffmpeg over the file. */
+export function isPassThrough(profile: Profile, sourceContainer?: string): boolean {
+  return (
+    profile.video.encoder === 'copy' &&
+    profile.audio.encoder === 'copy' &&
+    profile.subtitles.mode === 'copy' &&
+    profile.video.maxHeight === 0 &&
+    (!sourceContainer || sourceContainer === profile.container)
+  );
 }
 
 // ---------------------------------------------------------------- wording
@@ -149,36 +266,71 @@ export function describeCondition(c: SmartCondition): string {
   return `${label} ${OPERATOR_LABELS[c.op]} ${c.number ?? 0}${info?.unit ? ` ${info.unit}` : ''}`;
 }
 
-export function describeOutcome(outcome: SmartOutcome, profileName?: (id: string) => string | undefined): string {
-  if (outcome.kind === 'keep') return 'Leave the file as it is';
-  return profileName?.(outcome.profileId) ?? outcome.profileId;
+export interface SmartSettingInfo {
+  path: SmartSettingPath;
+  label: string;
+  kind: 'select' | 'number' | 'boolean';
+  options?: { value: string; label: string }[];
+  min?: number;
+  max?: number;
+  unit?: string;
 }
 
-/** One line for the job log: what was found, which rule caught it, and what happens now. */
-export function explainDecision(smart: SmartProfile, facts: SourceFacts, decision: SmartDecision, profileName?: (id: string) => string | undefined): string {
+export const SMART_SETTINGS: SmartSettingInfo[] = [
+  { path: 'video.encoder', label: 'Video encoder', kind: 'select', options: Object.entries(VIDEO_ENCODER_INFO).map(([value, v]) => ({ value, label: v.label })) },
+  { path: 'video.quality', label: 'Video quality (CRF)', kind: 'number', min: 0, max: 63 },
+  { path: 'video.preset', label: 'Video preset', kind: 'select', options: [...new Set(Object.values(VIDEO_ENCODER_INFO).flatMap((v) => v.presets))].map((value) => ({ value, label: value })) },
+  { path: 'video.tune', label: 'Video tune', kind: 'select', options: ['none', 'animation', 'film', 'grain', 'fastdecode', 'zerolatency'].map((value) => ({ value, label: value })) },
+  { path: 'video.maxHeight', label: 'Downscale to at most', kind: 'number', min: 0, max: 4320, unit: 'px' },
+  { path: 'video.pixelFormat', label: 'Pixel format', kind: 'select', options: ['auto', 'yuv420p', 'yuv420p10le', 'p010le', 'nv12'].map((value) => ({ value, label: value })) },
+  { path: 'video.hdrPassthrough', label: 'Keep HDR metadata', kind: 'boolean' },
+  { path: 'audio.encoder', label: 'Audio encoder', kind: 'select', options: Object.entries(AUDIO_ENCODER_INFO).map(([value, v]) => ({ value, label: v.label })) },
+  { path: 'audio.bitrate', label: 'Audio bitrate', kind: 'number', min: 0, max: 3000, unit: 'kbps' },
+  { path: 'audio.channels', label: 'Audio channels', kind: 'select', options: [
+    { value: '0', label: 'Keep the source layout' },
+    { value: '2', label: 'Stereo' },
+    { value: '6', label: '5.1' },
+    { value: '8', label: '7.1' },
+  ] },
+  { path: 'audio.dropCommentary', label: 'Drop commentary tracks', kind: 'boolean' },
+  { path: 'subtitles.mode', label: 'Subtitles', kind: 'select', options: [
+    { value: 'copy', label: 'Copy' },
+    { value: 'copy-text', label: 'Copy text only' },
+    { value: 'burn', label: 'Burn in' },
+    { value: 'none', label: 'Drop' },
+  ] },
+  { path: 'container', label: 'Container', kind: 'select', options: Object.entries(CONTAINER_INFO).filter(([, v]) => !v.music).map(([value, v]) => ({ value, label: v.label })) },
+];
+
+export const settingInfo = (path: SmartSettingPath) => SMART_SETTINGS.find((s) => s.path === path);
+
+export function describeAssignment(a: SmartAssignment): string {
+  const info = settingInfo(a.path);
+  const label = info?.label ?? a.path;
+  if (info?.kind === 'boolean') return `${label}: ${a.value ? 'yes' : 'no'}`;
+  const option = info?.options?.find((o) => o.value === String(a.value));
+  return `${label}: ${option?.label ?? a.value}${info?.unit ? ` ${info.unit}` : ''}`;
+}
+
+/** One line for the job log: what was found, which branches fired, and what the encode ended up being. */
+export function explainDecision(smart: SmartProfile, facts: SourceFacts, decision: SmartDecision): string {
   const audio = `${facts.audio.maxChannels}ch ${facts.audio.codecs.join('/') || 'no audio'}${facts.audio.objectBased ? ' (object audio)' : ''}`;
-  const why = decision.rule ? decision.rule.when.map(describeCondition).join(' and ') : 'nothing matched';
-  return `${smart.name}: ${audio}, ${facts.video.height || '?'}p${facts.video.hdr ? ' HDR' : ''} – ${why} → ${describeOutcome(decision.outcome, profileName)}`;
-}
-
-/** Profiles a smart profile points at, so the UI can warn about one that was deleted. */
-export function referencedProfileIds(smart: SmartProfile): string[] {
-  const ids = [...smart.rules.map((r) => r.then), smart.otherwise].filter((o): o is { kind: 'profile'; profileId: string } => o.kind === 'profile').map((o) => o.profileId);
-  return [...new Set(ids)];
-}
-
-export function missingProfiles(smart: SmartProfile, profiles: Pick<Profile, 'id'>[]): string[] {
-  return referencedProfileIds(smart).filter((id) => !profiles.some((p) => p.id === id));
+  const where = decision.applied.length ? decision.applied.map((a) => `#${a.index + 1} ${a.rule.when.map(describeCondition).join(' and ')}`).join('; ') : 'no branch matched';
+  const p = decision.profile;
+  // a bitrate means nothing for a lossless encoder, so it is not quoted back as if it did
+  const lossy = p.audio.encoder !== 'copy' && !AUDIO_ENCODER_INFO[p.audio.encoder]?.lossless;
+  const result = `${p.video.encoder}${p.video.encoder !== 'copy' ? ` CRF ${p.video.quality}${p.video.tune !== 'none' ? ` tune ${p.video.tune}` : ''}` : ''} + ${p.audio.encoder}${lossy && p.audio.bitrate ? ` ${p.audio.bitrate}k` : ''}`;
+  return `${smart.name}: ${audio}, ${facts.video.height || '?'}p${facts.video.hdr ? ' HDR' : ''} – ${where} → ${result}`;
 }
 
 // ---------------------------------------------------------------- trying one out
 
 /** Discs to try a rule against in the editor, covering the cases these rules exist for. */
 export const SAMPLE_SOURCES: { name: string; facts: SourceFacts }[] = [
-  { name: 'UHD, TrueHD 7.1 Atmos', facts: { audio: { maxChannels: 8, codecs: ['truehd', 'ac3'], objectBased: true, lossless: true, profiles: ['Dolby TrueHD + Dolby Atmos'] }, video: { height: 2160, codec: 'hevc', hdr: true, dolbyVision: false }, source: { durationMinutes: 130, sizeGB: 58, bitrateMbps: 60 } } },
-  { name: 'UHD, DTS-HD MA 7.1 + DTS:X', facts: { audio: { maxChannels: 8, codecs: ['dts-hd-ma'], objectBased: true, lossless: true, profiles: ['DTS-HD MA + DTS:X'] }, video: { height: 2160, codec: 'hevc', hdr: true, dolbyVision: true }, source: { durationMinutes: 115, sizeGB: 54, bitrateMbps: 62 } } },
-  { name: 'Blu-ray, DTS-HD MA 5.1', facts: { audio: { maxChannels: 6, codecs: ['dts-hd-ma', 'ac3'], objectBased: false, lossless: true, profiles: ['DTS-HD MA'] }, video: { height: 1080, codec: 'h264', hdr: false, dolbyVision: false }, source: { durationMinutes: 105, sizeGB: 24, bitrateMbps: 30 } } },
-  { name: 'Blu-ray, TrueHD 2.0 only', facts: { audio: { maxChannels: 2, codecs: ['truehd'], objectBased: false, lossless: true, profiles: ['Dolby TrueHD'] }, video: { height: 1080, codec: 'h264', hdr: false, dolbyVision: false }, source: { durationMinutes: 96, sizeGB: 18, bitrateMbps: 25 } } },
-  { name: 'DVD, AC-3 2.0', facts: { audio: { maxChannels: 2, codecs: ['ac3'], objectBased: false, lossless: false, profiles: [] }, video: { height: 576, codec: 'mpeg2video', hdr: false, dolbyVision: false }, source: { durationMinutes: 92, sizeGB: 4, bitrateMbps: 6 } } },
-  { name: 'Episode, AAC 5.1', facts: { audio: { maxChannels: 6, codecs: ['aac'], objectBased: false, lossless: false, profiles: [] }, video: { height: 1080, codec: 'h264', hdr: false, dolbyVision: false }, source: { durationMinutes: 42, sizeGB: 2, bitrateMbps: 7 } } },
+  { name: 'UHD, TrueHD 7.1 Atmos', facts: { audio: { maxChannels: 8, codecs: ['truehd', 'ac3'], objectBased: true, lossless: true, profiles: ['Dolby TrueHD + Dolby Atmos'] }, video: { height: 2160, codec: 'hevc', hdr: true, dolbyVision: false }, source: { durationMinutes: 130, sizeGB: 58, bitrateMbps: 60 }, media: { kind: 'movie', genres: [] } } },
+  { name: 'UHD, DTS-HD MA 7.1 + DTS:X', facts: { audio: { maxChannels: 8, codecs: ['dts-hd-ma'], objectBased: true, lossless: true, profiles: ['DTS-HD MA + DTS:X'] }, video: { height: 2160, codec: 'hevc', hdr: true, dolbyVision: true }, source: { durationMinutes: 115, sizeGB: 54, bitrateMbps: 62 }, media: { kind: 'movie', genres: [] } } },
+  { name: 'Blu-ray, DTS-HD MA 5.1', facts: { audio: { maxChannels: 6, codecs: ['dts-hd-ma', 'ac3'], objectBased: false, lossless: true, profiles: ['DTS-HD MA'] }, video: { height: 1080, codec: 'h264', hdr: false, dolbyVision: false }, source: { durationMinutes: 105, sizeGB: 24, bitrateMbps: 30 }, media: { kind: 'movie', genres: [] } } },
+  { name: 'Blu-ray, TrueHD 2.0 only', facts: { audio: { maxChannels: 2, codecs: ['truehd'], objectBased: false, lossless: true, profiles: ['Dolby TrueHD'] }, video: { height: 1080, codec: 'h264', hdr: false, dolbyVision: false }, source: { durationMinutes: 96, sizeGB: 18, bitrateMbps: 25 }, media: { kind: 'movie', genres: [] } } },
+  { name: 'DVD, AC-3 2.0', facts: { audio: { maxChannels: 2, codecs: ['ac3'], objectBased: false, lossless: false, profiles: [] }, video: { height: 576, codec: 'mpeg2video', hdr: false, dolbyVision: false }, source: { durationMinutes: 92, sizeGB: 4, bitrateMbps: 6 }, media: { kind: 'movie', genres: [] } } },
+  { name: 'Episode, AAC 5.1', facts: { audio: { maxChannels: 6, codecs: ['aac'], objectBased: false, lossless: false, profiles: [] }, video: { height: 1080, codec: 'h264', hdr: false, dolbyVision: false }, source: { durationMinutes: 42, sizeGB: 2, bitrateMbps: 7 }, media: { kind: 'movie', genres: [] } } },
 ];

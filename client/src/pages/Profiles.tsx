@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { FfmpegCapabilities, Profile, SmartProfile } from '@shared/types';
 import { AUDIO_ENCODER_INFO, CONTAINER_INFO, LANGUAGES, VIDEO_ENCODER_INFO } from '@shared/presets';
-import { describeCondition, describeOutcome, missingProfiles } from '@shared/smart';
+import { describeAssignment, describeCondition } from '@shared/smart';
 import { api, type PreviewResult } from '../api';
 import { useApp } from '../App';
 import { Page, ToolbarButton } from '../components/Layout';
@@ -610,7 +610,6 @@ export function ProfilesPage() {
       </div>
       <div className="grid-2 mb">
         {smartProfiles.map((sp) => {
-          const gone = missingProfiles(sp, profiles);
           return (
             <div key={sp.id} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
               <div className="card-h">
@@ -624,24 +623,23 @@ export function ProfilesPage() {
                   {sp.description || 'No description.'}
                 </p>
                 <div className="smartSummary">
+                  <div className="smartSummary-row">
+                    <span className="smartSummary-n">◆</span>
+                    <div>
+                      <span className="dim">start from</span>
+                      <div className="dim">{sp.base.map(describeAssignment).join(' · ') || 'the stock settings'}</div>
+                    </div>
+                  </div>
                   {sp.rules.map((r, i) => (
                     <div key={r.id} className="smartSummary-row">
                       <span className="smartSummary-n">{i + 1}</span>
                       <div>
                         {r.when.map(describeCondition).join(' and ') || 'nothing'}
-                        <div className="dim">→ {describeOutcome(r.then, (id) => profiles.find((x) => x.id === id)?.name)}</div>
+                        <div className="dim">→ {r.set.map(describeAssignment).join(' · ') || 'no change'}</div>
                       </div>
                     </div>
                   ))}
-                  <div className="smartSummary-row">
-                    <span className="smartSummary-n">◆</span>
-                    <div>
-                      <span className="dim">anything else</span>
-                      <div className="dim">→ {describeOutcome(sp.otherwise, (id) => profiles.find((x) => x.id === id)?.name)}</div>
-                    </div>
-                  </div>
                 </div>
-                {gone.length > 0 && <div className="warn small mt">Points at a profile that no longer exists.</div>}
               </div>
               <div className="modal-f" style={{ padding: '10px 14px', alignItems: 'center' }}>
                 {sp.builtin ? (

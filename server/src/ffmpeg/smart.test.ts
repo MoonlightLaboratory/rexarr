@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SmartProfile } from '../../../shared/types.js';
 import { BUILTIN_SMART_PROFILES } from '../../../shared/presets.js';
-import { conditionHolds, decide, describeCondition, explainDecision, missingProfiles, ruleMatches, SAMPLE_SOURCES } from '../../../shared/smart.js';
+import { conditionHolds, decide, describeAssignment, describeCondition, explainDecision, isPassThrough, ruleMatches, SAMPLE_SOURCES } from '../../../shared/smart.js';
 import { audioCodecName, isObjectAudio, sourceFacts } from './facts.js';
 
 const probeOf = (audio: { codec_name: string; profile?: string; channels?: number }[], video?: { codec_name: string; height: number }) => ({
@@ -13,6 +13,7 @@ const probeOf = (audio: { codec_name: string; profile?: string; channels?: numbe
   bitRate: 55e6,
   isHdr: true,
   isDolbyVision: false,
+  formatName: 'matroska,webm',
 });
 
 test('FFmpeg profile strings are where object audio is named', () => {
@@ -69,52 +70,73 @@ test('conditions over numbers, lists and flags', () => {
   assert.equal(ruleMatches({ id: 'x', when: [{ field: 'audio.lossless', op: 'isTrue' }, { field: 'audio.maxChannels', op: 'atMost', number: 2 }], then: { kind: 'keep' } }, facts), false);
 });
 
-test('the built-in smart profiles do what their names say', () => {
-  const [stereoToFlac, keepObject] = BUILTIN_SMART_PROFILES;
+test('the built-in smart profiles encode what their names say', () => {
+  const [lossless, animation] = BUILTIN_SMART_PROFILES;
   const of = (name: string) => SAMPLE_SOURCES.find((s) => s.name === name)!.facts;
 
-  // lossless stereo is the only thing that becomes FLAC; surround is left alone
-  assert.deepEqual(decide(stereoToFlac, of('Blu-ray, TrueHD 2.0 only')).outcome, { kind: 'profile', profileId: 'builtin-remux-flac' });
-  assert.deepEqual(decide(stereoToFlac, of('Blu-ray, DTS-HD MA 5.1')).outcome, { kind: 'keep' });
-  assert.deepEqual(decide(stereoToFlac, of('UHD, TrueHD 7.1 Atmos')).outcome, { kind: 'keep' });
-  // a lossy stereo track is not worth re-encoding either
-  assert.deepEqual(decide(stereoToFlac, of('DVD, AC-3 2.0')).outcome, { kind: 'keep' });
+  // lossless stereo is the only thing that becomes FLAC; everything else is copied through
+  const stereo = decide(lossless, of('Blu-ray, TrueHD 2.0 only'));
+  assert.deepEqual([stereo.profile.video.encoder, stereo.profile.audio.encoder], ['copy', 'flac']);
+  assert.equal(stereo.profile.audio.channels, 0, 'the source layout is kept');
+  assert.deepEqual(stereo.applied.map((a) => a.rule.id), ['stereo']);
 
-  // objects cannot survive an encode, so those discs are kept and everything else goes to FLAC
-  assert.deepEqual(decide(keepObject, of('UHD, TrueHD 7.1 Atmos')).outcome, { kind: 'keep' });
-  assert.deepEqual(decide(keepObject, of('UHD, DTS-HD MA 7.1 + DTS:X')).outcome, { kind: 'keep' });
-  assert.deepEqual(decide(keepObject, of('Blu-ray, DTS-HD MA 5.1')).outcome, { kind: 'profile', profileId: 'builtin-remux-flac' });
-  assert.deepEqual(decide(keepObject, of('Episode, AAC 5.1')).outcome, { kind: 'profile', profileId: 'builtin-remux-flac' });
+  for (const disc of ['Blu-ray, DTS-HD MA 5.1', 'UHD, TrueHD 7.1 Atmos', 'DVD, AC-3 2.0']) {
+    const d = decide(lossless, of(disc));
+    assert.deepEqual([d.profile.video.encoder, d.profile.audio.encoder], ['copy', 'copy'], disc);
+    assert.equal(d.applied.length, 0, disc);
+    // nothing would be re-encoded, so there is no point running ffmpeg over it at all
+    assert.equal(isPassThrough(d.profile, 'mkv'), true, disc);
+  }
+  assert.equal(isPassThrough(stereo.profile, 'mkv'), false, 'the audio is being encoded');
 
-  // both point at a profile that exists
-  assert.deepEqual(missingProfiles(keepObject, [{ id: 'builtin-remux-flac' }]), []);
-  assert.deepEqual(missingProfiles(keepObject, [{ id: 'something-else' }]), ['builtin-remux-flac']);
+  // animation gets the tune and a lower CRF; film keeps the defaults
+  const film = decide(animation, of('Blu-ray, DTS-HD MA 5.1'));
+  assert.deepEqual([film.profile.video.encoder, film.profile.video.quality, film.profile.video.tune], ['libx265', 20, 'none']);
+
+  const cartoon = decide(animation, { ...of('Blu-ray, DTS-HD MA 5.1'), media: { kind: 'movie', genres: ['animation', 'family'] } });
+  assert.deepEqual([cartoon.profile.video.quality, cartoon.profile.video.tune], [18, 'animation']);
+  assert.deepEqual(cartoon.applied.map((a) => a.rule.id), ['animation']);
+
+  // a series Sonarr calls anime takes the anime branch, 10-bit and all
+  const anime = decide(animation, { ...of('Episode, AAC 5.1'), media: { kind: 'anime', genres: ['animation'] } });
+  assert.deepEqual([anime.profile.video.quality, anime.profile.video.tune, anime.profile.video.pixelFormat], [18, 'animation', 'yuv420p10le']);
+  // both the genre branch and the anime branch fit, and they agree
+  assert.deepEqual(anime.applied.map((a) => a.rule.id), ['animation', 'anime']);
 });
 
-test('the first rule that matches decides, and the fallback catches the rest', () => {
+test('a later branch wins where two touch the same setting, and each one says what it set', () => {
   const smart: SmartProfile = {
-    id: 's', name: 'Ladder', description: '', builtin: false, mediaType: 'any',
+    id: 's', name: 'Ladder', description: '', builtin: false, mediaType: 'any', container: 'mkv',
+    base: [{ path: 'video.encoder', value: 'libx265' }, { path: 'video.quality', value: 22 }],
     rules: [
-      { id: 'a', when: [{ field: 'video.height', op: 'atLeast', number: 2160 }], then: { kind: 'profile', profileId: 'uhd' } },
-      { id: 'b', when: [{ field: 'video.height', op: 'atLeast', number: 1080 }], then: { kind: 'profile', profileId: 'hd' } },
+      { id: 'hd', when: [{ field: 'video.height', op: 'atLeast', number: 1080 }], set: [{ path: 'video.quality', value: 20 }] },
+      { id: 'uhd', when: [{ field: 'video.height', op: 'atLeast', number: 2160 }], set: [{ path: 'video.quality', value: 18 }, { path: 'video.pixelFormat', value: 'yuv420p10le' }] },
     ],
-    otherwise: { kind: 'profile', profileId: 'sd' },
     createdAt: '', updatedAt: '',
   };
   const at = (height: number) => ({ ...SAMPLE_SOURCES[0].facts, video: { ...SAMPLE_SOURCES[0].facts.video, height } });
-  assert.equal(decide(smart, at(2160)).ruleIndex, 0);
-  assert.equal(decide(smart, at(1080)).ruleIndex, 1);
-  assert.deepEqual(decide(smart, at(576)), { ruleIndex: -1, outcome: { kind: 'profile', profileId: 'sd' } });
+
+  assert.equal(decide(smart, at(720)).profile.video.quality, 22, 'neither branch fits, so the base stands');
+  assert.equal(decide(smart, at(1080)).profile.video.quality, 20);
+  const uhd = decide(smart, at(2160));
+  // both fit; the lower one down wins the setting they share
+  assert.deepEqual(uhd.applied.map((a) => a.rule.id), ['hd', 'uhd']);
+  assert.equal(uhd.profile.video.quality, 18);
+  assert.deepEqual([uhd.from['video.quality'], uhd.from['video.pixelFormat']], [1, 1]);
+  // what it resolves to is an ordinary profile, which is what the encoder is handed
+  assert.equal(uhd.profile.container, 'mkv');
+  assert.equal(uhd.profile.name, 'Ladder');
 });
 
 test('a decision explains itself in one line', () => {
   const facts = SAMPLE_SOURCES.find((s) => s.name === 'UHD, TrueHD 7.1 Atmos')!.facts;
   const smart = BUILTIN_SMART_PROFILES[1];
-  const line = explainDecision(smart, facts, decide(smart, facts), (id) => (id === 'builtin-remux-flac' ? 'Remux · Keep video, FLAC audio' : undefined));
+  const line = explainDecision(smart, facts, decide(smart, facts));
   assert.match(line, /8ch truehd\/ac3 \(object audio\)/);
   assert.match(line, /2160p HDR/);
-  assert.match(line, /Leave the file as it is$/);
+  assert.match(line, /libx265 CRF 20/);
   assert.equal(describeCondition({ field: 'audio.maxChannels', op: 'atMost', number: 2 }), 'Audio channels is at most 2');
-  assert.equal(describeCondition({ field: 'audio.codecs', op: 'anyOf', list: ['truehd', 'dts-hd-ma'] }), 'Audio codec is any of TrueHD, DTS-HD MA');
-  assert.equal(describeCondition({ field: 'audio.objectBased', op: 'isFalse' }), 'no object audio (atmos / dts:x)');
+  assert.equal(describeCondition({ field: 'media.genres', op: 'anyOf', list: ['animation'] }), 'Genre is any of Animation');
+  assert.equal(describeAssignment({ path: 'video.tune', value: 'animation' }), 'Video tune: animation');
+  assert.equal(describeAssignment({ path: 'audio.channels', value: 0 }), 'Audio channels: Keep the source layout');
 });

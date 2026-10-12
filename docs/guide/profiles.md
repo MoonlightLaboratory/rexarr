@@ -70,21 +70,40 @@ fall back to FFmpeg's native AAC with a warning.
 
 ## Smart profiles
 
-A profile says what to do. A **smart profile** says how to decide — it encodes nothing itself, it looks at what a
-file turned out to contain and picks one of the profiles above. That matters because the thing you most want to
-decide on is not knowable in advance: whether a disc's audio carries Atmos or DTS:X, or anything beyond stereo, is
-only answerable once the titles have been read off it.
+A **smart profile** is a profile. It has its own settings and encodes with them — there is no second profile
+behind it. What makes it smart is that some of those settings are decided from the file in front of it, which is
+the only way to answer the questions worth asking: whether a disc's lossless track is stereo or 7.1, whether its
+audio carries Atmos or DTS:X, whether what you are encoding is animation.
 
-A smart profile can be chosen anywhere a profile can — the per-kind defaults in **Settings**, a rip's profile on
-the Discs page, auto transcode. The decision is made per file, so each episode of a series is judged on its own.
+It can be chosen anywhere a profile can — the per-kind defaults in **Settings**, a rip's profile on the Discs
+page, auto transcode. The decision is made per file, so each episode of a series is judged on its own.
+
+### How it decides
+
+Every encode starts from the profile's own settings. Each branch is then checked in order, and **every branch
+that fits applies its changes** — a later one wins where two touch the same setting. So:
+
+```
+Start from   HEVC, CRF 20, audio copied, subtitles copied
+Branch 1     if the genre is Animation        → tune animation, CRF 18
+Branch 2     if this is 2160p and HDR         → 10-bit, keep HDR metadata
+```
+
+An animated UHD disc takes both. A live-action 1080p one takes neither and is encoded with the settings at the
+top. There is no fallback branch to write, because the settings you start from *are* the fallback.
+
+If nothing would be re-encoded — video copied, audio copied, subtitles copied, same container — Rexarr queues no
+encode at all and leaves the file alone. That is what "keep TrueHD" looks like: start from audio copied, and only
+change it for the discs you want changed.
 
 ### The canvas
 
-**Profiles → a smart profile → Edit** opens it as a graph, filling the window beside the sidebar. A *Branch* asks
-a question and has a **Yes** and a **No**; its **Condition** comes up from the nodes below it — a *Comparison*
-fed by a *Read from the file*, or a plain read for a yes/no question, gathered by an *All of* when a branch asks
-more than one thing. Yes goes to what that branch does; No falls through to the next question, and the last stop
-is *Anything else*.
+**Profiles → a smart profile → Edit** opens it as a graph, filling the window beside the sidebar. **Start from**
+holds the settings every encode begins with. A *Branch* asks a question and has a **Then**, which goes to a *Set*
+node listing what it changes, and a **Carry on**, which continues to the next branch. A branch's **Condition**
+comes up from the nodes below it — a *Comparison* fed by a *Read from the file*, or a plain read for a yes/no
+question, gathered by an *All of* when a branch asks more than one thing. At the end, **Encode with** shows what
+the settings come to for the disc you are trying.
 
 Everything is edited in the node itself, and a branch says what it asks in its own body, so the graph still reads
 when it is zoomed out. Drag nodes anywhere — where they sit is saved with the profile, **Tidy up** puts them
@@ -92,28 +111,17 @@ back — drag the background to pan, scroll or use the zoom control to resize, a
 lot. **Details** holds the description and what the profile is for. Edits are kept until you press **Save**; an
 *Unsaved* mark appears in the bar and leaving the page asks first.
 
-The wires are drawn from the chain rather than dragged by hand: the order of the questions is what a smart
-profile *is*, and the ↑ ↓ on a branch's header changes it.
+The wires are drawn from the chain rather than dragged by hand: the order of the branches is what a smart profile
+*is*, and the ↑ ↓ on a branch's header changes it.
 
-### Nodes
-
-A smart profile is a chain of branches, checked top to bottom. Each one asks something about the file; the first
-whose conditions **all** hold decides, and a branch with no conditions never matches. What a branch does when it
-wins:
-
-- **a profile** — the file is encoded with it.
-- **Leave the file as it is** — no encode is queued at all. For a disc rip that means the remux MakeMKV produced
-  is delivered unchanged; for auto transcode the file is left alone and the job finishes as done.
-
-A last node, *Anything else*, catches what nothing else did.
-
-### What a node can ask about
+### What a branch can ask about
 
 | | |
 | --- | --- |
 | Audio | channels (the widest track in the file), codec, object audio (Atmos / DTS:X), whether anything lossless is present |
 | Video | height, codec, HDR, Dolby Vision |
 | Source | running time, file size, bitrate |
+| What it is | movie / series / anime, and the genres Radarr or Sonarr hold |
 
 **Object audio** is read from the stream profile FFmpeg reports — `Dolby TrueHD + Dolby Atmos`,
 `Dolby Digital Plus + Dolby Atmos`, `DTS-HD MA + DTS:X`, `DTS-HD MA + DTS:X IMAX`. Nothing else in the file says
@@ -121,21 +129,32 @@ so: a 7.1 TrueHD track is not necessarily Atmos, and no channel count settles it
 never reports it, in which case the condition is simply never true — **System → Status** shows the version. Every
 decision writes the profiles it saw into the job log, so you can tell the two apart.
 
+**Genres** come from Radarr or Sonarr, lower-cased, and are only looked up when a branch actually asks about
+them, so a smart profile that never mentions genre costs no extra request.
+
+### What a branch can change
+
+Container, video encoder, CRF, preset, tune, downscale height, pixel format, HDR passthrough, audio encoder,
+bitrate, channels, whether commentary is dropped, and what happens to subtitles. Anything a branch does not touch
+stays as the profile's own settings left it.
+
 ### The two that ship with it
 
-- **Smart · FLAC for stereo, keep surround** — a lossless stereo track is TrueHD or DTS-HD MA for no good reason,
-  and FLAC holds the same samples in less space. Anything wider is left exactly as it is.
-- **Smart · Keep Atmos and DTS:X, FLAC the rest** — object audio cannot survive being re-encoded, so those discs
-  are kept; everything else goes to FLAC at its own channel layout, which is lossless and smaller.
+- **Smart · Lossless audio, the right way round** — video and audio copied, except that a *lossless stereo* track
+  becomes FLAC: the same samples in less space. Surround and object audio are left exactly as they are, which
+  means no encode is queued for them at all.
+- **Smart · x265, and animation knows itself** — HEVC CRF 20 for everything, with animation (by genre, or a
+  series Sonarr calls anime) getting the animation tune and CRF 18, since flat colour and sharp lines fall apart
+  at settings that suit film grain; UHD HDR adds 10-bit and HDR passthrough.
 
 Both are read-only. Clone one to change it.
 
 ### Trying one out
 
 The canvas has a **Try it** panel: pick one of a handful of sample discs — UHD with TrueHD 7.1 Atmos, a DTS:X
-disc, a 5.1 Blu-ray, a stereo-only disc, a DVD, an episode — and the path that disc takes is drawn through the
-graph in green, with the branch rows it goes through marked and everything it misses faded back. It runs the same
-code the server does.
+disc, a 5.1 Blu-ray, a stereo-only disc, a DVD, an episode — and the branches that fit light up, the settings
+they change are marked in **Encode with**, and the wires they are on are drawn in green. It runs the same code
+the server does.
 
 ## Command preview
 

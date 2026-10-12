@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Profile, SmartCondition, SmartOutcome, SmartProfile, SmartRule } from '@shared/types';
-import { decide, describeCondition, fieldInfo, operatorsFor, OPERATOR_LABELS, ruleMatches, SAMPLE_SOURCES, SMART_FIELDS } from '@shared/smart';
+import type { Profile, SmartAssignment, SmartCondition, SmartProfile, SmartRule, SmartSettingPath } from '@shared/types';
+import { decide, describeCondition, isPassThrough, fieldInfo, operatorsFor, OPERATOR_LABELS, ruleMatches, SAMPLE_SOURCES, settingInfo, SMART_FIELDS, SMART_SETTINGS } from '@shared/smart';
+import { AUDIO_ENCODER_INFO, CONTAINER_INFO, VIDEO_ENCODER_INFO } from '@shared/presets';
 import { api } from '../api';
 import { useApp } from '../App';
 import { Icon } from '../components/Icons';
@@ -20,7 +21,7 @@ const snap = (n: number) => Math.round(n / GRID) * GRID;
 /** Every node on the canvas, with the id its position is stored under. */
 interface Node {
   id: string;
-  kind: 'start' | 'branch' | 'all' | 'compare' | 'read' | 'outcome';
+  kind: 'start' | 'base' | 'branch' | 'all' | 'compare' | 'read' | 'set' | 'result';
   pos: Pos;
   ruleIndex?: number;
   condIndex?: number;
@@ -40,28 +41,27 @@ const condNodeId = (ruleId: string, i: number, kind: 'compare' | 'read') => `${k
 
 /** Where nodes go when nothing has been dragged: the chain down the left, what each branch does to its right. */
 function autoLayout(sp: SmartProfile): Record<string, Pos> {
-  const out: Record<string, Pos> = { start: { x: 30, y: 180 } };
-  let y = 180;
+  const out: Record<string, Pos> = { start: { x: 30, y: 180 }, base: { x: 210, y: 140 } };
+  let y = 150;
   sp.rules.forEach((rule, i) => {
     const branchId = `rule:${rule.id}`;
-    out[branchId] = { x: 250, y };
-    out[`out:${rule.id}`] = { x: 560, y: y - 70 };
+    out[branchId] = { x: 530, y };
+    out[`set:${rule.id}`] = { x: 840, y: y - 30 };
     const many = rule.when.length > 1;
-    if (many) out[`all:${rule.id}`] = { x: 250, y: y + 200 };
+    if (many) out[`all:${rule.id}`] = { x: 530, y: y + 200 };
     const base = many ? y + 330 : y + 210;
     let anyCompare = false;
     rule.when.forEach((c, ci) => {
       const kind = fieldInfo(c.field)?.kind === 'boolean' ? 'read' : 'compare';
-      out[condNodeId(rule.id, ci, kind)] = { x: 210 + ci * 300, y: base };
-      // a comparison reads its A side from a node below it, which is what makes a branch's stack tall
+      out[condNodeId(rule.id, ci, kind)] = { x: 490 + ci * 300, y: base };
       if (kind === 'compare') {
-        out[`read:${rule.id}:${ci}`] = { x: 210 + ci * 300, y: base + 210 };
+        out[`read:${rule.id}:${ci}`] = { x: 490 + ci * 300, y: base + 210 };
         anyCompare = true;
       }
     });
     y = base + (anyCompare ? 210 + 170 : 170) + 70;
   });
-  out['else'] = { x: 560, y };
+  out['result'] = { x: 840, y };
   return out;
 }
 
@@ -99,14 +99,21 @@ export function SmartGraphPage() {
   const layer = useRef<HTMLDivElement>(null);
   const drag = useRef<{ node?: string; startPos: Pos; origin: Pos; panning?: boolean } | null>(null);
   const nodeSizes = useRef<Record<string, { w: number; h: number }>>({});
+  // once the view has been moved by hand, resizing the window stops re-framing it
+  const touched = useRef(false);
 
   useEffect(() => {
     if (sp) return;
     if (id === 'new') {
       const blank: SmartProfile = {
         id: '', name: '', description: '', builtin: false, mediaType: 'any',
-        rules: [{ id: 'r1', when: [{ field: 'audio.objectBased', op: 'isTrue' }], then: { kind: 'keep' } }],
-        otherwise: { kind: 'profile', profileId: 'builtin-remux-flac' },
+        container: 'mkv',
+        base: [
+          { path: 'video.encoder', value: 'copy' },
+          { path: 'audio.encoder', value: 'copy' },
+          { path: 'subtitles.mode', value: 'copy' },
+        ],
+        rules: [{ id: 'r1', when: [{ field: 'audio.objectBased', op: 'isFalse' }], set: [{ path: 'audio.encoder', value: 'flac' }] }],
         createdAt: '', updatedAt: '',
       };
       setSp(blank);
@@ -137,14 +144,21 @@ export function SmartGraphPage() {
     if (!sp) return { nodes: [] as Node[], wires: [] as Wire[] };
     const auto = autoLayout(sp);
     const at = (nid: string): Pos => sp.layout?.[nid] ?? auto[nid] ?? { x: 0, y: 0 };
-    const nodes: Node[] = [{ id: 'start', kind: 'start', pos: at('start') }];
-    const wires: Wire[] = [];
+    const nodes: Node[] = [
+      { id: 'start', kind: 'start', pos: at('start') },
+      { id: 'base', kind: 'base', pos: at('base') },
+    ];
+    const wires: Wire[] = [{ from: 'start:out', to: 'base:in', kind: 'flow' }];
+    let previous = 'base:out';
     sp.rules.forEach((rule, i) => {
       const branchId = `rule:${rule.id}`;
       nodes.push({ id: branchId, kind: 'branch', pos: at(branchId), ruleIndex: i });
-      // what happens when this branch says yes
-      nodes.push({ id: `out:${rule.id}`, kind: 'outcome', pos: at(`out:${rule.id}`), ruleIndex: i });
-      wires.push({ from: `${branchId}:yes`, to: `out:${rule.id}:in`, kind: 'flow', rule: i, branch: 'yes' });
+      // the spine runs through every branch: each one that fits changes the settings and the file carries on
+      wires.push({ from: previous, to: `${branchId}:in`, kind: 'flow' });
+      previous = `${branchId}:next`;
+      // what this branch changes when it fits
+      nodes.push({ id: `set:${rule.id}`, kind: 'set', pos: at(`set:${rule.id}`), ruleIndex: i });
+      wires.push({ from: `${branchId}:then`, to: `set:${rule.id}:in`, kind: 'flow', rule: i, branch: 'yes' });
       // and where the question comes from
       const many = rule.when.length > 1;
       const allId = `all:${rule.id}`;
@@ -163,13 +177,9 @@ export function SmartGraphPage() {
           wires.push({ from: `${rid}:out`, to: `${nid}:a`, kind: 'data' });
         }
       });
-      // the chain: a No falls through to the next question
-      const next = sp.rules[i + 1];
-      wires.push({ from: `${branchId}:no`, to: next ? `rule:${next.id}:in` : 'else:in', kind: 'flow', rule: i, branch: 'no' });
     });
-    nodes.push({ id: 'else', kind: 'outcome', pos: at('else') });
-    const first = sp.rules[0];
-    wires.push({ from: 'start:out', to: first ? `rule:${first.id}:in` : 'else:in', kind: 'flow' });
+    nodes.push({ id: 'result', kind: 'result', pos: at('result') });
+    wires.push({ from: previous, to: 'result:in', kind: 'flow' });
     return { nodes, wires };
   }, [sp]);
 
@@ -224,9 +234,11 @@ export function SmartGraphPage() {
 
   const onSurfaceDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
+    touched.current = true;
     drag.current = { panning: true, startPos: { x: view.x, y: view.y }, origin: { x: e.clientX, y: e.clientY } };
   };
   const onWheel = (e: React.WheelEvent) => {
+    touched.current = true;
     const rect = surface.current!.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
@@ -238,6 +250,7 @@ export function SmartGraphPage() {
   };
 
   const fit = useCallback(() => {
+    touched.current = false;
     const rect = surface.current?.getBoundingClientRect();
     if (!rect || !nodes.length) return;
     const size = (nid: string) => nodeSizes.current[nid] ?? { w: 260, h: 150 };
@@ -257,12 +270,23 @@ export function SmartGraphPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sp?.id]);
 
+  // the first fit can run before the pane has settled, and the sidebar can be collapsed later
+  useEffect(() => {
+    const el = surface.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      if (!touched.current) fit();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fit]);
+
   // ---- editing ------------------------------------------------------------------------------------
   const setRule = (i: number, rule: SmartRule) => setSp((x) => (x ? { ...x, rules: x.rules.map((r, j) => (j === i ? rule : r)) } : x));
   const setCond = (ri: number, ci: number, c: SmartCondition) => sp && setRule(ri, { ...sp.rules[ri], when: sp.rules[ri].when.map((x, j) => (j === ci ? c : x)) });
   const addRule = () =>
     setSp((x) =>
-      x ? { ...x, rules: [...x.rules, { id: Math.random().toString(36).slice(2, 10), when: [{ field: 'audio.maxChannels', op: 'atMost', number: 2 }], then: { kind: 'keep' } }] } : x,
+      x ? { ...x, rules: [...x.rules, { id: Math.random().toString(36).slice(2, 10), when: [{ field: 'audio.maxChannels', op: 'atMost', number: 2 }], set: [{ path: 'audio.encoder', value: 'flac' }] }] } : x,
     );
   const removeRule = (i: number) => setSp((x) => (x ? { ...x, rules: x.rules.filter((_, j) => j !== i) } : x));
   const moveRule = (i: number, by: number) =>
@@ -299,12 +323,12 @@ export function SmartGraphPage() {
 
   if (!sp) return <div className="graphPage"><div className="empty">Loading…</div></div>;
 
-  /** Does the sample disc travel this wire? Used to pick out the live path and fade the rest. */
+  /** Does this wire carry anything for the sample disc? Only the branches that fit change its settings. */
   const onPath = (w: Wire) => {
     if (!decision || w.rule === undefined) return undefined;
-    const taken = decision.ruleIndex === -1 ? w.branch === 'no' && w.rule <= sp.rules.length - 1 : w.rule < decision.ruleIndex ? w.branch === 'no' : w.rule === decision.ruleIndex && w.branch === 'yes';
-    return taken;
+    return decision.applied.some((a) => a.index === w.rule);
   };
+  const passThrough = decision ? isPassThrough(decision.profile) : false;
 
   const wire = (w: Wire) => {
     const a = ports[w.from];
@@ -385,7 +409,7 @@ export function SmartGraphPage() {
           )}
           {nodes.map((n) => {
             const rule = n.ruleIndex !== undefined ? sp.rules[n.ruleIndex] : undefined;
-            const chosen = decision && ((n.kind === 'branch' && decision.ruleIndex === n.ruleIndex) || (n.id === 'else' && decision.ruleIndex === -1) || (n.kind === 'outcome' && rule && decision.ruleIndex === n.ruleIndex));
+            const chosen = Boolean(decision && n.ruleIndex !== undefined && decision.applied.some((a) => a.index === n.ruleIndex));
             const live = rule ? ruleMatches(rule, facts) : false;
             return (
               <div key={n.id} data-node={n.id} className={`gNode ${n.kind}${chosen ? ' chosen' : ''}`} style={{ left: n.pos.x, top: n.pos.y }}>
@@ -414,8 +438,8 @@ export function SmartGraphPage() {
                       {rule.when.map(describeCondition).join(' and ') || 'Nothing yet – this branch never matches'}
                     </div>
                     <div className="gBranchRows">
-                      <BranchRow id={`rule:${rule.id}:yes`} label="Yes" taken={live} />
-                      <BranchRow id={`rule:${rule.id}:no`} label="No" taken={!live} />
+                      <BranchRow id={`rule:${rule.id}:then`} label="Then" taken={live} />
+                      <BranchRow id={`rule:${rule.id}:next`} label="Carry on" />
                     </div>
                     <Port id={`rule:${rule.id}:in`} side="left" />
                     <Port id={`rule:${rule.id}:cond`} side="bottom" tone="data" label="Condition" />
@@ -526,23 +550,71 @@ export function SmartGraphPage() {
                   </>
                 )}
 
-                {/* ---- what happens ---- */}
-                {n.kind === 'outcome' && (
+                {/* ---- the settings this profile starts from ---- */}
+                {n.kind === 'base' && (
                   <>
                     <div className="gHead" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
-                      <span>{n.id === 'else' ? 'Anything else' : 'Then'}</span>
-                      <span className="spacer" />
-                      {chosen && <span className="gTag on">this one</span>}
+                      <span>Start from</span>
                     </div>
                     <div className="gBody">
-                      <OutcomeSelect
-                        value={n.id === 'else' ? sp.otherwise : rule!.then}
-                        profiles={profiles}
-                        disabled={readOnly}
-                        onChange={(o) => (n.id === 'else' ? setSp({ ...sp, otherwise: o }) : setRule(n.ruleIndex!, { ...rule!, then: o }))}
-                      />
+                      <label className="gLabel">Container</label>
+                      <select value={sp.container} disabled={readOnly} onChange={(e) => setSp({ ...sp, container: e.target.value as SmartProfile['container'] })}>
+                        {Object.entries(CONTAINER_INFO)
+                          .filter(([, v]) => !v.music)
+                          .map(([value, v]) => (
+                            <option key={value} value={value}>
+                              {v.label}
+                            </option>
+                          ))}
+                      </select>
+                      <Assignments list={sp.base} readOnly={readOnly} onChange={(base) => setSp({ ...sp, base })} />
                     </div>
-                    <Port id={`${n.id}:in`} side="left" />
+                    <Port id="base:in" side="left" />
+                    <Port id="base:out" side="right" />
+                  </>
+                )}
+
+                {/* ---- what a branch changes ---- */}
+                {n.kind === 'set' && rule && (
+                  <>
+                    <div className="gHead" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
+                      <span>Set</span>
+                      <span className="spacer" />
+                      {chosen && <span className="gTag on">applied</span>}
+                    </div>
+                    <div className="gBody">
+                      <Assignments list={rule.set} readOnly={readOnly} onChange={(set) => setRule(n.ruleIndex!, { ...rule, set })} />
+                    </div>
+                    <Port id={`set:${rule.id}:in`} side="left" />
+                  </>
+                )}
+
+                {/* ---- and what that comes to for the disc being tried ---- */}
+                {n.kind === 'result' && decision && (
+                  <>
+                    <div className="gHead" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
+                      <span>Encode with</span>
+                      <span className="spacer" />
+                      <span className="gTag">{SAMPLE_SOURCES[sample].name}</span>
+                    </div>
+                    <div className="gBody">
+                      <div className="gResultRows">
+                        {RESULT_ROWS.map(({ path, show }) => {
+                          const value = show(decision.profile);
+                          const branch = decision.from[path];
+                          return (
+                            <div key={path} className={`gResultRow${branch !== undefined ? ' set' : ''}`}>
+                              <span className="gLabel">{settingInfo(path)?.label ?? path}</span>
+                              <span className="spacer" />
+                              <span>{value}</span>
+                              {branch !== undefined && <span className="gTag">#{branch + 1}</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {passThrough && <div className="gHelp">Every stream copied into the same container – Rexarr queues no encode at all for this one.</div>}
+                    </div>
+                    <Port id="result:in" side="left" />
                   </>
                 )}
               </div>
@@ -571,8 +643,13 @@ export function SmartGraphPage() {
               {facts.audio.objectBased ? ' · object audio' : ''} · {facts.video.height}p{facts.video.hdr ? ' HDR' : ''}
             </div>
             <div className="small gResult">
-              → <strong>{decision.outcome.kind === 'keep' ? 'left as it is' : (profileName(decision.outcome.profileId) ?? decision.outcome.profileId)}</strong>
-              <div className="dim">{decision.ruleIndex >= 0 ? `branch ${decision.ruleIndex + 1} said yes` : 'nothing matched'}</div>
+              →{' '}
+              <strong>
+                {passThrough
+                  ? 'nothing to encode'
+                  : `${decision.profile.video.encoder === 'copy' ? 'video kept' : `${decision.profile.video.encoder} CRF ${decision.profile.video.quality}`} · ${decision.profile.audio.encoder === 'copy' ? 'audio kept' : decision.profile.audio.encoder}`}
+              </strong>
+              <div className="dim">{decision.applied.length ? `branch ${decision.applied.map((a) => a.index + 1).join(', ')} applied` : 'no branch matched'}</div>
             </div>
           </div>
         )}
@@ -586,23 +663,78 @@ export function SmartGraphPage() {
   );
 }
 
-function OutcomeSelect({ value, profiles, disabled, onChange }: { value: SmartOutcome; profiles: Profile[]; disabled?: boolean; onChange: (o: SmartOutcome) => void }) {
+/** The rows that make up a Start from or a Set node: a setting and the value it is given. */
+function Assignments({ list, readOnly, onChange }: { list: SmartAssignment[]; readOnly?: boolean; onChange: (list: SmartAssignment[]) => void }) {
+  const set = (i: number, a: SmartAssignment) => onChange(list.map((x, j) => (j === i ? a : x)));
+  const add = () => {
+    const used = new Set(list.map((a) => a.path));
+    const next = SMART_SETTINGS.find((s) => !used.has(s.path)) ?? SMART_SETTINGS[0];
+    onChange([...list, { path: next.path, value: defaultValue(next.path) }]);
+  };
   return (
-    <select
-      value={value.kind === 'keep' ? 'keep' : value.profileId}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.value === 'keep' ? { kind: 'keep' } : { kind: 'profile', profileId: e.target.value })}
-    >
-      <option value="keep">Leave the file as it is</option>
-      <optgroup label="Encode with">
-        {profiles
-          .filter((p) => p.mediaType !== 'music')
-          .map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-      </optgroup>
-    </select>
+    <div className="gAssigns">
+      {list.map((a, i) => {
+        const info = settingInfo(a.path);
+        return (
+          <div key={`${a.path}-${i}`} className="gAssign">
+            <select
+              value={a.path}
+              disabled={readOnly}
+              onChange={(e) => set(i, { path: e.target.value as SmartSettingPath, value: defaultValue(e.target.value as SmartSettingPath) })}
+            >
+              {SMART_SETTINGS.map((s) => (
+                <option key={s.path} value={s.path}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            {info?.kind === 'number' && (
+              <input type="number" min={info.min} max={info.max} disabled={readOnly} value={Number(a.value)} onChange={(e) => set(i, { ...a, value: Number(e.target.value) })} />
+            )}
+            {info?.kind === 'boolean' && (
+              <select value={a.value ? 'yes' : 'no'} disabled={readOnly} onChange={(e) => set(i, { ...a, value: e.target.value === 'yes' })}>
+                <option value="yes">yes</option>
+                <option value="no">no</option>
+              </select>
+            )}
+            {info?.kind === 'select' && (
+              <select value={String(a.value)} disabled={readOnly} onChange={(e) => set(i, { ...a, value: e.target.value })}>
+                {(info.options ?? []).map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button className="gIcon danger" disabled={readOnly} onClick={() => onChange(list.filter((_, j) => j !== i))} title="Remove this setting">
+              <Icon.Trash />
+            </button>
+          </div>
+        );
+      })}
+      {!list.length && <div className="gHelp">Nothing yet – this changes no settings.</div>}
+      <button className="btn xs" disabled={readOnly} onClick={add}>
+        <Icon.Plus /> Setting
+      </button>
+    </div>
   );
 }
+
+function defaultValue(path: SmartSettingPath): string | number | boolean {
+  const info = settingInfo(path);
+  if (info?.kind === 'boolean') return true;
+  if (info?.kind === 'number') return path === 'video.quality' ? 20 : 0;
+  return info?.options?.[0]?.value ?? '';
+}
+
+/** What the result node lists, in the order someone reads a profile. */
+const RESULT_ROWS: { path: SmartSettingPath; show: (p: Profile) => string }[] = [
+  { path: 'container', show: (p) => p.container.toUpperCase() },
+  { path: 'video.encoder', show: (p) => VIDEO_ENCODER_INFO[p.video.encoder]?.label.split(' (')[0] ?? p.video.encoder },
+  { path: 'video.quality', show: (p) => (p.video.encoder === 'copy' ? '—' : String(p.video.quality)) },
+  { path: 'video.tune', show: (p) => p.video.tune },
+  { path: 'video.maxHeight', show: (p) => (p.video.maxHeight ? `${p.video.maxHeight}p` : 'source') },
+  { path: 'audio.encoder', show: (p) => AUDIO_ENCODER_INFO[p.audio.encoder]?.label.split(' (')[0] ?? p.audio.encoder },
+  { path: 'audio.channels', show: (p) => (p.audio.channels ? `${p.audio.channels}ch` : 'source layout') },
+  { path: 'subtitles.mode', show: (p) => p.subtitles.mode },
+];

@@ -95,21 +95,25 @@ function quote(a: string) {
 }
 
 const smartConditionSchema = z.object({
-  field: z.enum(['audio.maxChannels', 'audio.codecs', 'audio.objectBased', 'audio.lossless', 'video.height', 'video.codec', 'video.hdr', 'video.dolbyVision', 'source.durationMinutes', 'source.sizeGB', 'source.bitrateMbps']),
+  field: z.enum(['audio.maxChannels', 'audio.codecs', 'audio.objectBased', 'audio.lossless', 'video.height', 'video.codec', 'video.hdr', 'video.dolbyVision', 'source.durationMinutes', 'source.sizeGB', 'source.bitrateMbps', 'media.kind', 'media.genres']),
   op: z.enum(['atLeast', 'atMost', 'equals', 'anyOf', 'noneOf', 'isTrue', 'isFalse']),
   number: z.number().optional(),
   list: z.array(z.string().max(40)).max(20).optional(),
 });
-const smartOutcomeSchema = z.union([z.object({ kind: z.literal('profile'), profileId: z.string().min(1) }), z.object({ kind: z.literal('keep') })]);
+const smartAssignmentSchema = z.object({
+  path: z.enum(['container', 'video.encoder', 'video.quality', 'video.preset', 'video.tune', 'video.maxHeight', 'video.pixelFormat', 'video.hdrPassthrough', 'audio.encoder', 'audio.bitrate', 'audio.channels', 'audio.dropCommentary', 'subtitles.mode']),
+  value: z.union([z.string().max(40), z.number(), z.boolean()]),
+});
 const smartProfileSchema = z.object({
   name: z.string().min(1).max(80),
   description: z.string().max(500).default(''),
   mediaType: z.enum(['any', 'movie', 'tv', 'anime']).default('any'),
+  container: z.enum(['mkv', 'mp4', 'webm', 'mov']).default('mkv'),
+  base: z.array(smartAssignmentSchema).max(20).default([]),
   rules: z
-    .array(z.object({ id: z.string().min(1).max(60), when: z.array(smartConditionSchema).max(8), then: smartOutcomeSchema }))
+    .array(z.object({ id: z.string().min(1).max(60), when: z.array(smartConditionSchema).max(8), set: z.array(smartAssignmentSchema).max(20).default([]) }))
     .max(20)
     .default([]),
-  otherwise: smartOutcomeSchema,
   layout: z.record(z.string().max(80), z.object({ x: z.number(), y: z.number() })).optional(),
 });
 

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { Job, JobSource, JobStatus, MqaInfo, Profile, RipMedia } from '../../../shared/types.js';
+import type { SmartProfile, Job, JobSource, JobStatus, MqaInfo, Profile, RipMedia } from '../../../shared/types.js';
 import { CONTAINER_INFO } from '../../../shared/presets.js';
 import { encodeMusic, freacEncoderArgs, freacInfo, probeAudio } from '../music/freac.js';
 import { estimateSize } from '../ffmpeg/estimate.js';
@@ -12,8 +12,8 @@ import { checkLidarrCueImages, cueSplitForAlbum, splitFolderImages } from '../mu
 import { LOG_LINES_KEPT, PATHS } from '../config.js';
 import { appEvents } from '../system.js';
 import { store } from '../store.js';
-import { sourceFacts } from '../ffmpeg/facts.js';
-import { decide, explainDecision } from '../../../shared/smart.js';
+import { containerOf, sourceFacts } from '../ffmpeg/facts.js';
+import { decide, describeAssignment, explainDecision, isPassThrough } from '../../../shared/smart.js';
 import { bus } from '../events.js';
 import { arr } from '../arr/index.js';
 import { toArrPath, toLocalPath } from '../paths.js';
@@ -704,6 +704,31 @@ class JobQueue {
     }
   }
 
+  /**
+   * What Radarr / Sonarr say this is. The lookup only happens when a branch asks about it, so a smart profile
+   * that never mentions genre costs nothing.
+   */
+  private async mediaFacts(job: Job, smart: SmartProfile): Promise<{ kind: 'movie' | 'series' | 'anime' | 'unknown'; genres: string[] }> {
+    const asksAbout = (field: string) => smart.rules.some((r) => r.when.some((c) => c.field === field));
+    const kind: 'movie' | 'series' | 'unknown' = job.source.kind === 'movie' ? 'movie' : job.source.kind === 'episode' ? 'series' : 'unknown';
+    if (!asksAbout('media.genres') && !asksAbout('media.kind')) return { kind, genres: [] };
+    const { radarr, sonarr } = arr();
+    try {
+      if (job.source.arr === 'radarr' && job.source.arrId && radarr.configured) {
+        const m = await radarr.movie(job.source.arrId);
+        return { kind: 'movie', genres: (m.genres ?? []).map((g) => g.toLowerCase()) };
+      }
+      if (job.source.arr === 'sonarr' && job.source.arrId && sonarr.configured) {
+        const series = await sonarr.seriesById(job.source.arrId);
+        const anime = series.seriesType === 'anime';
+        return { kind: anime ? 'anime' : 'series', genres: (series.genres ?? []).map((g) => g.toLowerCase()) };
+      }
+    } catch (err) {
+      this.log(job, `Could not read the genres for this title: ${(err as Error).message}`);
+    }
+    return { kind, genres: [] };
+  }
+
   private async run(job: Job) {
     const settings = store.settings;
     const smart = store.getSmartProfile(job.profileId);
@@ -725,24 +750,24 @@ class JobQueue {
       job.durationSeconds = info.durationSeconds;
       this.log(job, `Source: ${info.video?.codec_name ?? '?'} ${info.video?.width}x${info.video?.height}${info.isHdr ? ' HDR' : ''}${info.isDolbyVision ? '+DV' : ''}, ${info.audio.length} audio, ${info.subtitles.length} subtitle, ${info.attachments.length} attachment stream(s), ${Math.round(info.durationSeconds / 60)} min`);
 
-      // A smart profile only becomes a real one here, where the file can be looked at
+      // A smart profile settles its own settings here, where the file can be looked at
       if (smart) {
-        const facts = sourceFacts(info);
+        const facts = sourceFacts(info, await this.mediaFacts(job, smart));
         const decision = decide(smart, facts);
-        this.log(job, explainDecision(smart, facts, decision, (id) => store.getProfile(id)?.name));
+        this.log(job, explainDecision(smart, facts, decision));
         if (facts.audio.profiles.length) this.log(job, `Audio profiles as FFmpeg reports them: ${facts.audio.profiles.join(', ')}`);
-        if (decision.outcome.kind === 'keep') {
+        for (const a of decision.applied) this.log(job, `Branch ${a.index + 1}: ${a.rule.set.map(describeAssignment).join(', ')}`);
+        profile = decision.profile;
+        // nothing would be re-encoded and the container is the same: running ffmpeg over it would only cost time
+        if (isPassThrough(profile, containerOf(info.formatName))) {
           job.status = 'done';
           job.finishedAt = new Date().toISOString();
-          job.message = 'Left as it is by the smart profile';
-          this.log(job, 'No encode: the file is kept as it is.');
+          job.message = 'Nothing to encode – the file already matches this profile';
+          this.log(job, 'Every stream would be copied into the same container, so the file is left as it is.');
           store.saveJobs();
           this.emit(job);
           return;
         }
-        profile = store.getProfile(decision.outcome.profileId);
-        if (!profile) throw new Error(`"${smart.name}" points at a profile that no longer exists (${decision.outcome.profileId})`);
-        job.profileName = `${smart.name} → ${profile.name}`;
       }
       if (!profile) throw new Error(`Profile "${job.profileName}" no longer exists`);
 

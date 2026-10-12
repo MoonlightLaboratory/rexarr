@@ -57,6 +57,14 @@ function make(p: Partial<Profile> & { id: string; name: string }): Profile {
 }
 
 /** Built-in presets. They are read-only in the UI but can be cloned. */
+/** Neutral settings a smart profile starts from before its own base. Nothing here is aimed at a kind of file. */
+export const SMART_STOCK = {
+  video: { ...baseVideo, encoder: 'libx265' as const, quality: 20, preset: 'slow', pixelFormat: 'auto' as const },
+  audio: { ...baseAudio },
+  subtitles: { ...baseSubs, mode: 'copy' as const },
+  output: { ...baseOutput },
+};
+
 export const BUILTIN_PROFILES: Profile[] = [
   make({
     id: 'builtin-anime-x265',
@@ -399,17 +407,24 @@ export const DEFAULT_SETTINGS = {
 };
 
 /**
- * Smart profiles that ship with Rexarr. They are examples as much as anything: both are two nodes long, and
- * both exist because the right thing to do with a disc's audio depends on what the disc turned out to have.
+ * Smart profiles that ship with Rexarr. A smart profile is a profile: it has its own settings and encodes with
+ * them. What makes it smart is that some of those settings are decided from the file, which is the only way to
+ * answer a question like "is this disc's lossless track worth keeping as it is".
  */
 export const BUILTIN_SMART_PROFILES: SmartProfile[] = [
   {
-    id: 'builtin-smart-stereo-to-flac',
-    name: 'Smart · FLAC for stereo, keep surround',
+    id: 'builtin-smart-lossless-audio',
+    name: 'Smart · Lossless audio, the right way round',
     description:
-      'A lossless stereo track is TrueHD or DTS-HD MA for no good reason – FLAC holds the same samples in less space. Anything with more channels than that is left exactly as it is.',
+      'Keeps the video as it is and decides the audio from what the disc turned out to carry. A lossless stereo track is TrueHD or DTS-HD MA for no good reason, so it becomes FLAC – the same samples, a smaller file. Anything with more channels is left alone, and object audio certainly is, since it cannot survive an encode.',
     builtin: true,
     mediaType: 'any',
+    container: 'mkv',
+    base: [
+      { path: 'video.encoder', value: 'copy' },
+      { path: 'audio.encoder', value: 'copy' },
+      { path: 'subtitles.mode', value: 'copy' },
+    ],
     rules: [
       {
         id: 'stereo',
@@ -417,24 +432,60 @@ export const BUILTIN_SMART_PROFILES: SmartProfile[] = [
           { field: 'audio.lossless', op: 'isTrue' },
           { field: 'audio.maxChannels', op: 'atMost', number: 2 },
         ],
-        then: { kind: 'profile', profileId: 'builtin-remux-flac' },
+        set: [
+          { path: 'audio.encoder', value: 'flac' },
+          { path: 'audio.channels', value: 0 },
+        ],
       },
     ],
-    otherwise: { kind: 'keep' },
     createdAt: now,
     updatedAt: now,
   },
   {
-    id: 'builtin-smart-keep-object-audio',
-    name: 'Smart · Keep Atmos and DTS:X, FLAC the rest',
+    id: 'builtin-smart-animation',
+    name: 'Smart · x265, and animation knows itself',
     description:
-      'Object audio cannot survive being re-encoded, so a disc carrying Atmos or DTS:X is left alone. Everything else goes to FLAC at its own channel layout, which is lossless and smaller.',
+      'HEVC at CRF 20 for everything, except that animation gets the animation tune and CRF 18 – flat colour and sharp lines fall apart at the settings that suit film grain. Lossless audio is kept, lossy audio is left alone too.',
     builtin: true,
     mediaType: 'any',
-    rules: [
-      { id: 'object', when: [{ field: 'audio.objectBased', op: 'isTrue' }], then: { kind: 'keep' } },
+    container: 'mkv',
+    base: [
+      { path: 'video.encoder', value: 'libx265' },
+      { path: 'video.quality', value: 20 },
+      { path: 'video.preset', value: 'slow' },
+      { path: 'audio.encoder', value: 'copy' },
+      { path: 'subtitles.mode', value: 'copy' },
     ],
-    otherwise: { kind: 'profile', profileId: 'builtin-remux-flac' },
+    rules: [
+      {
+        id: 'animation',
+        when: [{ field: 'media.genres', op: 'anyOf', list: ['animation'] }],
+        set: [
+          { path: 'video.tune', value: 'animation' },
+          { path: 'video.quality', value: 18 },
+        ],
+      },
+      {
+        id: 'anime',
+        when: [{ field: 'media.kind', op: 'anyOf', list: ['anime'] }],
+        set: [
+          { path: 'video.tune', value: 'animation' },
+          { path: 'video.quality', value: 18 },
+          { path: 'video.pixelFormat', value: 'yuv420p10le' },
+        ],
+      },
+      {
+        id: 'uhd-hdr',
+        when: [
+          { field: 'video.height', op: 'atLeast', number: 2160 },
+          { field: 'video.hdr', op: 'isTrue' },
+        ],
+        set: [
+          { path: 'video.pixelFormat', value: 'yuv420p10le' },
+          { path: 'video.hdrPassthrough', value: true },
+        ],
+      },
+    ],
     createdAt: now,
     updatedAt: now,
   },

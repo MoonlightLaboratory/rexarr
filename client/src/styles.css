@@ -1406,3 +1406,21 @@ table.metaTags td.mono { word-break: break-word; }
 .graphTry .gResult { padding-top: 8px; border-top: 1px solid var(--borderColor); }
 .graphTry .inline { align-items: center; }
 .graphTryShow { position: absolute; right: 14px; bottom: 14px; }
+
+/* a Start from / Set node is a short list of settings */
+.gAssigns { display: flex; flex-direction: column; gap: 6px; }
+.gAssign { display: flex; align-items: center; gap: 5px; }
+.gAssign > select:first-child { flex: 1 1 auto; min-width: 0; }
+.gAssign > select + select, .gAssign > input { flex: 0 0 96px; width: 96px; }
+.gNode.set, .gNode.base { width: 300px; }
+.gNode.result { width: 280px; }
+.gNode.set .gHead { border-top-color: #4caf7d; }
+.gNode.base .gHead { border-top-color: var(--gray); }
+.gNode.result .gHead { border-top-color: var(--successColor); }
+
+/* what the sample disc ends up with, and which branch set each line */
+.gResultRows { display: flex; flex-direction: column; gap: 4px; font-size: var(--smallFontSize); }
+.gResultRow { display: flex; align-items: baseline; gap: 6px; color: var(--gray); }
+.gResultRow .spacer { flex: 1; }
+.gResultRow.set { color: var(--textColor); }
+.gResultRow.set .gTag { background: var(--successColor); color: var(--white); }

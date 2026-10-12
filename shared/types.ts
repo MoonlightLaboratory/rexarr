@@ -184,7 +184,9 @@ export type SmartField =
   | 'video.dolbyVision'
   | 'source.durationMinutes'
   | 'source.sizeGB'
-  | 'source.bitrateMbps';
+  | 'source.bitrateMbps'
+  | 'media.kind'
+  | 'media.genres';
 
 export type SmartOperator = 'atLeast' | 'atMost' | 'equals' | 'anyOf' | 'noneOf' | 'isTrue' | 'isFalse';
 
@@ -197,26 +199,53 @@ export interface SmartCondition {
   list?: string[];
 }
 
-/** What a node does once its conditions hold. "keep" queues no encode at all: the file stays as it is. */
-export type SmartOutcome = { kind: 'profile'; profileId: string } | { kind: 'keep' };
+/**
+ * What a branch changes when it fits: one setting, by its path in a profile. Everything a smart profile does is
+ * one of these, so a node is a short list of them and the result is a profile like any other.
+ */
+export interface SmartAssignment {
+  path: SmartSettingPath;
+  value: string | number | boolean;
+}
+
+export type SmartSettingPath =
+  | 'container'
+  | 'video.encoder'
+  | 'video.quality'
+  | 'video.preset'
+  | 'video.tune'
+  | 'video.maxHeight'
+  | 'video.pixelFormat'
+  | 'video.hdrPassthrough'
+  | 'audio.encoder'
+  | 'audio.bitrate'
+  | 'audio.channels'
+  | 'audio.dropCommentary'
+  | 'subtitles.mode';
 
 export interface SmartRule {
   id: string;
   /** Every condition has to hold. A rule with no conditions never matches, so a half-built one does nothing. */
   when: SmartCondition[];
-  then: SmartOutcome;
+  /** What that means for the encode. */
+  set: SmartAssignment[];
 }
 
+/**
+ * A profile that decides part of itself from the file. It encodes on its own – there is no second profile behind
+ * it – starting from its own settings and letting each branch that fits change them.
+ */
 export interface SmartProfile {
   id: string;
   name: string;
   description: string;
   builtin: boolean;
   mediaType: 'any' | 'movie' | 'tv' | 'anime';
-  /** Tried in order; the first whose conditions all hold decides. */
+  container: Container;
+  /** Where every encode starts, over Rexarr's stock settings. */
+  base: SmartAssignment[];
+  /** Checked top to bottom; every rule that fits applies, and a later one wins where they touch the same thing. */
   rules: SmartRule[];
-  /** When none of them matched. */
-  otherwise: SmartOutcome;
   /** Where each node sits on the canvas, by node id. Missing ones are laid out automatically. */
   layout?: Record<string, { x: number; y: number }>;
   createdAt: string;
@@ -239,6 +268,8 @@ export interface SourceFacts {
   };
   video: { height: number; codec: string; hdr: boolean; dolbyVision: boolean };
   source: { durationMinutes: number; sizeGB: number; bitrateMbps: number };
+  /** What Radarr / Sonarr say this is. Genres are only looked up when a rule asks about them. */
+  media: { kind: 'movie' | 'series' | 'anime' | 'unknown'; genres: string[] };
 }
 
 export interface MusicFile {

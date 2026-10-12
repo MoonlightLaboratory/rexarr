@@ -31,7 +31,10 @@ export function isObjectAudio(s: Pick<ProbeStream, 'profile'>): boolean {
   return /atmos|dts:x/i.test(s.profile ?? '');
 }
 
-export function sourceFacts(info: Pick<ProbeResult, 'audio' | 'video' | 'durationSeconds' | 'sizeBytes' | 'bitRate' | 'isHdr' | 'isDolbyVision'>): SourceFacts {
+export function sourceFacts(
+  info: Pick<ProbeResult, 'audio' | 'video' | 'durationSeconds' | 'sizeBytes' | 'bitRate' | 'isHdr' | 'isDolbyVision'>,
+  media: SourceFacts['media'] = { kind: 'unknown', genres: [] },
+): SourceFacts {
   const audio = info.audio ?? [];
   const codecs = [...new Set(audio.map(audioCodecName).filter(Boolean))];
   return {
@@ -53,5 +56,15 @@ export function sourceFacts(info: Pick<ProbeResult, 'audio' | 'video' | 'duratio
       sizeGB: Number((info.sizeBytes / 1e9).toFixed(2)),
       bitrateMbps: Number((info.bitRate / 1e6).toFixed(1)),
     },
+    media,
   };
+}
+
+/** ffprobe names several formats at once ("matroska,webm"); this is the container Rexarr would call it. */
+export function containerOf(formatName: string): string | undefined {
+  const names = formatName.split(',');
+  if (names.includes('matroska')) return 'mkv';
+  if (names.some((n) => n === 'mp4' || n === 'mov')) return names.includes('mp4') ? 'mp4' : 'mov';
+  if (names.includes('webm')) return 'webm';
+  return undefined;
 }
