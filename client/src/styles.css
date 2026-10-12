@@ -1402,3 +1402,7 @@ table.metaTags td.mono { word-break: break-word; }
 .gNode.off { opacity: 0.5; }
 .gNode.off .gHead { border-top-style: dashed; }
 .gIcon.off { color: var(--gray); }
+
+/* shift + right drag draws this over the canvas and takes every node it touches */
+.gMarquee { position: absolute; border: 1px solid var(--primaryColor); border-radius: 2px; background: rgba(93, 156, 236, 0.12); pointer-events: none; }
+.gNode.selected { border-color: var(--primaryColor); box-shadow: 0 0 0 1px var(--primaryColor), 0 6px 18px rgba(0, 0, 0, 0.35); }

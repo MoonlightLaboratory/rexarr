@@ -85,14 +85,18 @@ export function SmartGraphPage() {
   const { profiles, smartProfiles, reloadSmartProfiles, toast } = useApp();
   const [sp, setSp] = useState<SmartProfile | null>(null);
   const [details, setDetails] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [marquee, setMarquee] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [saved, setSaved] = useState('');
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState({ x: 0, y: 0, z: 1 });
   const [ports, setPorts] = useState<Record<string, Pos>>({});
   const surface = useRef<HTMLDivElement>(null);
   const layer = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ node?: string; startPos: Pos; origin: Pos; panning?: boolean } | null>(null);
+  const drag = useRef<{ node?: string; startPos: Pos; origin: Pos; panning?: boolean; group?: Record<string, Pos>; marquee?: Pos } | null>(null);
   const nodeSizes = useRef<Record<string, { w: number; h: number }>>({});
+  /** The marquee as a normalised box, kept in a ref so the mouseup handler sees the latest one. */
+  const marqueeBox = useRef<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   // once the view has been moved by hand, resizing the window stops re-framing it
   const touched = useRef(false);
 
@@ -197,13 +201,37 @@ export function SmartGraphPage() {
   }, [nodes, view.z, sp]);
 
   // ---- dragging a node, panning the canvas --------------------------------------------------------
+  /** A mouse position in canvas coordinates, which is what node positions are in. */
+  const pointIn = (e: { clientX: number; clientY: number }): Pos | null => {
+    const base = layer.current?.getBoundingClientRect();
+    if (!base) return null;
+    return { x: (e.clientX - base.left) / view.z, y: (e.clientY - base.top) / view.z };
+  };
+
+  /** Where every node sits right now, so a group drag can move them all from where they started. */
+  const positionsOf = (ids: string[]) => Object.fromEntries(ids.map((id) => [id, nodes.find((n) => n.id === id)?.pos ?? { x: 0, y: 0 }]));
+
   const onNodeDown = (e: React.MouseEvent, nodeId: string, pos: Pos) => {
-    if (readOnly) return;
+    // shift + right on a node adds it to the selection, or takes it out again
+    if (e.button === 2 && e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      setSelected((list) => (list.includes(nodeId) ? list.filter((id) => id !== nodeId) : [...list, nodeId]));
+      return;
+    }
+    if (e.button !== 0 || readOnly) return;
     e.stopPropagation();
-    drag.current = { node: nodeId, startPos: pos, origin: { x: e.clientX, y: e.clientY } };
+    // dragging one of a selection takes the whole selection along; dragging anything else drops it
+    const group = selected.includes(nodeId) ? selected : [];
+    if (!group.length && selected.length) setSelected([]);
+    drag.current = { node: nodeId, startPos: pos, origin: { x: e.clientX, y: e.clientY }, group: group.length > 1 ? positionsOf(group) : undefined };
   };
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setDetails(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setDetails(false);
+      setSelected([]);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -214,20 +242,53 @@ export function SmartGraphPage() {
       const dx = (e.clientX - d.origin.x) / view.z;
       const dy = (e.clientY - d.origin.y) / view.z;
       if (d.panning) setView((v) => ({ ...v, x: d.startPos.x + dx * v.z, y: d.startPos.y + dy * v.z }));
-      else if (d.node) setSp((x) => (x ? { ...x, layout: { ...x.layout, [d.node!]: { x: snap(d.startPos.x + dx), y: snap(d.startPos.y + dy) } } } : x));
+      else if (d.marquee) {
+        const at = pointIn(e);
+        if (at) {
+          const box = { x1: Math.min(d.marquee.x, at.x), y1: Math.min(d.marquee.y, at.y), x2: Math.max(d.marquee.x, at.x), y2: Math.max(d.marquee.y, at.y) };
+          marqueeBox.current = box;
+          setMarquee(box);
+        }
+      } else if (d.group) {
+        // every node of the selection moves by the same amount, from where it was when the drag started
+        setSp((x) => (x ? { ...x, layout: { ...x.layout, ...Object.fromEntries(Object.entries(d.group!).map(([id, p]) => [id, { x: snap(p.x + dx), y: snap(p.y + dy) }])) } } : x));
+      } else if (d.node) setSp((x) => (x ? { ...x, layout: { ...x.layout, [d.node!]: { x: snap(d.startPos.x + dx), y: snap(d.startPos.y + dy) } } } : x));
     };
-    const up = () => (drag.current = null);
+    const up = () => {
+      // a marquee picks up everything it touched
+      if (drag.current?.marquee && marqueeBox.current) {
+        const box = marqueeBox.current;
+        const hit = nodes.filter((n) => {
+          const size = nodeSizes.current[n.id] ?? { w: 260, h: 150 };
+          return n.pos.x < box.x2 && n.pos.x + size.w > box.x1 && n.pos.y < box.y2 && n.pos.y + size.h > box.y1;
+        });
+        setSelected(hit.map((n) => n.id));
+      }
+      drag.current = null;
+      setMarquee(null);
+    };
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
     return () => {
       window.removeEventListener('mousemove', move);
       window.removeEventListener('mouseup', up);
     };
-  }, [view.z]);
+  }, [view.z, nodes]);
 
   const onSurfaceDown = (e: React.MouseEvent) => {
+    // shift + right drag draws a box over the canvas and takes everything it touches
+    if (e.button === 2 && e.shiftKey) {
+      const at = pointIn(e);
+      if (!at) return;
+      e.preventDefault();
+      marqueeBox.current = { x1: at.x, y1: at.y, x2: at.x, y2: at.y };
+      setMarquee(marqueeBox.current);
+      drag.current = { marquee: at, startPos: at, origin: { x: e.clientX, y: e.clientY } };
+      return;
+    }
     if (e.button !== 0) return;
     touched.current = true;
+    setSelected([]);
     drag.current = { panning: true, startPos: { x: view.x, y: view.y }, origin: { x: e.clientX, y: e.clientY } };
   };
   /** Zoom about the middle of the canvas, so the graph does not walk off the corner as it grows. */
@@ -349,6 +410,11 @@ export function SmartGraphPage() {
           Details
         </button>
         {readOnly && <span className="badge muted">Built-in · read-only</span>}
+        {selected.length > 0 && (
+          <button className="btn sm" onClick={() => setSelected([])} title="Drop the selection (Esc)">
+            {selected.length} selected
+          </button>
+        )}
         {dirty && !readOnly && <span className="badge amber">Unsaved</span>}
         <span className="spacer" />
         <div className="gZoom">
@@ -391,9 +457,13 @@ export function SmartGraphPage() {
         </div>
       )}
 
-      <div className="graphSurface" ref={surface} onMouseDown={onSurfaceDown} onWheel={onWheel} style={{ backgroundSize: `${22 * view.z}px ${22 * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` }}>
+      <div className="graphSurface" ref={surface} onMouseDown={onSurfaceDown} onWheel={onWheel} onContextMenu={(e) => e.shiftKey && e.preventDefault()} style={{ backgroundSize: `${22 * view.z}px ${22 * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` }}>
         <div className="graphLayer" ref={layer} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})` }}>
           <svg className="graphWires">{wires.map(wire)}</svg>
+
+          {marquee && (
+            <div className="gMarquee" style={{ left: marquee.x1, top: marquee.y1, width: marquee.x2 - marquee.x1, height: marquee.y2 - marquee.y1 }} />
+          )}
 
           {!sp.rules.length && (
             <div className="gEmpty" style={{ left: 250, top: 150 }}>
@@ -406,7 +476,14 @@ export function SmartGraphPage() {
           {nodes.map((n) => {
             const rule = n.ruleIndex !== undefined ? sp.rules[n.ruleIndex] : undefined;
             return (
-              <div key={n.id} data-node={n.id} className={`gNode ${n.kind}${rule?.enabled === false ? ' off' : ''}`} style={{ left: n.pos.x, top: n.pos.y }}>
+              <div
+                key={n.id}
+                data-node={n.id}
+                className={`gNode ${n.kind}${rule?.enabled === false ? ' off' : ''}${selected.includes(n.id) ? ' selected' : ''}`}
+                style={{ left: n.pos.x, top: n.pos.y }}
+                onMouseDown={(e) => e.button === 2 && e.shiftKey && onNodeDown(e, n.id, n.pos)}
+                onContextMenu={(e) => e.shiftKey && e.preventDefault()}
+              >
                 {/* ---- the entry pill ---- */}
                 {n.kind === 'start' && (
                   <div className="gStart" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
