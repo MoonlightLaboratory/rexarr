@@ -217,6 +217,8 @@ export interface SmartProfile {
   rules: SmartRule[];
   /** When none of them matched. */
   otherwise: SmartOutcome;
+  /** Where each node sits on the canvas, by node id. Missing ones are laid out automatically. */
+  layout?: Record<string, { x: number; y: number }>;
   createdAt: string;
   updatedAt: string;
 }

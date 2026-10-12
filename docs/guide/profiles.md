@@ -78,10 +78,24 @@ only answerable once the titles have been read off it.
 A smart profile can be chosen anywhere a profile can — the per-kind defaults in **Settings**, a rip's profile on
 the Discs page, auto transcode. The decision is made per file, so each episode of a series is judged on its own.
 
+### The canvas
+
+**Profiles → a smart profile → Edit** opens it as a graph, filling the window beside the sidebar. A *Branch* asks
+a question and has a **Yes** and a **No**; its **Condition** comes up from the nodes below it — a *Comparison*
+fed by a *Read from the file*, or a plain read for a yes/no question, gathered by an *All of* when a branch asks
+more than one thing. Yes goes to what that branch does; No falls through to the next question, and the last stop
+is *Anything else*.
+
+Everything is edited in the node itself. Drag nodes anywhere — where they sit is saved with the profile, **Tidy
+up** puts them back — drag the background to pan, scroll to zoom, **Fit** frames the lot. The wires are drawn
+from the chain rather than dragged by hand: the order of the questions is what a smart profile *is*, and the ↑ ↓
+on a branch's header changes it.
+
 ### Nodes
 
-A smart profile is a column of nodes, checked top to bottom. Each node asks something about the file; the first
-whose conditions **all** hold decides, and a node with no conditions never matches. What a node does when it wins:
+A smart profile is a chain of branches, checked top to bottom. Each one asks something about the file; the first
+whose conditions **all** hold decides, and a branch with no conditions never matches. What a branch does when it
+wins:
 
 - **a profile** — the file is encoded with it.
 - **Leave the file as it is** — no encode is queued at all. For a disc rip that means the remux MakeMKV produced
@@ -114,9 +128,9 @@ Both are read-only. Clone one to change it.
 
 ### Trying one out
 
-The editor has a **Try it** row: pick one of a handful of sample discs — UHD with TrueHD 7.1 Atmos, a DTS:X disc,
-a 5.1 Blu-ray, a stereo-only disc, a DVD, an episode — and the node that would win lights up as you edit. It runs
-the same code the server does.
+The canvas has a **Try it** panel: pick one of a handful of sample discs — UHD with TrueHD 7.1 Atmos, a DTS:X
+disc, a 5.1 Blu-ray, a stereo-only disc, a DVD, an episode — and the branch that would win lights up as you edit,
+along with what it would do. It runs the same code the server does.
 
 ## Command preview
 

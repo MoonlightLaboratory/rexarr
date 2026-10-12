@@ -8,7 +8,6 @@ import { useApp } from '../App';
 import { Page, ToolbarButton } from '../components/Layout';
 import { Icon } from '../components/Icons';
 import { Modal } from '../components/Modal';
-import { SmartProfileEditor } from '../components/SmartProfileEditor';
 
 /** fre:ac encoders offered for music profiles (all open source). */
 const MUSIC_FORMATS: { encoder: Profile['audio']['encoder']; container: Profile['container']; label: string; help: string }[] = [
@@ -522,13 +521,8 @@ function blankProfile(): Profile {
   };
 }
 
-function blankSmart(): SmartProfile {
-  return { id: '', name: '', description: '', builtin: false, mediaType: 'any', rules: [{ id: 'r1', when: [{ field: 'audio.objectBased', op: 'isTrue' }], then: { kind: 'keep' } }], otherwise: { kind: 'profile', profileId: 'builtin-remux-flac' }, createdAt: '', updatedAt: '' };
-}
-
 export function ProfilesPage() {
   const { profiles, smartProfiles, reloadSmartProfiles, reloadProfiles, toast } = useApp();
-  const [editingSmart, setEditingSmart] = useState<SmartProfile | null>(null);
   const { id } = useParams();
   const nav = useNavigate();
   const [caps, setCaps] = useState<FfmpegCapabilities | null>(null);
@@ -560,7 +554,7 @@ export function ProfilesPage() {
     try {
       const c = await api.cloneSmartProfile(sp.id);
       await reloadSmartProfiles();
-      setEditingSmart(c);
+      nav(`/profiles/smart/${c.id}`);
     } catch (e) {
       toast('error', (e as Error).message);
     }
@@ -605,7 +599,7 @@ export function ProfilesPage() {
       <div className="subhead row">
         <span>Smart profiles</span>
         <span className="spacer" />
-        <button className="btn sm" onClick={() => setEditingSmart(blankSmart())}>
+        <button className="btn sm" onClick={() => nav('/profiles/smart/new')}>
           <Icon.Plus /> New smart profile
         </button>
       </div>
@@ -651,9 +645,14 @@ export function ProfilesPage() {
               </div>
               <div className="modal-f" style={{ padding: '10px 14px', alignItems: 'center' }}>
                 {sp.builtin ? (
-                  <button className="btn sm" onClick={() => cloneSmart(sp)}>
-                    <Icon.Copy /> Clone &amp; edit
-                  </button>
+                  <>
+                    <button className="btn sm" onClick={() => nav(`/profiles/smart/${sp.id}`)}>
+                      <Icon.Search /> Open
+                    </button>
+                    <button className="btn sm" onClick={() => cloneSmart(sp)}>
+                      <Icon.Copy /> Clone &amp; edit
+                    </button>
+                  </>
                 ) : (
                   <>
                     <button className="iconButton danger" onClick={() => removeSmart(sp)} title="Delete">
@@ -662,7 +661,7 @@ export function ProfilesPage() {
                     <button className="iconButton" onClick={() => cloneSmart(sp)} title="Clone">
                       <Icon.Copy />
                     </button>
-                    <button className="btn sm primary" onClick={() => setEditingSmart(sp)}>
+                    <button className="btn sm primary" onClick={() => nav(`/profiles/smart/${sp.id}`)}>
                       Edit
                     </button>
                   </>
@@ -737,20 +736,6 @@ export function ProfilesPage() {
           );
         })}
       </div>
-      {editingSmart && (
-        <SmartProfileEditor
-          initial={editingSmart}
-          profiles={profiles}
-          onClose={() => setEditingSmart(null)}
-          onSaved={async (next) => {
-            if (next.id) await api.updateSmartProfile(next.id, next);
-            else await api.createSmartProfile(next);
-            await reloadSmartProfiles();
-            setEditingSmart(null);
-            toast('info', `Saved “${next.name}”`);
-          }}
-        />
-      )}
       {editing && (
         <ProfileEditor
           initial={editing}

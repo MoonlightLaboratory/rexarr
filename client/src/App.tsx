@@ -14,6 +14,7 @@ const ArtistPage = lazy(() => import('./pages/Music').then((m) => ({ default: m.
 const SearchPage = lazy(() => import('./pages/Search').then((m) => ({ default: m.SearchPage })));
 const ActivityPage = lazy(() => import('./pages/Activity').then((m) => ({ default: m.ActivityPage })));
 const ProfilesPage = lazy(() => import('./pages/Profiles').then((m) => ({ default: m.ProfilesPage })));
+const SmartGraphPage = lazy(() => import('./pages/SmartGraph').then((m) => ({ default: m.SmartGraphPage })));
 const SettingsPage = lazy(() => import('./pages/Settings').then((m) => ({ default: m.SettingsPage })));
 const SettingsGeneralPage = lazy(() => import('./pages/SettingsGeneral').then((m) => ({ default: m.SettingsGeneralPage })));
 const SystemPage = lazy(() => import('./pages/System').then((m) => ({ default: m.SystemPage })));
@@ -95,6 +96,7 @@ export default function App() {
             <Route path="/activity" element={<ActivityPage />} />
             <Route path="/discs" element={<DiscsPage />} />
             <Route path="/profiles" element={<ProfilesPage />} />
+            <Route path="/profiles/smart/:id" element={<SmartGraphPage />} />
             <Route path="/profiles/:id" element={<ProfilesPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/general" element={<SettingsGeneralPage />} />

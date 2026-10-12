@@ -1310,3 +1310,71 @@ table.metaTags td.mono { word-break: break-word; }
 .smartSummary-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .smartSummary-row > div { flex: 1; min-width: 0; }
 .smartSummary-n { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; border-radius: 3px; background: var(--themeLightColor); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* ---- smart profile canvas: the whole content area, sidebar aside ---- */
+.graphPage { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.graphBar { display: flex; align-items: center; gap: 9px; padding: 9px 14px; border-bottom: 1px solid var(--borderColor); background: var(--cardBackgroundColor); }
+.graphBar .spacer { flex: 1; }
+.graphName { width: 280px; max-width: 40vw; }
+
+.graphSurface {
+  position: relative; flex: 1; min-height: 0; overflow: hidden; cursor: grab;
+  background-color: var(--pageBackground);
+  background-image: radial-gradient(circle at 1px 1px, var(--borderColor) 1px, transparent 0);
+}
+.graphSurface:active { cursor: grabbing; }
+.graphLayer { position: absolute; inset: 0; transform-origin: 0 0; }
+.graphWires { position: absolute; left: -4000px; top: -4000px; width: 12000px; height: 12000px; overflow: visible; pointer-events: none; }
+.graphWires > path { transform: translate(4000px, 4000px); }
+.gWire { fill: none; stroke-width: 2; }
+.gWire.flow { stroke: var(--gray); opacity: 0.85; }
+.gWire.data { stroke: #d9a441; opacity: 0.85; }
+
+.gNode { position: absolute; width: 260px; border: 1px solid var(--borderColor); border-radius: 7px; background: var(--cardBackgroundColor); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); user-select: none; }
+.gNode.chosen { border-color: var(--successColor); box-shadow: 0 0 0 1px var(--successColor), 0 6px 18px rgba(0, 0, 0, 0.35); }
+.gNode.start { width: auto; border: 0; background: transparent; box-shadow: none; }
+.gStart { position: relative; padding: 9px 17px; border-radius: 999px; background: var(--themeLightColor); color: var(--textColor); cursor: grab; white-space: nowrap; }
+
+.gHead { display: flex; align-items: center; gap: 6px; padding: 8px 11px; border-bottom: 1px solid var(--borderColor); cursor: grab; font-size: 15px; }
+.gHead .spacer { flex: 1; }
+.gBody { display: flex; flex-direction: column; gap: 8px; padding: 10px 11px; }
+.gBody select, .gBody input { width: 100%; }
+.gLabel { color: var(--gray); font-size: var(--smallFontSize); }
+.gB { display: flex; align-items: center; gap: 7px; }
+.gB input { width: 80px; }
+.gUnit { color: var(--gray); font-size: var(--smallFontSize); }
+.gHelp { color: var(--gray); font-size: 11px; line-height: 1.35; }
+.gTag { padding: 1px 6px; border-radius: 3px; background: var(--themeLightColor); color: var(--gray); font-size: 11px; }
+.gTag.on { background: var(--successColor); color: var(--white); }
+.gIcon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 3px; background: transparent; color: var(--gray); cursor: pointer; }
+.gIcon:hover:not(:disabled) { background: var(--themeLightColor); color: var(--textColor); }
+.gIcon:disabled { opacity: 0.35; cursor: default; }
+.gIcon.danger:hover:not(:disabled) { color: var(--dangerColor, #d9534f); }
+.gIcon svg { width: 13px; height: 13px; }
+
+/* a branch's Yes / No rows, each with its own way out */
+.gBranchRows { display: flex; flex-direction: column; }
+.gRow { position: relative; padding: 9px 13px; text-align: right; font-size: var(--smallFontSize); }
+.gRow + .gRow { border-top: 1px solid var(--borderColor); }
+.gInputs { display: flex; justify-content: space-around; }
+
+/* ports: a dot on the edge of a node, with its name alongside */
+.gPort { position: absolute; width: 11px; height: 11px; border: 2px solid var(--pageBackground); border-radius: 50%; background: var(--gray); }
+.gPort.flow { background: #cfcfcf; }
+.gPort.data { background: #d9a441; }
+.gPort.value { background: #4caf7d; }
+.gPort.left { left: -6px; top: 15px; }
+.gPort.right { right: -6px; top: 50%; margin-top: -5px; }
+.gPort.top { top: -6px; left: 50%; margin-left: -5px; }
+.gPort.bottom { bottom: -6px; left: 50%; margin-left: -5px; }
+.gRow .gPort.right { top: 50%; }
+.gInputs .gPort.bottom { position: relative; bottom: -6px; left: 0; margin: 0 6px; }
+.gPortLabel { position: absolute; left: 50%; transform: translateX(-50%); color: #d9a441; font-size: 10px; white-space: nowrap; }
+.gPort.top .gPortLabel { bottom: 13px; }
+.gPort.bottom .gPortLabel { top: 13px; }
+.gPort.value .gPortLabel { color: #4caf7d; }
+
+/* the sample-disc panel, pinned over the canvas */
+.graphTry { position: absolute; right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 7px; width: 280px; padding: 11px; border: 1px solid var(--borderColor); border-radius: 7px; background: var(--cardBackgroundColor); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+.graphTry .inline { align-items: center; }
+.graphTryShow { position: absolute; right: 14px; bottom: 14px; }

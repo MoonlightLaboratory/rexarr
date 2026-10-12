@@ -110,6 +110,7 @@ const smartProfileSchema = z.object({
     .max(20)
     .default([]),
   otherwise: smartOutcomeSchema,
+  layout: z.record(z.string().max(80), z.object({ x: z.number(), y: z.number() })).optional(),
 });
 
 export default async function profileRoutes(app: FastifyInstance) {
