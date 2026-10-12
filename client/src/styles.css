@@ -1374,18 +1374,23 @@ table.metaTags td.mono { word-break: break-word; }
 /* a Start from / Set node is a short list of settings */
 .gAssigns { display: flex; flex-direction: column; gap: 6px; }
 .gAssign { display: flex; align-items: center; gap: 5px; }
-.gAssign > select:first-child { flex: 1 1 auto; min-width: 0; }
-.gAssign > select + select, .gAssign > input { flex: 0 0 96px; width: 96px; }
-.gNode.set, .gNode.base { width: 300px; }
+.gAssign > select:first-child { flex: 1 1 54%; min-width: 0; }
+.gAssign > select + select, .gAssign > input { flex: 1 1 46%; width: auto; min-width: 0; }
+.gNode.set, .gNode.base { width: 320px; }
 .gNode.result { width: 280px; }
 .gNode.set .gHead { border-top-color: #4caf7d; }
 .gNode.base .gHead { border-top-color: var(--gray); }
 .gNode.result .gHead { border-top-color: var(--successColor); }
 
 /* what a file that matches no branch is encoded with */
-.gResultRows { display: flex; flex-direction: column; gap: 4px; font-size: var(--smallFontSize); }
-.gResultRow { display: flex; align-items: baseline; gap: 6px; color: var(--gray); }
+.gResultRows { display: flex; flex-direction: column; gap: 7px; font-size: var(--smallFontSize); }
+.gResultRow { display: flex; align-items: baseline; gap: 10px; color: var(--gray); }
 .gResultRow .spacer { flex: 1; }
+.gResultValue { flex: 0 1 auto; min-width: 0; color: var(--textColor); text-align: right; }
+/* a branch's name beside what the node is, so several Set nodes are telling apart */
+.gSub { overflow: hidden; color: var(--gray); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+/* help is a glance, not a paragraph: the rest is in the tooltip */
+.gHelp { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 
 /* a branch can be named, switched off, and ask for any of its conditions rather than all */
 .gName { flex: 1 1 auto; min-width: 0; padding: 2px 6px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--textColor); font-size: 14px; }

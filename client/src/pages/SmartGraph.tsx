@@ -38,27 +38,27 @@ const condNodeId = (ruleId: string, i: number, kind: 'compare' | 'read') => `${k
 
 /** Where nodes go when nothing has been dragged: the chain down the left, what each branch does to its right. */
 function autoLayout(sp: SmartProfile): Record<string, Pos> {
-  const out: Record<string, Pos> = { start: { x: 30, y: 180 }, base: { x: 210, y: 140 } };
-  let y = 150;
+  const out: Record<string, Pos> = { start: { x: 20, y: 170 }, base: { x: 170, y: 130 } };
+  let y = 140;
   sp.rules.forEach((rule, i) => {
     const branchId = `rule:${rule.id}`;
-    out[branchId] = { x: 530, y };
-    out[`set:${rule.id}`] = { x: 840, y: y - 30 };
+    out[branchId] = { x: 500, y };
+    out[`set:${rule.id}`] = { x: 760, y: y - 20 };
     const many = rule.when.length > 1;
-    if (many) out[`all:${rule.id}`] = { x: 530, y: y + 200 };
-    const base = many ? y + 330 : y + 210;
+    if (many) out[`all:${rule.id}`] = { x: 500, y: y + 185 };
+    const base = many ? y + 305 : y + 195;
     let anyCompare = false;
     rule.when.forEach((c, ci) => {
       const kind = fieldInfo(c.field)?.kind === 'boolean' ? 'read' : 'compare';
-      out[condNodeId(rule.id, ci, kind)] = { x: 490 + ci * 300, y: base };
+      out[condNodeId(rule.id, ci, kind)] = { x: 510 + ci * 290, y: base };
       if (kind === 'compare') {
-        out[`read:${rule.id}:${ci}`] = { x: 490 + ci * 300, y: base + 210 };
+        out[`read:${rule.id}:${ci}`] = { x: 510 + ci * 290, y: base + 185 };
         anyCompare = true;
       }
     });
-    y = base + (anyCompare ? 210 + 170 : 170) + 70;
+    y = base + (anyCompare ? 185 + 150 : 150) + 50;
   });
-  out['result'] = { x: 840, y };
+  out['result'] = { x: 760, y };
   return out;
 }
 
@@ -230,6 +230,18 @@ export function SmartGraphPage() {
     touched.current = true;
     drag.current = { panning: true, startPos: { x: view.x, y: view.y }, origin: { x: e.clientX, y: e.clientY } };
   };
+  /** Zoom about the middle of the canvas, so the graph does not walk off the corner as it grows. */
+  const zoomBy = (by: number) => {
+    touched.current = true;
+    const rect = surface.current?.getBoundingClientRect();
+    const mx = (rect?.width ?? 0) / 2;
+    const my = (rect?.height ?? 0) / 2;
+    setView((v) => {
+      const z = Math.min(2, Math.max(0.3, v.z * by));
+      return { z, x: mx - ((mx - v.x) / v.z) * z, y: my - ((my - v.y) / v.z) * z };
+    });
+  };
+
   const onWheel = (e: React.WheelEvent) => {
     touched.current = true;
     const rect = surface.current!.getBoundingClientRect();
@@ -340,13 +352,13 @@ export function SmartGraphPage() {
         {dirty && !readOnly && <span className="badge amber">Unsaved</span>}
         <span className="spacer" />
         <div className="gZoom">
-          <button className="gIcon" onClick={() => setView((v) => ({ ...v, z: Math.max(0.3, v.z / 1.15) }))} title="Zoom out">
+          <button className="gIcon" onClick={() => zoomBy(1 / 1.15)} title="Zoom out">
             –
           </button>
           <button className="gIcon wide" onClick={fit} title="Fit the whole graph">
             {Math.round(view.z * 100)}%
           </button>
-          <button className="gIcon" onClick={() => setView((v) => ({ ...v, z: Math.min(2, v.z * 1.15) }))} title="Zoom in">
+          <button className="gIcon" onClick={() => zoomBy(1.15)} title="Zoom in">
             +
           </button>
         </div>
@@ -480,7 +492,7 @@ export function SmartGraphPage() {
                       </button>
                     </div>
                     <div className="gBody">
-                      <label className="gLabel">Operation</label>
+                      {fieldInfo(rule.when[n.condIndex].field)?.kind === 'number' && <label className="gLabel">Operation</label>}
                       <select value={rule.when[n.condIndex].op} disabled={readOnly} onChange={(e) => setCond(n.ruleIndex!, n.condIndex!, { ...rule.when[n.condIndex!], op: e.target.value as SmartCondition['op'] })}>
                         {operatorsFor(fieldInfo(rule.when[n.condIndex].field)?.kind ?? 'number').map((op) => (
                           <option key={op} value={op}>
@@ -551,7 +563,11 @@ export function SmartGraphPage() {
                           <option value="isFalse">no</option>
                         </select>
                       )}
-                      <div className="gHelp">{fieldInfo(rule.when[n.condIndex].field)?.help}</div>
+                      {fieldInfo(rule.when[n.condIndex].field)?.help && (
+                        <div className="gHelp" title={fieldInfo(rule.when[n.condIndex].field)!.help}>
+                          {fieldInfo(rule.when[n.condIndex].field)!.help}
+                        </div>
+                      )}
                     </div>
                     <Port id={`${n.id}:out`} side="top" tone="data" />
                   </>
@@ -586,6 +602,7 @@ export function SmartGraphPage() {
                   <>
                     <div className="gHead" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
                       <span>Set</span>
+                      <span className="gSub">{rule.label || `branch ${n.ruleIndex! + 1}`}</span>
                     </div>
                     <div className="gBody">
                       <Assignments list={rule.set} readOnly={readOnly} onChange={(set) => setRule(n.ruleIndex!, { ...rule, set })} />
@@ -602,11 +619,11 @@ export function SmartGraphPage() {
                     </div>
                     <div className="gBody">
                       <div className="gResultRows">
-                        {RESULT_ROWS.map(({ path, show }) => (
-                          <div key={path} className="gResultRow">
-                            <span className="gLabel">{settingInfo(path)?.label ?? path}</span>
+                        {summarise(baseline).map(({ label, value }) => (
+                          <div key={label} className="gResultRow">
+                            <span className="gLabel">{label}</span>
                             <span className="spacer" />
-                            <span>{show(baseline)}</span>
+                            <span className="gResultValue">{value}</span>
                           </div>
                         ))}
                       </div>
@@ -704,14 +721,27 @@ function defaultValue(path: SmartSettingPath): string | number | boolean | strin
   return info?.options?.[0]?.value ?? '';
 }
 
-/** What the result node lists, in the order someone reads a profile. */
-const RESULT_ROWS: { path: SmartSettingPath; show: (p: Profile) => string }[] = [
-  { path: 'container', show: (p) => p.container.toUpperCase() },
-  { path: 'video.encoder', show: (p) => VIDEO_ENCODER_INFO[p.video.encoder]?.label.split(' (')[0] ?? p.video.encoder },
-  { path: 'video.quality', show: (p) => (p.video.encoder === 'copy' ? '—' : String(p.video.quality)) },
-  { path: 'video.tune', show: (p) => p.video.tune },
-  { path: 'video.maxHeight', show: (p) => (p.video.maxHeight ? `${p.video.maxHeight}p` : 'source') },
-  { path: 'audio.encoder', show: (p) => AUDIO_ENCODER_INFO[p.audio.encoder]?.label.split(' (')[0] ?? p.audio.encoder },
-  { path: 'audio.channels', show: (p) => (p.audio.channels ? `${p.audio.channels}ch` : 'source layout') },
-  { path: 'subtitles.mode', show: (p) => p.subtitles.mode },
-];
+/** The encode in four lines, the way someone would say it out loud. */
+function summarise(p: Profile): { label: string; value: string }[] {
+  const v = p.video;
+  const a = p.audio;
+  const video =
+    v.encoder === 'copy'
+      ? 'copied, as it is'
+      : [VIDEO_ENCODER_INFO[v.encoder]?.label.split(' (')[0] ?? v.encoder, `CRF ${v.quality}`, v.preset, v.tune !== 'none' ? `tune ${v.tune}` : '', v.maxHeight ? `≤${v.maxHeight}p` : '']
+          .filter(Boolean)
+          .join(' · ');
+  const audio =
+    a.encoder === 'copy'
+      ? 'copied, as it is'
+      : [AUDIO_ENCODER_INFO[a.encoder]?.label.split(' (')[0] ?? a.encoder, a.bitrate && !AUDIO_ENCODER_INFO[a.encoder]?.lossless ? `${a.bitrate}k` : '', a.channels ? `${a.channels}ch` : 'source layout']
+          .filter(Boolean)
+          .join(' · ');
+  const subs = { copy: 'copied', 'copy-text': 'text only', burn: 'burned in', none: 'dropped' }[p.subtitles.mode] ?? p.subtitles.mode;
+  return [
+    { label: 'Video', value: video },
+    { label: 'Audio', value: audio },
+    { label: 'Subtitles', value: subs },
+    { label: 'Container', value: p.container.toUpperCase() },
+  ];
+}

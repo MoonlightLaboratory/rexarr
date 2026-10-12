@@ -379,8 +379,11 @@ export interface SmartSettingInfo {
   unit?: string;
 }
 
+/** "HEVC (libx265)" is a fine name in a form and too long for a node: the bracket is the detail, not the name. */
+const shortLabel = (label: string) => label.split(' (')[0];
+
 export const SMART_SETTINGS: SmartSettingInfo[] = [
-  { path: 'video.encoder', label: 'Video encoder', kind: 'select', options: Object.entries(VIDEO_ENCODER_INFO).map(([value, v]) => ({ value, label: v.label })) },
+  { path: 'video.encoder', label: 'Video encoder', kind: 'select', options: Object.entries(VIDEO_ENCODER_INFO).map(([value, v]) => ({ value, label: shortLabel(v.label) })) },
   { path: 'video.quality', label: 'Video quality (CRF)', kind: 'number', min: 0, max: 63 },
   { path: 'video.preset', label: 'Video preset', kind: 'select', options: [...new Set(Object.values(VIDEO_ENCODER_INFO).flatMap((v) => v.presets))].map((value) => ({ value, label: value })) },
   { path: 'video.tune', label: 'Video tune', kind: 'select', options: ['none', 'animation', 'film', 'grain', 'fastdecode', 'zerolatency'].map((value) => ({ value, label: value })) },
@@ -393,7 +396,7 @@ export const SMART_SETTINGS: SmartSettingInfo[] = [
     { value: 'software', label: 'Always on the CPU' },
   ] },
   { path: 'video.extraArgs', label: 'Extra ffmpeg arguments', kind: 'text' },
-  { path: 'audio.encoder', label: 'Audio encoder', kind: 'select', options: Object.entries(AUDIO_ENCODER_INFO).map(([value, v]) => ({ value, label: v.label })) },
+  { path: 'audio.encoder', label: 'Audio encoder', kind: 'select', options: Object.entries(AUDIO_ENCODER_INFO).map(([value, v]) => ({ value, label: shortLabel(v.label) })) },
   { path: 'audio.bitrate', label: 'Audio bitrate', kind: 'number', min: 0, max: 3000, unit: 'kbps' },
   { path: 'audio.channels', label: 'Audio channels', kind: 'select', options: [
     { value: '0', label: 'Keep the source layout' },
@@ -414,7 +417,7 @@ export const SMART_SETTINGS: SmartSettingInfo[] = [
   { path: 'subtitles.burnLanguage', label: 'Burn in which language', kind: 'select', options: [{ value: '', label: 'The first subtitle track' }, ...LANGS] },
   { path: 'subtitles.burnForcedOnly', label: 'Burn forced subtitles only', kind: 'boolean' },
   { path: 'subtitles.keepFonts', label: 'Keep font attachments', kind: 'boolean' },
-  { path: 'container', label: 'Container', kind: 'select', options: Object.entries(CONTAINER_INFO).filter(([, v]) => !v.music).map(([value, v]) => ({ value, label: v.label })) },
+  { path: 'container', label: 'Container', kind: 'select', options: Object.entries(CONTAINER_INFO).filter(([, v]) => !v.music).map(([value, v]) => ({ value, label: shortLabel(v.label) })) },
   { path: 'output.suffix', label: 'File name suffix', kind: 'text' },
   { path: 'output.directory', label: 'Output folder', kind: 'text' },
   { path: 'output.replaceOriginal', label: 'Replace the original', kind: 'boolean' },
