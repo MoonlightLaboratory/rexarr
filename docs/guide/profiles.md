@@ -110,10 +110,10 @@ when it is zoomed out. Drag nodes anywhere — where they sit is saved with the 
 back — drag the background to pan, scroll or use the zoom control to resize, and the percentage button frames the
 lot.
 
-**Hold shift and drag with the right mouse button** to draw a box over the canvas: every node it touches is
-selected, and dragging any one of them moves the whole group. Shift and right-click a node on its own to add it
-to the selection or take it out again. A left-click on the background, or <kbd>Esc</kbd>, drops the selection;
-the bar says how many are held. **Details** holds the description and what the profile is for. Edits are kept until you press **Save**; an
+**Hold shift and drag** to draw a box over the canvas: every node it touches is selected, and dragging any one
+of them moves the whole group. Shift-click a node on its own to add it to the selection or take it out again. A
+click on the background, or <kbd>Esc</kbd>, drops the selection; the bar says how many are held. Dragging the
+background without shift pans, as before. **Details** holds the description and what the profile is for. Edits are kept until you press **Save**; an
 *Unsaved* mark appears in the bar and leaving the page asks first.
 
 The wires are drawn from the chain rather than dragged by hand: the order of the branches is what a smart profile

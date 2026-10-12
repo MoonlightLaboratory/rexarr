@@ -212,8 +212,8 @@ export function SmartGraphPage() {
   const positionsOf = (ids: string[]) => Object.fromEntries(ids.map((id) => [id, nodes.find((n) => n.id === id)?.pos ?? { x: 0, y: 0 }]));
 
   const onNodeDown = (e: React.MouseEvent, nodeId: string, pos: Pos) => {
-    // shift + right on a node adds it to the selection, or takes it out again
-    if (e.button === 2 && e.shiftKey) {
+    // shift + click on a node adds it to the selection, or takes it out again
+    if (e.button === 0 && e.shiftKey) {
       e.preventDefault();
       e.stopPropagation();
       setSelected((list) => (list.includes(nodeId) ? list.filter((id) => id !== nodeId) : [...list, nodeId]));
@@ -276,8 +276,8 @@ export function SmartGraphPage() {
   }, [view.z, nodes]);
 
   const onSurfaceDown = (e: React.MouseEvent) => {
-    // shift + right drag draws a box over the canvas and takes everything it touches
-    if (e.button === 2 && e.shiftKey) {
+    // shift + drag draws a box over the canvas and takes everything it touches; without shift it pans
+    if (e.button === 0 && e.shiftKey) {
       const at = pointIn(e);
       if (!at) return;
       e.preventDefault();
@@ -457,7 +457,7 @@ export function SmartGraphPage() {
         </div>
       )}
 
-      <div className="graphSurface" ref={surface} onMouseDown={onSurfaceDown} onWheel={onWheel} onContextMenu={(e) => e.shiftKey && e.preventDefault()} style={{ backgroundSize: `${22 * view.z}px ${22 * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` }}>
+      <div className="graphSurface" ref={surface} onMouseDown={onSurfaceDown} onWheel={onWheel} style={{ backgroundSize: `${22 * view.z}px ${22 * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` }}>
         <div className="graphLayer" ref={layer} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})` }}>
           <svg className="graphWires">{wires.map(wire)}</svg>
 
@@ -481,8 +481,7 @@ export function SmartGraphPage() {
                 data-node={n.id}
                 className={`gNode ${n.kind}${rule?.enabled === false ? ' off' : ''}${selected.includes(n.id) ? ' selected' : ''}`}
                 style={{ left: n.pos.x, top: n.pos.y }}
-                onMouseDown={(e) => e.button === 2 && e.shiftKey && onNodeDown(e, n.id, n.pos)}
-                onContextMenu={(e) => e.shiftKey && e.preventDefault()}
+                onMouseDown={(e) => e.button === 0 && e.shiftKey && onNodeDown(e, n.id, n.pos)}
               >
                 {/* ---- the entry pill ---- */}
                 {n.kind === 'start' && (
