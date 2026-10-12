@@ -127,8 +127,9 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
   else {
     const missing = store.profiles.filter((p) => p.video.encoder !== 'copy' && !ff.videoEncoders.includes(p.video.encoder) && !p.builtin);
     if (missing.length) out.push({ type: 'warning', source: 'FFmpeg', message: `Profile${missing.length > 1 ? 's' : ''} ${missing.map((p) => `"${p.name}"`).join(', ')} use${missing.length > 1 ? '' : 's'} an encoder this ffmpeg build does not have.`, link: '/profiles' });
+    // a smart profile has no encoder of its own; the profiles it points at are checked above
     const defaults = Object.entries(s.defaultProfiles)
-      .map(([k, id]) => [k, store.getProfile(id)] as const)
+      .map(([k, id]) => [k, store.anyProfile(id)?.profile] as const)
       .filter(([, p]) => p && p.video.encoder !== 'copy' && !ff.videoEncoders.includes(p.video.encoder));
     if (defaults.length) out.push({ type: 'warning', source: 'FFmpeg', message: `Default ${defaults.map(([k]) => k).join(' / ')} profile needs an encoder (${defaults.map(([, p]) => p!.video.encoder).join(', ')}) that is not available in this ffmpeg.`, link: '/settings' });
   }

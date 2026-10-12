@@ -205,7 +205,7 @@ export class DiscManager {
   createRip(drive: DiscDrive, preset?: RipPreset): DiscRip {
     const s = store.settings.disc;
     const guess = labelToTitle(drive.discLabel ?? '');
-    const profile = preset?.profileId ? store.getProfile(preset.profileId) : undefined;
+    const profile = preset?.profileId ? store.anyProfile(preset.profileId) : undefined;
     const rip: DiscRip = {
       id: randomUUID(),
       driveIndex: drive.index,
@@ -725,7 +725,7 @@ export class DiscManager {
     }
     const mt = rip.media.kind === 'series' ? (rip.media.seriesType === 'anime' ? 'anime' : 'tv') : 'movie';
     // A profile picked when the release was grabbed wins over the defaults.
-    const p = (rip.profileId && store.getProfile(rip.profileId)) || store.getProfile(store.settings.defaultProfiles[mt]);
+    const p = (rip.profileId && store.anyProfile(rip.profileId)) || store.anyProfile(store.settings.defaultProfiles[mt]);
     if (p) {
       rip.profileId = p.id;
       rip.profileName = p.name;
@@ -767,7 +767,7 @@ export class DiscManager {
       rip.audioMode = 'custom';
     }
     if (patch.profileId) {
-      const p = store.getProfile(patch.profileId);
+      const p = store.anyProfile(patch.profileId);
       if (!p) throw new Error('profile not found');
       rip.profileId = p.id;
       rip.profileName = p.name;
@@ -941,8 +941,9 @@ export class DiscManager {
     if (job.status === 'failed') return this.fail(rip, `Transcode failed: ${job.error ?? 'unknown error'}`);
     if (job.status === 'cancelled') return this.fail(rip, 'Transcode cancelled');
     if (job.status !== 'done' || file.finalPath) return;
+    // no output path means nothing was encoded – a smart profile decided to keep the rip as it is
     file.finalPath = job.outputPath ?? file.path;
-    this.log(rip, `Transcode finished: ${path.basename(file.finalPath)}`);
+    this.log(rip, job.outputPath ? `Transcode finished: ${path.basename(file.finalPath)}` : `Kept as ripped: ${path.basename(file.finalPath)}`);
     if (!rip.options.keepRaw && file.finalPath !== file.path && fs.existsSync(file.path)) {
       try {
         fs.unlinkSync(file.path);

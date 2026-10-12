@@ -163,7 +163,7 @@ export default async function searchRoutes(app: FastifyInstance) {
     if (!body.success) return reply.code(400).send({ error: body.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') });
     const d = body.data;
     // Check the profile before anything reaches the download client.
-    if (d.createJob && d.release.source !== 'prowlarr' && !store.getProfile(d.profileId)) return reply.code(400).send({ error: `Profile ${d.profileId} not found` });
+    if (d.createJob && d.release.source !== 'prowlarr' && !store.anyProfile(d.profileId)) return reply.code(400).send({ error: `Profile ${d.profileId} not found` });
     const { radarr, sonarr, prowlarr, lidarr, slskd } = arr();
     if (d.release.source === 'lidarr' || d.release.source === 'soulseek') {
       const music = d.release.music;
@@ -194,6 +194,7 @@ export default async function searchRoutes(app: FastifyInstance) {
           soulseek: d.release.source === 'soulseek' && music?.username ? { username: music.username, directory: music.directory ?? '', files: (music.files ?? []).map((f) => ({ filename: f.filename, size: f.size })) } : undefined,
         },
       });
+      // a smart profile has not decided yet, so this is treated as an encode
       const keep = store.getProfile(d.profileId)?.audio.encoder === 'copy';
       return {
         grabbed: true,

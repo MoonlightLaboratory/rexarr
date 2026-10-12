@@ -1,7 +1,7 @@
 import { URL_BASE } from './base';
 import { createContext, lazy, Suspense, useContext, useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import type { DiscDrive, DiscRip, HealthCheck, Job, Profile, Settings } from '@shared/types';
+import type { DiscDrive, DiscRip, HealthCheck, Job, Profile, Settings, SmartProfile } from '@shared/types';
 import { api } from './api';
 import { useJobs, type Toast } from './hooks/useEvents';
 import { Layout } from './components/Layout';
@@ -34,6 +34,8 @@ export interface AppState {
   /** Activity → Pause: nothing new starts. */
   queuePaused: boolean;
   profiles: Profile[];
+  smartProfiles: SmartProfile[];
+  reloadSmartProfiles: () => Promise<void>;
   settings: Settings | null;
   health: HealthCheck[];
   /** False until the first health check has answered (it can take a few seconds on slow shares). */
@@ -50,6 +52,7 @@ export const useApp = () => useContext(Ctx);
 export default function App() {
   const { jobs, rips, drives, connected, queuePaused, toasts, toast, toastControls } = useJobs();
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [smartProfiles, setSmartProfiles] = useState<SmartProfile[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [health, setHealth] = useState<HealthCheck[]>([]);
   const [healthLoaded, setHealthLoaded] = useState(false);
@@ -59,10 +62,12 @@ export default function App() {
   };
 
   const reloadProfiles = async () => setProfiles(await api.profiles());
+  const reloadSmartProfiles = async () => setSmartProfiles(await api.smartProfiles());
   const reloadSettings = async () => setSettings(await api.settings());
 
   useEffect(() => {
     reloadProfiles().catch((e) => toast('error', `Could not load profiles: ${e.message}`));
+    reloadSmartProfiles().catch(() => {});
     reloadSettings().catch((e) => toast('error', `Could not load settings: ${e.message}`));
     reloadHealth().catch(() => {});
     api.discStatus().catch(() => {}); // pushes a 'drives' event so the sidebar knows the drive state
@@ -72,7 +77,7 @@ export default function App() {
   }, []);
 
   return (
-    <Ctx.Provider value={{ jobs, rips, drives, queuePaused, profiles, settings, health, healthLoaded, reloadHealth, reloadProfiles, reloadSettings, toast }}>
+    <Ctx.Provider value={{ jobs, rips, drives, queuePaused, profiles, smartProfiles, reloadSmartProfiles, settings, health, healthLoaded, reloadHealth, reloadProfiles, reloadSettings, toast }}>
       <BrowserRouter basename={URL_BASE || undefined}>
         <Layout jobs={jobs} rips={rips} drives={drives} health={health} connected={connected} toasts={toasts} toastControls={toastControls}>
           <Suspense fallback={<div className="pageToolbar" />}>

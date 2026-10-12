@@ -63,9 +63,60 @@ and *Keep MQA intact* — see [Music](music.md).
 | Fast · HEVC VideoToolbox | Music · Ogg Vorbis q6 |
 | Fast · HEVC NVENC | |
 | Remux · Keep video, Opus audio | |
+| Remux · Keep video, FLAC audio | |
 
 Only open-source audio encoders are offered (no FDK-AAC, no Apple / Nero AAC); old profiles that used `libfdk_aac`
 fall back to FFmpeg's native AAC with a warning.
+
+## Smart profiles
+
+A profile says what to do. A **smart profile** says how to decide — it encodes nothing itself, it looks at what a
+file turned out to contain and picks one of the profiles above. That matters because the thing you most want to
+decide on is not knowable in advance: whether a disc's audio carries Atmos or DTS:X, or anything beyond stereo, is
+only answerable once the titles have been read off it.
+
+A smart profile can be chosen anywhere a profile can — the per-kind defaults in **Settings**, a rip's profile on
+the Discs page, auto transcode. The decision is made per file, so each episode of a series is judged on its own.
+
+### Nodes
+
+A smart profile is a column of nodes, checked top to bottom. Each node asks something about the file; the first
+whose conditions **all** hold decides, and a node with no conditions never matches. What a node does when it wins:
+
+- **a profile** — the file is encoded with it.
+- **Leave the file as it is** — no encode is queued at all. For a disc rip that means the remux MakeMKV produced
+  is delivered unchanged; for auto transcode the file is left alone and the job finishes as done.
+
+A last node, *Anything else*, catches what nothing else did.
+
+### What a node can ask about
+
+| | |
+| --- | --- |
+| Audio | channels (the widest track in the file), codec, object audio (Atmos / DTS:X), whether anything lossless is present |
+| Video | height, codec, HDR, Dolby Vision |
+| Source | running time, file size, bitrate |
+
+**Object audio** is read from the stream profile FFmpeg reports — `Dolby TrueHD + Dolby Atmos`,
+`Dolby Digital Plus + Dolby Atmos`, `DTS-HD MA + DTS:X`, `DTS-HD MA + DTS:X IMAX`. Nothing else in the file says
+so: a 7.1 TrueHD track is not necessarily Atmos, and no channel count settles it. An FFmpeg too old to name it
+never reports it, in which case the condition is simply never true — **System → Status** shows the version. Every
+decision writes the profiles it saw into the job log, so you can tell the two apart.
+
+### The two that ship with it
+
+- **Smart · FLAC for stereo, keep surround** — a lossless stereo track is TrueHD or DTS-HD MA for no good reason,
+  and FLAC holds the same samples in less space. Anything wider is left exactly as it is.
+- **Smart · Keep Atmos and DTS:X, FLAC the rest** — object audio cannot survive being re-encoded, so those discs
+  are kept; everything else goes to FLAC at its own channel layout, which is lossless and smaller.
+
+Both are read-only. Clone one to change it.
+
+### Trying one out
+
+The editor has a **Try it** row: pick one of a handful of sample discs — UHD with TrueHD 7.1 Atmos, a DTS:X disc,
+a 5.1 Blu-ray, a stereo-only disc, a DVD, an episode — and the node that would win lights up as you edit. It runs
+the same code the server does.
 
 ## Command preview
 

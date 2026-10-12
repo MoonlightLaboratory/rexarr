@@ -479,7 +479,7 @@ function CdBody({ rip, busy, act }: { rip: DiscRip; busy: boolean; act: (fn: () 
 }
 
 function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) {
-  const { profiles, settings, toast } = useApp();
+  const { profiles, smartProfiles, settings, toast } = useApp();
   const [media, setMedia] = useState<RipMedia>(rip.media);
   const [selected, setSelected] = useState<number[]>(rip.selectedTitleIds);
   const [profileId, setProfileId] = useState(rip.profileId ?? '');
@@ -786,7 +786,7 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
           )}
           <div className="inline mt" style={{ gap: 14 }}>
             <div style={{ width: 280 }}>
-              <ProfileSelect profiles={profiles} value={profileId} onChange={setProfileId} mediaType={mediaType} />
+              <ProfileSelect profiles={profiles} smart={smartProfiles} value={profileId} onChange={setProfileId} mediaType={mediaType} />
             </div>
             <label className="check">
               <input type="checkbox" checked={options.transcode} onChange={(e) => setOptions({ ...options, transcode: e.target.checked })} /> Transcode

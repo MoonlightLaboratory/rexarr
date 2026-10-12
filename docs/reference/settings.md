@@ -89,7 +89,8 @@ an encode or a rip.
 **Transcoding** — hardware acceleration method, device, hardware decoding, fall back to software, and the *Test*
 button. See [Transcoding](../guide/transcoding.md).
 
-**Defaults** — default profile per media type (`defaultProfiles.movie` / `.tv` / `.anime` / `.music`) and what
+**Defaults** — default profile per media type (`defaultProfiles.movie` / `.tv` / `.anime` / `.music`), which may
+be a [smart profile](../guide/profiles.md#smart-profiles) that decides per file, and what
 search shows (`remuxOnly`, `searchDiscReleases`).
 
 ## Automation

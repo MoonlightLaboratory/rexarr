@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import { z } from 'zod';
-import type { Profile } from '../../../shared/types.js';
+import type { Profile, SmartProfile } from '../../../shared/types.js';
 import { store } from '../store.js';
 import { buildFfmpegArgs, outputPathFor } from '../ffmpeg/args.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
@@ -94,8 +94,69 @@ function quote(a: string) {
   return /[\s"'$`\\]/.test(a) ? `'${a.replace(/'/g, `'\\''`)}'` : a;
 }
 
+const smartConditionSchema = z.object({
+  field: z.enum(['audio.maxChannels', 'audio.codecs', 'audio.objectBased', 'audio.lossless', 'video.height', 'video.codec', 'video.hdr', 'video.dolbyVision', 'source.durationMinutes', 'source.sizeGB', 'source.bitrateMbps']),
+  op: z.enum(['atLeast', 'atMost', 'equals', 'anyOf', 'noneOf', 'isTrue', 'isFalse']),
+  number: z.number().optional(),
+  list: z.array(z.string().max(40)).max(20).optional(),
+});
+const smartOutcomeSchema = z.union([z.object({ kind: z.literal('profile'), profileId: z.string().min(1) }), z.object({ kind: z.literal('keep') })]);
+const smartProfileSchema = z.object({
+  name: z.string().min(1).max(80),
+  description: z.string().max(500).default(''),
+  mediaType: z.enum(['any', 'movie', 'tv', 'anime']).default('any'),
+  rules: z
+    .array(z.object({ id: z.string().min(1).max(60), when: z.array(smartConditionSchema).max(8), then: smartOutcomeSchema }))
+    .max(20)
+    .default([]),
+  otherwise: smartOutcomeSchema,
+});
+
 export default async function profileRoutes(app: FastifyInstance) {
   app.get('/api/profiles', async () => store.profiles);
+
+  // ---- smart profiles ----
+  app.get('/api/smart-profiles', async () => store.smartProfiles);
+
+  app.post('/api/smart-profiles', async (req, reply) => {
+    const parsed = smartProfileSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') });
+    const now = new Date().toISOString();
+    const smart: SmartProfile = { ...parsed.data, id: randomUUID(), builtin: false, createdAt: now, updatedAt: now };
+    store.saveSmartProfile(smart);
+    return reply.code(201).send(smart);
+  });
+
+  app.put<{ Params: { id: string } }>('/api/smart-profiles/:id', async (req, reply) => {
+    const existing = store.getSmartProfile(req.params.id);
+    if (!existing) return reply.code(404).send({ error: 'smart profile not found' });
+    if (existing.builtin) return reply.code(400).send({ error: 'built-in smart profiles are read-only; clone it instead' });
+    const parsed = smartProfileSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') });
+    const smart: SmartProfile = { ...parsed.data, id: existing.id, builtin: false, createdAt: existing.createdAt, updatedAt: new Date().toISOString() };
+    store.saveSmartProfile(smart);
+    return smart;
+  });
+
+  app.post<{ Params: { id: string } }>('/api/smart-profiles/:id/clone', async (req, reply) => {
+    const existing = store.getSmartProfile(req.params.id);
+    if (!existing) return reply.code(404).send({ error: 'smart profile not found' });
+    const now = new Date().toISOString();
+    const smart: SmartProfile = structuredClone({ ...existing, id: randomUUID(), name: `${existing.name} (copy)`, builtin: false, createdAt: now, updatedAt: now });
+    store.saveSmartProfile(smart);
+    return reply.code(201).send(smart);
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/smart-profiles/:id', async (req, reply) => {
+    const existing = store.getSmartProfile(req.params.id);
+    if (!existing) return reply.code(404).send({ error: 'smart profile not found' });
+    if (existing.builtin) return reply.code(400).send({ error: 'built-in smart profiles cannot be deleted' });
+    // a default that points at it would silently stop working
+    const used = Object.entries(store.settings.defaultProfiles).filter(([, id]) => id === existing.id).map(([k]) => k);
+    if (used.length) return reply.code(400).send({ error: `still the default for ${used.join(', ')}; change that first` });
+    store.deleteSmartProfile(req.params.id);
+    return { ok: true };
+  });
 
   app.post('/api/profiles', async (req, reply) => {
     const parsed = profileSchema.safeParse(req.body);

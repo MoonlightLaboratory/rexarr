@@ -168,6 +168,77 @@ export interface Profile {
   updatedAt: string;
 }
 
+/**
+ * Smart profiles: which profile a file gets is decided when the file is there to look at, not when the rip was
+ * set up. A disc's audio is the usual reason – whether it carries object audio, or anything beyond stereo, is
+ * not knowable until the titles have been read.
+ */
+export type SmartField =
+  | 'audio.maxChannels'
+  | 'audio.codecs'
+  | 'audio.objectBased'
+  | 'audio.lossless'
+  | 'video.height'
+  | 'video.codec'
+  | 'video.hdr'
+  | 'video.dolbyVision'
+  | 'source.durationMinutes'
+  | 'source.sizeGB'
+  | 'source.bitrateMbps';
+
+export type SmartOperator = 'atLeast' | 'atMost' | 'equals' | 'anyOf' | 'noneOf' | 'isTrue' | 'isFalse';
+
+export interface SmartCondition {
+  field: SmartField;
+  op: SmartOperator;
+  /** For atLeast / atMost / equals. */
+  number?: number;
+  /** For anyOf / noneOf. */
+  list?: string[];
+}
+
+/** What a node does once its conditions hold. "keep" queues no encode at all: the file stays as it is. */
+export type SmartOutcome = { kind: 'profile'; profileId: string } | { kind: 'keep' };
+
+export interface SmartRule {
+  id: string;
+  /** Every condition has to hold. A rule with no conditions never matches, so a half-built one does nothing. */
+  when: SmartCondition[];
+  then: SmartOutcome;
+}
+
+export interface SmartProfile {
+  id: string;
+  name: string;
+  description: string;
+  builtin: boolean;
+  mediaType: 'any' | 'movie' | 'tv' | 'anime';
+  /** Tried in order; the first whose conditions all hold decides. */
+  rules: SmartRule[];
+  /** When none of them matched. */
+  otherwise: SmartOutcome;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A file as the rules see it. Everything here is plain data, so the browser can try rules out as well. */
+export interface SourceFacts {
+  audio: {
+    /** The widest audio stream in the file. */
+    maxChannels: number;
+    /** Friendly codec names: truehd, dts-hd-ma, dts, eac3, ac3, flac, pcm, aac, opus, mp3. */
+    codecs: string[];
+    /** Dolby Atmos or DTS:X, as FFmpeg reports them in a stream's profile. */
+    objectBased: boolean;
+    /** At least one stream is lossless (TrueHD, DTS-HD MA, FLAC, PCM). */
+    lossless: boolean;
+    /** The raw profile strings, for the log line that explains a decision. */
+    profiles: string[];
+  };
+  video: { height: number; codec: string; hdr: boolean; dolbyVision: boolean };
+  source: { durationMinutes: number; sizeGB: number; bitrateMbps: number };
+}
+
 export interface MusicFile {
   id: number;
   path: string;

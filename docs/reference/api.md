@@ -68,6 +68,9 @@ Docker `HEALTHCHECK` uses it.
 | POST | `/api/profiles` · PUT `/api/profiles/:id` · DELETE `/api/profiles/:id` | manage profiles |
 | POST | `/api/profiles/:id/clone` | clone (the only way to change a preset) |
 | POST | `/api/profiles/preview` | the ffmpeg command and output name a profile would produce |
+| GET | `/api/smart-profiles` | smart profiles and the two built-in ones |
+| POST | `/api/smart-profiles` · PUT `/api/smart-profiles/:id` · DELETE `/api/smart-profiles/:id` | manage smart profiles |
+| POST | `/api/smart-profiles/:id/clone` | clone (the only way to change a built-in one) |
 
 ## Discs
 

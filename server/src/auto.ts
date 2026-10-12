@@ -47,10 +47,11 @@ function save() {
 let scanning: Promise<AutoScanResult> | null = null;
 let webhookTimer: NodeJS.Timeout | null = null;
 
+/** The profile – or smart profile – auto transcode uses for a kind of media. */
 function profileFor(mediaType: 'movie' | 'tv' | 'anime') {
   const s = store.settings;
   const id = s.auto.profiles[mediaType] || s.defaultProfiles[mediaType];
-  return store.getProfile(id) ?? store.getProfile(s.defaultProfiles[mediaType]);
+  return store.anyProfile(id) ?? store.anyProfile(s.defaultProfiles[mediaType]);
 }
 
 /** Run `fn` over `list` with at most `n` in flight. */

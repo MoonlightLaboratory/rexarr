@@ -12,6 +12,8 @@ import { checkLidarrCueImages, cueSplitForAlbum, splitFolderImages } from '../mu
 import { LOG_LINES_KEPT, PATHS } from '../config.js';
 import { appEvents } from '../system.js';
 import { store } from '../store.js';
+import { sourceFacts } from '../ffmpeg/facts.js';
+import { decide, explainDecision } from '../../../shared/smart.js';
 import { bus } from '../events.js';
 import { arr } from '../arr/index.js';
 import { toArrPath, toLocalPath } from '../paths.js';
@@ -108,7 +110,7 @@ class JobQueue {
   }
 
   create(input: CreateJobInput): Job {
-    const profile = store.getProfile(input.profileId);
+    const profile = store.anyProfile(input.profileId);
     if (!profile) throw new Error(`Profile ${input.profileId} not found`);
     const job: Job = {
       id: randomUUID(),
@@ -704,12 +706,13 @@ class JobQueue {
 
   private async run(job: Job) {
     const settings = store.settings;
-    const profile: Profile | undefined = store.getProfile(job.profileId);
+    const smart = store.getSmartProfile(job.profileId);
+    let profile: Profile | undefined = smart ? undefined : store.getProfile(job.profileId);
     const input = job.source.localPath!;
     let tmpOutput = '';
     if (profile && (profile.mediaType === 'music' || CONTAINER_INFO[profile.container]?.music)) return this.runMusic(job, profile);
     try {
-      if (!profile) throw new Error(`Profile "${job.profileName}" no longer exists`);
+      if (!profile && !smart) throw new Error(`Profile "${job.profileName}" no longer exists`);
       if (!fs.existsSync(input)) throw new Error(`Input file not found: ${input}${job.source.arrPath && job.source.arrPath !== input ? ' (check path mappings in Settings)' : ''}`);
       job.status = 'probing';
       job.startedAt = new Date().toISOString();
@@ -721,6 +724,27 @@ class JobQueue {
       job.inputSizeBytes = info.sizeBytes;
       job.durationSeconds = info.durationSeconds;
       this.log(job, `Source: ${info.video?.codec_name ?? '?'} ${info.video?.width}x${info.video?.height}${info.isHdr ? ' HDR' : ''}${info.isDolbyVision ? '+DV' : ''}, ${info.audio.length} audio, ${info.subtitles.length} subtitle, ${info.attachments.length} attachment stream(s), ${Math.round(info.durationSeconds / 60)} min`);
+
+      // A smart profile only becomes a real one here, where the file can be looked at
+      if (smart) {
+        const facts = sourceFacts(info);
+        const decision = decide(smart, facts);
+        this.log(job, explainDecision(smart, facts, decision, (id) => store.getProfile(id)?.name));
+        if (facts.audio.profiles.length) this.log(job, `Audio profiles as FFmpeg reports them: ${facts.audio.profiles.join(', ')}`);
+        if (decision.outcome.kind === 'keep') {
+          job.status = 'done';
+          job.finishedAt = new Date().toISOString();
+          job.message = 'Left as it is by the smart profile';
+          this.log(job, 'No encode: the file is kept as it is.');
+          store.saveJobs();
+          this.emit(job);
+          return;
+        }
+        profile = store.getProfile(decision.outcome.profileId);
+        if (!profile) throw new Error(`"${smart.name}" points at a profile that no longer exists (${decision.outcome.profileId})`);
+        job.profileName = `${smart.name} → ${profile.name}`;
+      }
+      if (!profile) throw new Error(`Profile "${job.profileName}" no longer exists`);
 
       const output = outputPathFor(profile, input);
 

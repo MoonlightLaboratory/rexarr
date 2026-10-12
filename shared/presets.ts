@@ -1,4 +1,4 @@
-import type { Profile, AudioSettings, OutputSettings, SubtitleSettings, VideoSettings } from './types.js';
+import type { Profile, AudioSettings, OutputSettings, SmartProfile, SubtitleSettings, VideoSettings } from './types.js';
 
 const now = '2026-01-01T00:00:00.000Z';
 
@@ -139,6 +139,16 @@ export const BUILTIN_PROFILES: Profile[] = [
     mediaType: 'any',
     video: { ...baseVideo, encoder: 'hevc_nvenc', quality: 24, preset: 'p6', pixelFormat: 'p010le' },
     audio: { ...baseAudio, encoder: 'copy' },
+    subtitles: { ...baseSubs, mode: 'copy' },
+  }),
+  make({
+    id: 'builtin-remux-flac',
+    name: 'Remux · Keep video, FLAC audio',
+    description:
+      'Leaves the video untouched and re-encodes audio to FLAC, which is lossless: the sound is unchanged, the file is smaller than TrueHD or DTS-HD MA, and every player handles it. The channel layout is kept, so a 5.1 track stays 5.1.',
+    mediaType: 'any',
+    video: { ...baseVideo, encoder: 'copy' },
+    audio: { ...baseAudio, encoder: 'flac', compressionLevel: 8, channels: 0 },
     subtitles: { ...baseSubs, mode: 'copy' },
   }),
   make({
@@ -387,3 +397,45 @@ export const DEFAULT_SETTINGS = {
   remuxOnly: true,
   searchDiscReleases: true,
 };
+
+/**
+ * Smart profiles that ship with Rexarr. They are examples as much as anything: both are two nodes long, and
+ * both exist because the right thing to do with a disc's audio depends on what the disc turned out to have.
+ */
+export const BUILTIN_SMART_PROFILES: SmartProfile[] = [
+  {
+    id: 'builtin-smart-stereo-to-flac',
+    name: 'Smart · FLAC for stereo, keep surround',
+    description:
+      'A lossless stereo track is TrueHD or DTS-HD MA for no good reason – FLAC holds the same samples in less space. Anything with more channels than that is left exactly as it is.',
+    builtin: true,
+    mediaType: 'any',
+    rules: [
+      {
+        id: 'stereo',
+        when: [
+          { field: 'audio.lossless', op: 'isTrue' },
+          { field: 'audio.maxChannels', op: 'atMost', number: 2 },
+        ],
+        then: { kind: 'profile', profileId: 'builtin-remux-flac' },
+      },
+    ],
+    otherwise: { kind: 'keep' },
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: 'builtin-smart-keep-object-audio',
+    name: 'Smart · Keep Atmos and DTS:X, FLAC the rest',
+    description:
+      'Object audio cannot survive being re-encoded, so a disc carrying Atmos or DTS:X is left alone. Everything else goes to FLAC at its own channel layout, which is lossless and smaller.',
+    builtin: true,
+    mediaType: 'any',
+    rules: [
+      { id: 'object', when: [{ field: 'audio.objectBased', op: 'isTrue' }], then: { kind: 'keep' } },
+    ],
+    otherwise: { kind: 'profile', profileId: 'builtin-remux-flac' },
+    createdAt: now,
+    updatedAt: now,
+  },
+];

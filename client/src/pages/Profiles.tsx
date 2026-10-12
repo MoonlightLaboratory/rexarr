@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { FfmpegCapabilities, Profile } from '@shared/types';
+import type { FfmpegCapabilities, Profile, SmartProfile } from '@shared/types';
 import { AUDIO_ENCODER_INFO, CONTAINER_INFO, LANGUAGES, VIDEO_ENCODER_INFO } from '@shared/presets';
+import { describeCondition, describeOutcome, missingProfiles } from '@shared/smart';
 import { api, type PreviewResult } from '../api';
 import { useApp } from '../App';
 import { Page, ToolbarButton } from '../components/Layout';
 import { Icon } from '../components/Icons';
 import { Modal } from '../components/Modal';
+import { SmartProfileEditor } from '../components/SmartProfileEditor';
 
 /** fre:ac encoders offered for music profiles (all open source). */
 const MUSIC_FORMATS: { encoder: Profile['audio']['encoder']; container: Profile['container']; label: string; help: string }[] = [
@@ -520,8 +522,13 @@ function blankProfile(): Profile {
   };
 }
 
+function blankSmart(): SmartProfile {
+  return { id: '', name: '', description: '', builtin: false, mediaType: 'any', rules: [{ id: 'r1', when: [{ field: 'audio.objectBased', op: 'isTrue' }], then: { kind: 'keep' } }], otherwise: { kind: 'profile', profileId: 'builtin-remux-flac' }, createdAt: '', updatedAt: '' };
+}
+
 export function ProfilesPage() {
-  const { profiles, reloadProfiles, toast } = useApp();
+  const { profiles, smartProfiles, reloadSmartProfiles, reloadProfiles, toast } = useApp();
+  const [editingSmart, setEditingSmart] = useState<SmartProfile | null>(null);
   const { id } = useParams();
   const nav = useNavigate();
   const [caps, setCaps] = useState<FfmpegCapabilities | null>(null);
@@ -545,6 +552,25 @@ export function ProfilesPage() {
       const c = await api.cloneProfile(p.id);
       await reloadProfiles();
       setEditing(c);
+    } catch (e) {
+      toast('error', (e as Error).message);
+    }
+  };
+  const cloneSmart = async (sp: SmartProfile) => {
+    try {
+      const c = await api.cloneSmartProfile(sp.id);
+      await reloadSmartProfiles();
+      setEditingSmart(c);
+    } catch (e) {
+      toast('error', (e as Error).message);
+    }
+  };
+  const removeSmart = async (sp: SmartProfile) => {
+    if (!confirm(`Delete smart profile “${sp.name}”?`)) return;
+    try {
+      await api.deleteSmartProfile(sp.id);
+      await reloadSmartProfiles();
+      toast('info', 'Smart profile deleted');
     } catch (e) {
       toast('error', (e as Error).message);
     }
@@ -576,6 +602,78 @@ export function ProfilesPage() {
         <span className="spacer" />
         <span className="small dim">Built-in presets are read-only. Clone one to customise it.</span>
       </div>
+      <div className="subhead row">
+        <span>Smart profiles</span>
+        <span className="spacer" />
+        <button className="btn sm" onClick={() => setEditingSmart(blankSmart())}>
+          <Icon.Plus /> New smart profile
+        </button>
+      </div>
+      <div className="small dim mb">
+        A smart profile does not encode anything itself: it looks at what a file turned out to contain – how many
+        audio channels, whether the sound carries Atmos or DTS:X, how tall the picture is – and picks one of the
+        profiles below. The choice is made when the file is there, which is the only time a disc's audio is known.
+      </div>
+      <div className="grid-2 mb">
+        {smartProfiles.map((sp) => {
+          const gone = missingProfiles(sp, profiles);
+          return (
+            <div key={sp.id} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="card-h">
+                <span className="truncate">{sp.name}</span>
+                <span className="spacer" />
+                {sp.builtin ? <span className="badge muted">Preset</span> : <span className="badge green">Custom</span>}
+                {sp.mediaType !== 'any' && <span className="badge blue">{sp.mediaType}</span>}
+              </div>
+              <div className="card-b small" style={{ flex: 1 }}>
+                <p className="dim" style={{ marginTop: 0 }}>
+                  {sp.description || 'No description.'}
+                </p>
+                <div className="smartSummary">
+                  {sp.rules.map((r, i) => (
+                    <div key={r.id} className="smartSummary-row">
+                      <span className="smartSummary-n">{i + 1}</span>
+                      <div>
+                        {r.when.map(describeCondition).join(' and ') || 'nothing'}
+                        <div className="dim">→ {describeOutcome(r.then, (id) => profiles.find((x) => x.id === id)?.name)}</div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="smartSummary-row">
+                    <span className="smartSummary-n">◆</span>
+                    <div>
+                      <span className="dim">anything else</span>
+                      <div className="dim">→ {describeOutcome(sp.otherwise, (id) => profiles.find((x) => x.id === id)?.name)}</div>
+                    </div>
+                  </div>
+                </div>
+                {gone.length > 0 && <div className="warn small mt">Points at a profile that no longer exists.</div>}
+              </div>
+              <div className="modal-f" style={{ padding: '10px 14px', alignItems: 'center' }}>
+                {sp.builtin ? (
+                  <button className="btn sm" onClick={() => cloneSmart(sp)}>
+                    <Icon.Copy /> Clone &amp; edit
+                  </button>
+                ) : (
+                  <>
+                    <button className="iconButton danger" onClick={() => removeSmart(sp)} title="Delete">
+                      <Icon.Trash />
+                    </button>
+                    <button className="iconButton" onClick={() => cloneSmart(sp)} title="Clone">
+                      <Icon.Copy />
+                    </button>
+                    <button className="btn sm primary" onClick={() => setEditingSmart(sp)}>
+                      Edit
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="subhead">Profiles</div>
       <div className="grid-3">
         {list.map((p) => {
           const enc = VIDEO_ENCODER_INFO[p.video.encoder];
@@ -639,6 +737,20 @@ export function ProfilesPage() {
           );
         })}
       </div>
+      {editingSmart && (
+        <SmartProfileEditor
+          initial={editingSmart}
+          profiles={profiles}
+          onClose={() => setEditingSmart(null)}
+          onSaved={async (next) => {
+            if (next.id) await api.updateSmartProfile(next.id, next);
+            else await api.createSmartProfile(next);
+            await reloadSmartProfiles();
+            setEditingSmart(null);
+            toast('info', `Saved “${next.name}”`);
+          }}
+        />
+      )}
       {editing && (
         <ProfileEditor
           initial={editing}

@@ -816,7 +816,7 @@ function LocalMediaCard({ value, onChange, dirty }: { value: LocalMediaSettings;
 }
 
 export function SettingsPage() {
-  const { settings, profiles, reloadSettings, toast } = useApp();
+  const { settings, profiles, smartProfiles, reloadSettings, toast } = useApp();
   const [s, setS] = useState<Settings | null>(null);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
@@ -932,15 +932,15 @@ export function SettingsPage() {
             </label>
             <div className="field">
               <label>Default profile · Movies</label>
-              <ProfileSelect profiles={profiles} value={s.defaultProfiles.movie} onChange={(v) => setS({ ...s, defaultProfiles: { ...s.defaultProfiles, movie: v } })} mediaType="movie" />
+              <ProfileSelect profiles={profiles} smart={smartProfiles} value={s.defaultProfiles.movie} onChange={(v) => setS({ ...s, defaultProfiles: { ...s.defaultProfiles, movie: v } })} mediaType="movie" />
             </div>
             <div className="field">
               <label>Default profile · TV</label>
-              <ProfileSelect profiles={profiles} value={s.defaultProfiles.tv} onChange={(v) => setS({ ...s, defaultProfiles: { ...s.defaultProfiles, tv: v } })} mediaType="tv" />
+              <ProfileSelect profiles={profiles} smart={smartProfiles} value={s.defaultProfiles.tv} onChange={(v) => setS({ ...s, defaultProfiles: { ...s.defaultProfiles, tv: v } })} mediaType="tv" />
             </div>
             <div className="field">
               <label>Default profile · Anime</label>
-              <ProfileSelect profiles={profiles} value={s.defaultProfiles.anime} onChange={(v) => setS({ ...s, defaultProfiles: { ...s.defaultProfiles, anime: v } })} mediaType="anime" />
+              <ProfileSelect profiles={profiles} smart={smartProfiles} value={s.defaultProfiles.anime} onChange={(v) => setS({ ...s, defaultProfiles: { ...s.defaultProfiles, anime: v } })} mediaType="anime" />
               <div className="help">Applied automatically when a Sonarr series is typed “anime”.</div>
             </div>
             <div className="field">

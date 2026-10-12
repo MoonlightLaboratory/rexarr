@@ -1,5 +1,5 @@
 import { withBase } from './base';
-import type { DiscEstimate, TitleRole, AnidbInfo, AutoScanResult, AutoStatus, AppEvent, StoragePath, HwDevices, HwTestResult, TranscodingSettings, BackupInfo, DiscDrive, DiscRip, LogFileInfo, ScheduledTask, VirtualDrive, Episode, FfmpegCapabilities, HealthCheck, Job, LookupResult, MakemkvInfo, Movie, Profile, Release, RipMedia, RipOptions, Series, Settings, SystemInfo, SmartSearchResult, HostRuntime, DriveCandidate, PhysicalDrive, Artist, Album, Track, MqaInfo, MusicBrainzRelease, LocalItem, LocalFile, LocalScanStatus, LocalMeta, LocalMetaCandidate, SizeEstimateResult, SetupTools, UpdateStatus, NotificationTarget, ExpectedDisc, BarcodeLookup, WantedDisc } from '@shared/types';
+import type { DiscEstimate, TitleRole, AnidbInfo, AutoScanResult, AutoStatus, AppEvent, StoragePath, HwDevices, HwTestResult, TranscodingSettings, BackupInfo, DiscDrive, DiscRip, LogFileInfo, ScheduledTask, VirtualDrive, Episode, FfmpegCapabilities, HealthCheck, Job, LookupResult, MakemkvInfo, Movie, Profile, Release, RipMedia, RipOptions, Series, Settings, SystemInfo, SmartSearchResult, HostRuntime, DriveCandidate, PhysicalDrive, Artist, Album, Track, MqaInfo, MusicBrainzRelease, LocalItem, LocalFile, LocalScanStatus, LocalMeta, LocalMetaCandidate, SizeEstimateResult, SetupTools, UpdateStatus, NotificationTarget, ExpectedDisc, BarcodeLookup, WantedDisc, SmartProfile } from '@shared/types';
 
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(withBase(url), {
@@ -79,6 +79,12 @@ export const api = {
   cloneProfile: (id: string) => req<Profile>('POST', `/api/profiles/${id}/clone`),
   deleteProfile: (id: string) => req<{ ok: true }>('DELETE', `/api/profiles/${id}`),
   preview: (body: { profile?: Partial<Profile>; profileId?: string; path?: string }) => req<PreviewResult>('POST', '/api/profiles/preview', body),
+
+  smartProfiles: () => req<SmartProfile[]>('GET', '/api/smart-profiles'),
+  createSmartProfile: (p: Partial<SmartProfile>) => req<SmartProfile>('POST', '/api/smart-profiles', p),
+  updateSmartProfile: (id: string, p: Partial<SmartProfile>) => req<SmartProfile>('PUT', `/api/smart-profiles/${id}`, p),
+  cloneSmartProfile: (id: string) => req<SmartProfile>('POST', `/api/smart-profiles/${id}/clone`),
+  deleteSmartProfile: (id: string) => req<{ ok: true }>('DELETE', `/api/smart-profiles/${id}`),
 
   movies: () => req<Movie[]>('GET', '/api/library/movies'),
   movie: (id: number) => req<Movie>('GET', `/api/library/movies/${id}`),

@@ -2,8 +2,8 @@ import { withGeneralDefaults } from './general.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DATA_DIR } from './config.js';
-import type { DiscRip, ExpectedDisc, Job, Profile, Settings } from '../../shared/types.js';
-import { BUILTIN_PROFILES, DEFAULT_SETTINGS } from '../../shared/presets.js';
+import type { DiscRip, ExpectedDisc, Job, Profile, Settings, SmartProfile } from '../../shared/types.js';
+import { BUILTIN_PROFILES, BUILTIN_SMART_PROFILES, DEFAULT_SETTINGS } from '../../shared/presets.js';
 
 interface Persisted<T> {
   file: string;
@@ -48,6 +48,7 @@ function flush<T>(p: Persisted<T>) {
 
 const settingsP = load<Settings>('settings.json', structuredClone(DEFAULT_SETTINGS) as Settings);
 const profilesP = load<Profile[]>('profiles.json', []);
+const smartP = load<SmartProfile[]>('smart-profiles.json', []);
 const jobsP = load<Job[]>('jobs.json', []);
 const ripsP = load<DiscRip[]>('rips.json', []);
 const expectedP = load<ExpectedDisc[]>('expected-discs.json', []);
@@ -109,6 +110,35 @@ export const store = {
   getProfile(id: string): Profile | undefined {
     return this.profiles.find((p) => p.id === id);
   },
+
+  // ---- smart profiles: a profile chosen per file, from what the file turned out to contain ----
+  /** Custom (user) smart profiles only. */
+  get ownSmartProfiles(): SmartProfile[] {
+    return smartP.value;
+  },
+  get smartProfiles(): SmartProfile[] {
+    return [...BUILTIN_SMART_PROFILES, ...smartP.value];
+  },
+  getSmartProfile(id: string): SmartProfile | undefined {
+    return this.smartProfiles.find((p) => p.id === id);
+  },
+  saveSmartProfile(profile: SmartProfile) {
+    const idx = smartP.value.findIndex((p) => p.id === profile.id);
+    if (idx >= 0) smartP.value[idx] = profile;
+    else smartP.value.push(profile);
+    save(smartP);
+  },
+  deleteSmartProfile(id: string) {
+    smartP.value = smartP.value.filter((p) => p.id !== id);
+    save(smartP);
+  },
+  /** Either kind, by id: a smart profile may be chosen anywhere a profile may be. */
+  anyProfile(id: string): { id: string; name: string; profile?: Profile; smart?: SmartProfile } | undefined {
+    const profile = this.getProfile(id);
+    if (profile) return { id: profile.id, name: profile.name, profile };
+    const smart = this.getSmartProfile(id);
+    return smart ? { id: smart.id, name: smart.name, smart } : undefined;
+  },
   upsertProfile(profile: Profile) {
     const idx = profilesP.value.findIndex((p) => p.id === profile.id);
     if (idx >= 0) profilesP.value[idx] = profile;
@@ -153,6 +183,7 @@ export const store = {
   flushAll() {
     flush(settingsP);
     flush(profilesP);
+    flush(smartP);
     flush(jobsP);
     flush(ripsP);
   },
