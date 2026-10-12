@@ -5,6 +5,7 @@ packages. The notes for each version:
 
 | Version | What is in it |
 | --- | --- |
+| [1.8.0.0](release-notes/1.8.0.0.md) | Smart profiles, CDDB for audio CDs, TheDiscDB barcodes, and a run of audio CD fixes |
 | [0.1.7.2](release-notes/0.1.7.2.md) | Notifications for encodes, discs and updates, and a pass over the interface |
 | [0.1.7.1](release-notes/0.1.7.1.md) | NAS templates for Unraid, ZimaOS, TrueNAS, DSM and OMV, the CasaOS store listing, Docker Hub |
 | [0.1.7.0](release-notes/0.1.7.0.md) | System → Updates with the release notes in the UI, and the documentation site |

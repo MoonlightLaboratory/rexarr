@@ -1,3 +1,6 @@
+12.10.26
+Rexarr 1.8.0.0: smart profiles, CDDB for audio CDs, TheDiscDB barcodes, and a run of audio CD fixes.
+
 08.10.26
 Rexarr 0.1.7.2: notifications, and a pass over the interface.
 

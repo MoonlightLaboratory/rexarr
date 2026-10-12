@@ -7,7 +7,7 @@ docker pull ghcr.io/moonlightlaboratory/rexarr:latest
 docker pull moonlightlaboratory/rexarr:latest
 ```
 
-Tags: `latest` for the newest release, the version of each release (`0.1.7.2`), and **`main`** — the branch,
+Tags: `latest` for the newest release, the version of each release (`1.8.0.0`), and **`main`** — the branch,
 rebuilt on every push, which is how to try a fix before it is released:
 
 ```bash
