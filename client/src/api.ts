@@ -2,11 +2,17 @@ import { withBase } from './base';
 import type { DiscEstimate, TitleRole, AnidbInfo, AutoScanResult, AutoStatus, AppEvent, StoragePath, HwDevices, HwTestResult, TranscodingSettings, BackupInfo, DiscDrive, DiscRip, LogFileInfo, ScheduledTask, VirtualDrive, Episode, FfmpegCapabilities, HealthCheck, Job, LookupResult, MakemkvInfo, Movie, Profile, Release, RipMedia, RipOptions, Series, Settings, SystemInfo, SmartSearchResult, HostRuntime, DriveCandidate, PhysicalDrive, Artist, Album, Track, MqaInfo, MusicBrainzRelease, LocalItem, LocalFile, LocalScanStatus, LocalMeta, LocalMetaCandidate, SizeEstimateResult, SetupTools, UpdateStatus, NotificationTarget, ExpectedDisc, BarcodeLookup, WantedDisc, SmartProfile } from '@shared/types';
 
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
-  const res = await fetch(withBase(url), {
-    method,
-    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(withBase(url), {
+      method,
+      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    // the browser's own wording for this is "Failed to fetch", which says nothing about what to do
+    throw new Error('Could not reach Rexarr. It may be restarting, stopped, or on a different address than this page was opened from.');
+  }
   const text = await res.text();
   let data: unknown = undefined;
   try {
@@ -19,6 +25,10 @@ async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
     window.location.href = `${(data as { login: string }).login}?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
   }
   if (!res.ok) {
+    // a page served by a newer build than the server it is talking to asks for routes that are simply not there
+    if (res.status === 404 && url.startsWith('/api/')) {
+      throw new Error(`This Rexarr server has no ${method} ${url}. The page is from a newer build than the server – restart Rexarr after rebuilding it, then reload.`);
+    }
     const msg = (data as { error?: string })?.error ?? (typeof data === 'string' ? data : `HTTP ${res.status}`);
     throw new Error(msg);
   }
