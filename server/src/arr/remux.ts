@@ -21,7 +21,16 @@ export function isRemux(title?: string | null, qualityName?: string | null): boo
  * Full-disc releases: Blu-ray / UHD ISOs and BDMV folders ("COMPLETE.BLURAY", BD25 / BD50 / BD66 / BD100, BR-DISK)
  * and DVD images (DVD5 / DVD9 / DVDR / VIDEO_TS / "DVD ISO"). A remux of a disc is not a disc.
  */
-const BLURAY_DISC_RE = /\b(complete[\s._-]*(uhd[\s._-]*)?blu-?ray|bd[\s._-]?(25|50|66|100)|bd[\s._-]?iso|blu-?ray[\s._-]?iso|bdmv|br-?disk|uhd[\s._-]?bd(?!rip)|m2ts[\s._-]?disc)\b/i;
+/**
+ * What a scene group puts between COMPLETE and BLURAY: the resolution, the format, and the usual flags. Only
+ * these, because "Complete 1-96 S01 1080p BluRay" is an episode pack and not a disc, and the words it puts
+ * there are the ones that give it away.
+ */
+const DISC_FILLER = String.raw`(?:uhd|4k|hd|3d|hybrid|multi|remastered|restored|repack|proper|\d{3,4}p|bd|disc\d?)`;
+const BLURAY_DISC_RE = new RegExp(
+  String.raw`\b(complete(?:[\s._-]+${DISC_FILLER})*[\s._-]*blu-?ray|bd[\s._-]?(25|50|66|100)|bd[\s._-]?iso|blu-?ray[\s._-]?iso|bdmv|br-?disk|uhd[\s._-]?bd(?!rip)|m2ts[\s._-]?disc)\b`,
+  'i',
+);
 const DVD_DISC_RE = /\b(dvd[\s._-]?(5|9)|dvd-?r|full[\s._-]?dvd|video_ts|dvd[\s._-]?iso|pal[\s._-]?dvd|ntsc[\s._-]?dvd)\b/i;
 const ISO_RE = /\b(iso|img)\b/i;
 

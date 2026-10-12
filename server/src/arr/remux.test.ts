@@ -34,6 +34,15 @@ test('detects full-disc releases (ISO / BDMV / VIDEO_TS)', () => {
   assert.deepEqual(disc('Some Movie 2020 BluRay ISO'), { isDisc: true, format: 'bluray' });
   assert.deepEqual(disc('Some.Movie.2020.2160p.BD-ISO.HEVC'), { isDisc: true, format: 'uhd' });
   assert.deepEqual(disc('Show.S01.1080p.Blu-ray.BDMV.AVC.LPCM'), { isDisc: true, format: 'bluray' });
+  // real titles from a torrent indexer: a scene group puts the resolution and the format between the two words
+  assert.deepEqual(disc('The.Running.Man.2025.COMPLETE.UHD.2160p.BLURAY-SURCODE'), { isDisc: true, format: 'uhd' });
+  assert.deepEqual(disc('Weapons.2025.COMPLETE.2160p.UHD.BLURAY-TDi'), { isDisc: true, format: 'uhd' });
+  assert.deepEqual(disc('Lord.of.War.2005.COMPLETE.2160p.UHD.Bluray-COASTER'), { isDisc: true, format: 'uhd' });
+  assert.deepEqual(disc('Some.Film.2019.COMPLETE.REMASTERED.1080p.BLURAY-X'), { isDisc: true, format: 'bluray' });
+  // but "complete" also means a finished series, and an episode pack is not a disc
+  assert.deepEqual(disc('[DHD] Maison Ikkoku Dual Audio Complete 1-96 S01 [1080p BluRay HEVC x265]'), { isDisc: false });
+  assert.deepEqual(disc('Complete Series 2020 1080p BluRay x264-GROUP'), { isDisc: false });
+  assert.deepEqual(disc('Some.Show.S01.COMPLETE.1080p.WEB-DL.x264'), { isDisc: false });
   assert.deepEqual(disc('Anything', 'BR-DISK'), { isDisc: true, format: 'bluray' });
   assert.deepEqual(disc('Old.Film.1962.PAL.DVD9'), { isDisc: true, format: 'dvd' });
   assert.deepEqual(disc('Old Film 1962 DVD ISO'), { isDisc: true, format: 'dvd' });

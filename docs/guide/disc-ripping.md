@@ -243,7 +243,15 @@ held and why.
 ## Full-disc releases from search
 
 Search shows a **Remux / Remux + Disc / Disc / ISO / All** filter (the default follows *Settings → Encoding →
-Defaults*). Disc releases get a purple *Blu-ray ISO / disc*, *UHD Blu-ray* or *DVD* badge. Grabbing one:
+Defaults*). Disc releases get a purple *Blu-ray ISO / disc*, *UHD Blu-ray* or *DVD* badge.
+
+A release counts as a full disc from its title or its \*arr quality: `COMPLETE … BLURAY` with the resolution and
+format in between (`COMPLETE.UHD.2160p.BLURAY`, `COMPLETE.2160p.UHD.BLURAY`, `4K.UHD.COMPLETE.BLURAY`), `BD25` /
+`BD50` / `BD66` / `BD100`, `BD-ISO`, `BDMV`, `BR-DISK`, and for DVDs `DVD5` / `DVD9` / `DVDR` / `VIDEO_TS` /
+`DVD ISO`. A remux of a disc is not a disc, and neither is a finished series: *Complete 1-96 S01 1080p BluRay* is
+an episode pack, and only the words a disc release puts between *complete* and *blu-ray* count.
+
+Grabbing one:
 
 1. sends it to Radarr / Sonarr as usual and creates a job that follows the download in the app's queue
    (*Downloading full disc · 62%* in Activity);
