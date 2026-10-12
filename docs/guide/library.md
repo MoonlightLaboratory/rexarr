@@ -18,7 +18,9 @@ video and audio codecs, and how many episodes of a season are present.
   everywhere else. The video is copied exactly as it is — not re-encoded, not downscaled, whatever the profile
   says — and only the audio goes through the encoder. It is the quick way to turn a TrueHD or DTS-HD MA track
   into FLAC or Opus without touching the picture, and it costs minutes rather than hours. A profile that copies
-  the audio as well is pointed out, since that would leave the file unchanged.
+  the audio as well is pointed out, since that would leave the file unchanged. The size estimate is of the job
+  that will actually run — the video part is the real size of the stream being carried over, so the number is
+  exact rather than a guess at an encode.
 - Titles that are missing, or already queued, are marked (*Missing*, *In queue*).
 
 ## Activity

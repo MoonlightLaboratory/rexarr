@@ -32,11 +32,15 @@ export default async function estimateRoutes(app: FastifyInstance) {
       .object({
         items: z.array(z.object({ localPath: z.string().optional(), arrPath: z.string().optional(), arr: z.enum(['radarr', 'sonarr', 'lidarr']).optional(), size: z.number().optional(), anime: z.boolean().optional() })).min(1).max(2000),
         profileIds: z.array(z.string()).optional(),
+        /** Estimate as an audio-only job would run: the video is copied whatever the profile says. */
+        audioOnly: z.boolean().optional(),
       })
       .safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: 'items required' });
     const settings = store.settings;
-    const profiles = body.data.profileIds ? store.profiles.filter((p) => body.data.profileIds!.includes(p.id)) : store.profiles;
+    const chosen = body.data.profileIds ? store.profiles.filter((p) => body.data.profileIds!.includes(p.id)) : store.profiles;
+    // an audio-only job copies the video, and the estimate has to be of the job that will actually run
+    const profiles = body.data.audioOnly ? chosen.map((p) => ({ ...p, video: { ...p.video, encoder: 'copy' as const, maxHeight: 0 } })) : chosen;
     const caps = await ffmpegCapabilities(settings.ffmpegPath).catch(() => undefined);
     const errors: string[] = [];
 

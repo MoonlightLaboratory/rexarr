@@ -120,7 +120,8 @@ export const api = {
   seriesById: (id: number) => req<Series>('GET', `/api/library/series/${id}`),
   episodes: (id: number, season?: number) => req<Episode[]>('GET', `/api/library/series/${id}/episodes${season !== undefined ? `?season=${season}` : ''}`),
 
-  estimate: (items: { localPath?: string; arrPath?: string; arr?: 'radarr' | 'sonarr' | 'lidarr'; size?: number; anime?: boolean }[], profileIds?: string[]) => req<SizeEstimateResult>('POST', '/api/estimate', { items, profileIds }),
+  estimate: (items: { localPath?: string; arrPath?: string; arr?: 'radarr' | 'sonarr' | 'lidarr'; size?: number; anime?: boolean }[], profileIds?: string[], audioOnly?: boolean) =>
+    req<SizeEstimateResult>('POST', '/api/estimate', { items, profileIds, audioOnly }),
   pauseQueue: (paused: boolean) => req<{ paused: boolean }>('POST', '/api/queue/pause', { paused }),
   setQueueLimit: (limit: number) => req<{ limit: number }>('POST', '/api/queue/limit', { limit }),
   retryFailedJobs: () => req<{ retried: number }>('POST', '/api/jobs/retry-failed'),

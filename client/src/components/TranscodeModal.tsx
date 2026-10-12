@@ -43,17 +43,20 @@ export function TranscodeModal({ items, mediaType, onClose, onQueued, defaultAud
   // Estimated output size for every profile (one probe on the server, then a model per profile)
   const [estimates, setEstimates] = useState<SizeEstimateResult | null>(null);
   const [estimateError, setEstimateError] = useState<string | null>(null);
+  // re-asked when audio only is toggled: copying the video is a different size entirely
   useEffect(() => {
     let stale = false;
+    setEstimates(null);
+    setEstimateError(null);
     api
-      .estimate(items.map((i) => ({ localPath: i.source.localPath, arrPath: i.source.arrPath, arr: i.source.arr, size: i.size, anime: i.anime || mediaType === 'anime' || undefined })))
+      .estimate(items.map((i) => ({ localPath: i.source.localPath, arrPath: i.source.arrPath, arr: i.source.arr, size: i.size, anime: i.anime || mediaType === 'anime' || undefined })), undefined, audioOnly)
       .then((r) => !stale && setEstimates(r))
       .catch((e) => !stale && setEstimateError((e as Error).message));
     return () => {
       stale = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [audioOnly]);
   const byProfile = useMemo(() => new Map((estimates?.estimates ?? []).map((e) => [e.profileId, e])), [estimates]);
   const suffix = useMemo(() => Object.fromEntries([...byProfile].filter(([, e]) => e.bytes > 0).map(([id, e]) => [id, `≈ ${fmtBytes(e.bytes)}${e.sourceBytes ? ` (${pctChange(e.bytes, e.sourceBytes)})` : ''}`])), [byProfile]);
   const est = byProfile.get(profileId);
@@ -133,8 +136,7 @@ export function TranscodeModal({ items, mediaType, onClose, onQueued, defaultAud
       {audioOnly && profile?.audio.encoder === 'copy' && (
         <div className="warn">This profile copies the audio too, so the file would come out unchanged. Pick a profile that encodes audio.</div>
       )}
-      {!audioOnly && <SizeEstimatePanel est={est} loading={!estimates && !estimateError} error={estimateError} result={estimates} />}
-      {audioOnly && <div className="info">The size estimate assumes the video is re-encoded, so it is not shown here: the picture is copied, and only the audio changes size.</div>}
+      <SizeEstimatePanel est={est} loading={!estimates && !estimateError} error={estimateError} result={estimates} audioOnly={audioOnly} />
       {profile && (
         <div className="grid-2 small">
           <div>
@@ -207,7 +209,7 @@ const pctChange = (out: number, src: number) => {
 };
 
 /** Estimated output size for the selected profile: best guess, range, and what it is made of. */
-function SizeEstimatePanel({ est, loading, error, result }: { est?: SizeEstimate; loading: boolean; error: string | null; result: SizeEstimateResult | null }) {
+function SizeEstimatePanel({ est, loading, error, result, audioOnly }: { est?: SizeEstimate; loading: boolean; error: string | null; result: SizeEstimateResult | null; audioOnly?: boolean }) {
   if (loading)
     return (
       <div className="sizeEstimate">
@@ -228,7 +230,7 @@ function SizeEstimatePanel({ est, loading, error, result }: { est?: SizeEstimate
     <div className="sizeEstimate">
       <div className="sizeEstimateHead">
         <div>
-          <div className="dim small">Estimated size</div>
+          <div className="dim small">{audioOnly ? 'Estimated size · audio only' : 'Estimated size'}</div>
           <div className="sizeEstimateValue">
             {est.exact ? '' : '≈ '}
             {fmtBytes(est.bytes)}
@@ -240,6 +242,7 @@ function SizeEstimatePanel({ est, loading, error, result }: { est?: SizeEstimate
               {est.videoKbps ? ` · video ≈ ${(est.videoKbps / 1000).toFixed(est.videoKbps < 10000 ? 1 : 0)} Mbps` : ''}
             </div>
           )}
+          {audioOnly && <div className="dim small">The video is carried over untouched, so only the audio part moves.</div>}
         </div>
         {src ? (
           <div className="dim small" style={{ textAlign: 'right' }}>
