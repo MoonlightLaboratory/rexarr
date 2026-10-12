@@ -426,7 +426,9 @@ input[type='checkbox']:checked::after { content: ''; width: 5px; height: 10px; b
 /* No glow when a tick is clicked; a crisp ring only when it is reached by keyboard. */
 input[type='checkbox']:focus { border-color: var(--themeBlue); box-shadow: none; }
 input[type='checkbox']:disabled { opacity: 0.7; cursor: not-allowed; }
-.check { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--textColor); min-height: 21px; font-weight: normal; }
+.check { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; cursor: pointer; color: var(--textColor); min-height: 21px; font-weight: normal; }
+/* a note under a checkbox belongs under it, lined up with its label rather than squeezed in beside */
+.check .hint { flex-basis: 100%; margin: 2px 0 0 22px; }
 .check input { margin: 0; }
 .seg { display: inline-flex; vertical-align: middle; }
 .seg button { padding: 6px 16px; border: 1px solid var(--defaultBorderColor); background: var(--defaultBackgroundColor); color: var(--defaultButtonTextColor); cursor: pointer; margin-left: -1px; line-height: normal; }

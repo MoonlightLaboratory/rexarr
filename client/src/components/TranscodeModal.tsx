@@ -128,7 +128,7 @@ export function TranscodeModal({ items, mediaType, onClose, onQueued, defaultAud
       {mediaType !== 'music' && (
         <label className="check mb">
           <input type="checkbox" checked={audioOnly} onChange={(e) => setAudioOnly(e.target.checked)} /> Re-encode the audio only – the video is copied exactly as it is
-          <span className="hint" style={{ display: 'block', marginLeft: 22 }}>
+          <span className="hint">
             For shrinking a TrueHD or DTS-HD MA track without touching the picture. Whatever the profile says about video is ignored.
           </span>
         </label>

@@ -928,7 +928,7 @@ export function SettingsPage() {
             </label>
             <label className="check mb">
               <input type="checkbox" checked={s.searchDiscReleases ?? true} disabled={!s.remuxOnly} onChange={(e) => setS({ ...s, searchDiscReleases: e.target.checked })} /> Also show full-disc releases (Blu-ray / UHD / DVD ISO, BDMV, VIDEO_TS)
-              <span className="hint" style={{ display: 'block', marginLeft: 22 }}>Grabbed discs are ripped with MakeMKV when the download finishes, then transcoded and imported.</span>
+              <span className="hint">Grabbed discs are ripped with MakeMKV when the download finishes, then transcoded and imported.</span>
             </label>
             <div className="field">
               <label>Default profile · Movies</label>
