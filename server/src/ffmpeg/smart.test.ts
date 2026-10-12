@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { SmartProfile } from '../../../shared/types.js';
+import type { SmartProfile, SmartRule } from '../../../shared/types.js';
 import { BUILTIN_SMART_PROFILES } from '../../../shared/presets.js';
 import { conditionHolds, decide, describeAssignment, describeCondition, explainDecision, isPassThrough, ruleMatches, SAMPLE_SOURCES } from '../../../shared/smart.js';
 import { audioCodecName, isObjectAudio, sourceFacts } from './facts.js';
@@ -80,7 +80,7 @@ test('the built-in smart profiles encode what their names say', () => {
   assert.equal(stereo.profile.audio.channels, 0, 'the source layout is kept');
   assert.deepEqual(stereo.applied.map((a) => a.rule.id), ['stereo']);
 
-  for (const disc of ['Blu-ray, DTS-HD MA 5.1', 'UHD, TrueHD 7.1 Atmos', 'DVD, AC-3 2.0']) {
+  for (const disc of ['Blu-ray, DTS-HD MA 5.1', 'UHD, TrueHD 7.1 Atmos', 'DVD, AC-3 2.0, interlaced']) {
     const d = decide(lossless, of(disc));
     assert.deepEqual([d.profile.video.encoder, d.profile.audio.encoder], ['copy', 'copy'], disc);
     assert.equal(d.applied.length, 0, disc);
@@ -93,12 +93,12 @@ test('the built-in smart profiles encode what their names say', () => {
   const film = decide(animation, of('Blu-ray, DTS-HD MA 5.1'));
   assert.deepEqual([film.profile.video.encoder, film.profile.video.quality, film.profile.video.tune], ['libx265', 20, 'none']);
 
-  const cartoon = decide(animation, { ...of('Blu-ray, DTS-HD MA 5.1'), media: { kind: 'movie', genres: ['animation', 'family'] } });
+  const cartoon = decide(animation, { ...of('Blu-ray, DTS-HD MA 5.1'), media: { kind: 'movie', genres: ['animation', 'family'], year: 2004 } });
   assert.deepEqual([cartoon.profile.video.quality, cartoon.profile.video.tune], [18, 'animation']);
   assert.deepEqual(cartoon.applied.map((a) => a.rule.id), ['animation']);
 
   // a series Sonarr calls anime takes the anime branch, 10-bit and all
-  const anime = decide(animation, { ...of('Episode, AAC 5.1'), media: { kind: 'anime', genres: ['animation'] } });
+  const anime = decide(animation, of('Anime episode, AAC 5.1'));
   assert.deepEqual([anime.profile.video.quality, anime.profile.video.tune, anime.profile.video.pixelFormat], [18, 'animation', 'yuv420p10le']);
   // both the genre branch and the anime branch fit, and they agree
   assert.deepEqual(anime.applied.map((a) => a.rule.id), ['animation', 'anime']);
@@ -139,4 +139,105 @@ test('a decision explains itself in one line', () => {
   assert.equal(describeCondition({ field: 'media.genres', op: 'anyOf', list: ['animation'] }), 'Genre is any of Animation');
   assert.equal(describeAssignment({ path: 'video.tune', value: 'animation' }), 'Video tune: animation');
   assert.equal(describeAssignment({ path: 'audio.channels', value: 0 }), 'Audio channels: Keep the source layout');
+});
+
+test('a branch can want any of its conditions, be named, or be switched off', () => {
+  const dvd = SAMPLE_SOURCES.find((s) => s.name.startsWith('DVD'))!.facts;
+  const uhd = SAMPLE_SOURCES.find((s) => s.name.startsWith('UHD, TrueHD'))!.facts;
+  const rule = (extra: Partial<SmartRule>): SmartRule => ({
+    id: 'r',
+    when: [
+      { field: 'video.interlaced', op: 'isTrue' },
+      { field: 'video.height', op: 'atLeast', number: 2160 },
+    ],
+    set: [{ path: 'video.quality', value: 19 }],
+    ...extra,
+  });
+  // all of: a DVD is interlaced but not 2160p, so neither disc fits
+  assert.equal(ruleMatches(rule({}), dvd), false);
+  assert.equal(ruleMatches(rule({}), uhd), false);
+  // any of: each disc satisfies one of the two
+  assert.equal(ruleMatches(rule({ match: 'any' }), dvd), true);
+  assert.equal(ruleMatches(rule({ match: 'any' }), uhd), true);
+  // switched off stays off whatever it would have matched
+  assert.equal(ruleMatches(rule({ match: 'any', enabled: false }), dvd), false);
+  // the name is what the job log calls it
+  const smart: SmartProfile = { id: 's', name: 'N', description: '', builtin: false, mediaType: 'any', container: 'mkv', base: [], rules: [rule({ match: 'any', label: 'Odd sources' })], createdAt: '', updatedAt: '' };
+  assert.match(explainDecision(smart, dvd, decide(smart, dvd)), /#1 Odd sources/);
+});
+
+test('the wider facts a branch can ask about', () => {
+  const info = {
+    audio: [
+      { index: 0, codec_type: 'audio' as const, codec_name: 'dts', profile: 'DTS-HD MA', channels: 6, bit_rate: '3000000', tags: { language: 'eng' } },
+      { index: 1, codec_type: 'audio' as const, codec_name: 'ac3', channels: 2, tags: { language: 'jpn', title: "Director's commentary" } },
+    ],
+    video: { index: 2, codec_type: 'video' as const, codec_name: 'h264', width: 1920, height: 1080, pix_fmt: 'yuv420p10le', field_order: 'tt' },
+    subtitles: [
+      { index: 3, codec_type: 'subtitle' as const, codec_name: 'subrip', tags: { language: 'eng' }, disposition: { forced: 1 } },
+      { index: 4, codec_type: 'subtitle' as const, codec_name: 'hdmv_pgs_subtitle', tags: { language: 'jpn' } },
+    ],
+    durationSeconds: 3600,
+    sizeBytes: 10e9,
+    bitRate: 22e6,
+    isHdr: false,
+    isDolbyVision: false,
+    formatName: 'matroska,webm',
+    frameRate: 23.976023,
+  };
+  const facts = sourceFacts(info, { kind: 'series', genres: ['animation'], year: 2012 });
+  assert.deepEqual(facts.audioExtra, { languages: ['eng', 'jpn'], hasCommentary: true, trackCount: 2, maxBitrateKbps: 3000 });
+  assert.deepEqual([facts.video.width, facts.video.bitDepth, facts.video.frameRate, facts.video.interlaced], [1920, 10, 23.976, true]);
+  assert.deepEqual(facts.subtitles, { count: 2, languages: ['eng', 'jpn'], hasForced: true, hasText: true });
+  assert.equal(facts.source.container, 'mkv');
+
+  // and reading each of them back through a condition
+  assert.equal(conditionHolds({ field: 'audio.languages', op: 'anyOf', list: ['jpn'] }, facts), true);
+  assert.equal(conditionHolds({ field: 'audio.languages', op: 'noneOf', list: ['fre'] }, facts), true);
+  assert.equal(conditionHolds({ field: 'audio.hasCommentary', op: 'isTrue' }, facts), true);
+  assert.equal(conditionHolds({ field: 'video.bitDepth', op: 'atLeast', number: 10 }, facts), true);
+  assert.equal(conditionHolds({ field: 'video.interlaced', op: 'isTrue' }, facts), true);
+  assert.equal(conditionHolds({ field: 'subtitles.hasForced', op: 'isTrue' }, facts), true);
+  assert.equal(conditionHolds({ field: 'subtitles.count', op: 'atLeast', number: 2 }, facts), true);
+  assert.equal(conditionHolds({ field: 'source.container', op: 'anyOf', list: ['mkv'] }, facts), true);
+  assert.equal(conditionHolds({ field: 'media.year', op: 'atMost', number: 2015 }, facts), true);
+  // an 8-bit source reports 8, not nothing
+  assert.equal(sourceFacts({ ...info, video: { ...info.video, pix_fmt: 'yuv420p' } }).video.bitDepth, 8);
+});
+
+test('the wider settings a branch can change', () => {
+  const smart: SmartProfile = {
+    id: 's', name: 'Everything', description: '', builtin: false, mediaType: 'any', container: 'mkv',
+    base: [{ path: 'video.encoder', value: 'libx265' }],
+    rules: [
+      {
+        id: 'r',
+        when: [{ field: 'video.height', op: 'atLeast', number: 1 }],
+        set: [
+          { path: 'audio.languages', value: ['eng', 'jpn'] },
+          { path: 'audio.firstMatchOnly', value: true },
+          { path: 'subtitles.languages', value: ['eng'] },
+          { path: 'subtitles.burnForcedOnly', value: true },
+          { path: 'video.extraArgs', value: '-x265-params aq-mode=3' },
+          { path: 'video.hwMode', value: 'software' },
+          { path: 'output.suffix', value: ' [rexarr]' },
+          { path: 'output.replaceOriginal', value: true },
+        ],
+      },
+    ],
+    createdAt: '', updatedAt: '',
+  };
+  const { profile } = decide(smart, SAMPLE_SOURCES[0].facts);
+  assert.deepEqual(profile.audio.languages, ['eng', 'jpn']);
+  assert.equal(profile.audio.firstMatchOnly, true);
+  assert.deepEqual(profile.subtitles.languages, ['eng']);
+  assert.equal(profile.subtitles.burnForcedOnly, true);
+  assert.equal(profile.video.extraArgs, '-x265-params aq-mode=3');
+  assert.equal(profile.video.hwMode, 'software');
+  assert.deepEqual([profile.output.suffix, profile.output.replaceOriginal], [' [rexarr]', true]);
+  // a language list typed as text is taken apart the same way
+  const typed = decide({ ...smart, rules: [{ ...smart.rules[0], set: [{ path: 'audio.languages', value: 'eng, jpn fre' }] }] }, SAMPLE_SOURCES[0].facts);
+  assert.deepEqual(typed.profile.audio.languages, ['eng', 'jpn', 'fre']);
+  assert.equal(describeAssignment({ path: 'audio.languages', value: ['eng', 'jpn'] }), 'Keep audio languages: eng, jpn');
+  assert.equal(describeAssignment({ path: 'audio.languages', value: [] }), 'Keep audio languages: all');
 });

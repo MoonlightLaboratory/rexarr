@@ -95,24 +95,45 @@ function quote(a: string) {
 }
 
 const smartConditionSchema = z.object({
-  field: z.enum(['audio.maxChannels', 'audio.codecs', 'audio.objectBased', 'audio.lossless', 'video.height', 'video.codec', 'video.hdr', 'video.dolbyVision', 'source.durationMinutes', 'source.sizeGB', 'source.bitrateMbps', 'media.kind', 'media.genres']),
+  field: z.enum([
+    'audio.maxChannels', 'audio.codecs', 'audio.objectBased', 'audio.lossless', 'audio.languages', 'audio.hasCommentary', 'audio.trackCount', 'audio.maxBitrateKbps',
+    'video.height', 'video.width', 'video.codec', 'video.hdr', 'video.dolbyVision', 'video.bitDepth', 'video.frameRate', 'video.interlaced',
+    'subtitles.count', 'subtitles.languages', 'subtitles.hasForced', 'subtitles.hasText',
+    'source.durationMinutes', 'source.sizeGB', 'source.bitrateMbps', 'source.container',
+    'media.kind', 'media.genres', 'media.year',
+  ]),
   op: z.enum(['atLeast', 'atMost', 'equals', 'anyOf', 'noneOf', 'isTrue', 'isFalse']),
   number: z.number().optional(),
   list: z.array(z.string().max(40)).max(20).optional(),
 });
 const smartAssignmentSchema = z.object({
-  path: z.enum(['container', 'video.encoder', 'video.quality', 'video.preset', 'video.tune', 'video.maxHeight', 'video.pixelFormat', 'video.hdrPassthrough', 'audio.encoder', 'audio.bitrate', 'audio.channels', 'audio.dropCommentary', 'subtitles.mode']),
-  value: z.union([z.string().max(40), z.number(), z.boolean()]),
+  path: z.enum([
+    'container',
+    'video.encoder', 'video.quality', 'video.preset', 'video.tune', 'video.maxHeight', 'video.pixelFormat', 'video.hdrPassthrough', 'video.bitrate', 'video.hwMode', 'video.extraArgs',
+    'audio.encoder', 'audio.bitrate', 'audio.channels', 'audio.languages', 'audio.firstMatchOnly', 'audio.dropCommentary',
+    'subtitles.mode', 'subtitles.languages', 'subtitles.burnLanguage', 'subtitles.burnForcedOnly', 'subtitles.keepFonts',
+    'output.suffix', 'output.directory', 'output.replaceOriginal', 'output.renameTokens', 'output.cleanMetadata', 'output.notifyArr',
+  ]),
+  value: z.union([z.string().max(400), z.number(), z.boolean(), z.array(z.string().max(20)).max(40)]),
 });
 const smartProfileSchema = z.object({
   name: z.string().min(1).max(80),
   description: z.string().max(500).default(''),
   mediaType: z.enum(['any', 'movie', 'tv', 'anime']).default('any'),
   container: z.enum(['mkv', 'mp4', 'webm', 'mov']).default('mkv'),
-  base: z.array(smartAssignmentSchema).max(20).default([]),
+  base: z.array(smartAssignmentSchema).max(30).default([]),
   rules: z
-    .array(z.object({ id: z.string().min(1).max(60), when: z.array(smartConditionSchema).max(8), set: z.array(smartAssignmentSchema).max(20).default([]) }))
-    .max(20)
+    .array(
+      z.object({
+        id: z.string().min(1).max(60),
+        label: z.string().max(60).optional(),
+        enabled: z.boolean().optional(),
+        match: z.enum(['all', 'any']).optional(),
+        when: z.array(smartConditionSchema).max(12),
+        set: z.array(smartAssignmentSchema).max(30).default([]),
+      }),
+    )
+    .max(30)
     .default([]),
   layout: z.record(z.string().max(80), z.object({ x: z.number(), y: z.number() })).optional(),
 });

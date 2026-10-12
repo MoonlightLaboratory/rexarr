@@ -412,7 +412,7 @@ export function SmartGraphPage() {
             const chosen = Boolean(decision && n.ruleIndex !== undefined && decision.applied.some((a) => a.index === n.ruleIndex));
             const live = rule ? ruleMatches(rule, facts) : false;
             return (
-              <div key={n.id} data-node={n.id} className={`gNode ${n.kind}${chosen ? ' chosen' : ''}`} style={{ left: n.pos.x, top: n.pos.y }}>
+              <div key={n.id} data-node={n.id} className={`gNode ${n.kind}${chosen ? ' chosen' : ''}${rule?.enabled === false ? ' off' : ''}`} style={{ left: n.pos.x, top: n.pos.y }}>
                 {/* ---- the entry pill ---- */}
                 {n.kind === 'start' && (
                   <div className="gStart" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
@@ -425,17 +425,43 @@ export function SmartGraphPage() {
                 {n.kind === 'branch' && rule && (
                   <>
                     <div className="gHead" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
-                      <span>Branch</span>
+                      <input
+                        className="gName"
+                        value={rule.label ?? ''}
+                        readOnly={readOnly}
+                        placeholder={`Branch ${n.ruleIndex! + 1}`}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onChange={(e) => setRule(n.ruleIndex!, { ...rule, label: e.target.value })}
+                      />
                       <span className="spacer" />
-                      {live && <span className="gTag">true</span>}
+                      {live && rule.enabled !== false && <span className="gTag">true</span>}
+                      <button
+                        className={`gIcon${rule.enabled === false ? ' off' : ''}`}
+                        disabled={readOnly}
+                        onClick={() => setRule(n.ruleIndex!, { ...rule, enabled: rule.enabled === false })}
+                        title={rule.enabled === false ? 'Switched off – click to use this branch again' : 'Switch this branch off without deleting it'}
+                      >
+                        {rule.enabled === false ? '○' : '●'}
+                      </button>
                       <button className="gIcon" disabled={readOnly || n.ruleIndex === 0} onClick={() => moveRule(n.ruleIndex!, -1)} title="Ask this one earlier">↑</button>
                       <button className="gIcon" disabled={readOnly || n.ruleIndex === sp.rules.length - 1} onClick={() => moveRule(n.ruleIndex!, 1)} title="Ask this one later">↓</button>
                       <button className="gIcon danger" disabled={readOnly} onClick={() => removeRule(n.ruleIndex!)} title="Remove this branch">
                         <Icon.Trash />
                       </button>
                     </div>
-                    <div className="gAsk" title={rule.when.map(describeCondition).join(' and ')}>
-                      {rule.when.map(describeCondition).join(' and ') || 'Nothing yet – this branch never matches'}
+                    <div className="gAskHead">
+                      <select
+                        className="gAnyAll"
+                        value={rule.match ?? 'all'}
+                        disabled={readOnly}
+                        onChange={(e) => setRule(n.ruleIndex!, { ...rule, match: e.target.value as 'all' | 'any' })}
+                      >
+                        <option value="all">All of</option>
+                        <option value="any">Any of</option>
+                      </select>
+                      <span className="gAsk" title={rule.when.map(describeCondition).join(rule.match === 'any' ? ' or ' : ' and ')}>
+                        {rule.when.map(describeCondition).join(rule.match === 'any' ? ' or ' : ' and ') || 'Nothing yet – this branch never matches'}
+                      </span>
                     </div>
                     <div className="gBranchRows">
                       <BranchRow id={`rule:${rule.id}:then`} label="Then" taken={live} />
@@ -450,7 +476,7 @@ export function SmartGraphPage() {
                 {n.kind === 'all' && rule && (
                   <>
                     <div className="gHead" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
-                      <span>All of</span>
+                      <span>{rule.match === 'any' ? 'Any of' : 'All of'}</span>
                     </div>
                     <div className="gBody small dim">All {rule.when.length} have to hold</div>
                     <Port id={`all:${rule.id}:out`} side="top" tone="data" />
@@ -706,6 +732,19 @@ function Assignments({ list, readOnly, onChange }: { list: SmartAssignment[]; re
                 ))}
               </select>
             )}
+            {info?.kind === 'text' && (
+              <input type="text" className="mono" disabled={readOnly} value={String(a.value ?? '')} onChange={(e) => set(i, { ...a, value: e.target.value })} />
+            )}
+            {info?.kind === 'languages' && (
+              <input
+                type="text"
+                className="mono"
+                disabled={readOnly}
+                placeholder="eng jpn – empty keeps all"
+                value={(Array.isArray(a.value) ? a.value : []).join(' ')}
+                onChange={(e) => set(i, { ...a, value: e.target.value.split(/[\s,]+/).filter(Boolean) })}
+              />
+            )}
             <button className="gIcon danger" disabled={readOnly} onClick={() => onChange(list.filter((_, j) => j !== i))} title="Remove this setting">
               <Icon.Trash />
             </button>
@@ -720,10 +759,12 @@ function Assignments({ list, readOnly, onChange }: { list: SmartAssignment[]; re
   );
 }
 
-function defaultValue(path: SmartSettingPath): string | number | boolean {
+function defaultValue(path: SmartSettingPath): string | number | boolean | string[] {
   const info = settingInfo(path);
   if (info?.kind === 'boolean') return true;
   if (info?.kind === 'number') return path === 'video.quality' ? 20 : 0;
+  if (info?.kind === 'languages') return [];
+  if (info?.kind === 'text') return '';
   return info?.options?.[0]?.value ?? '';
 }
 

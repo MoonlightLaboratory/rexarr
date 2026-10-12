@@ -178,15 +178,29 @@ export type SmartField =
   | 'audio.codecs'
   | 'audio.objectBased'
   | 'audio.lossless'
+  | 'audio.languages'
+  | 'audio.hasCommentary'
+  | 'audio.trackCount'
+  | 'audio.maxBitrateKbps'
   | 'video.height'
+  | 'video.width'
   | 'video.codec'
   | 'video.hdr'
   | 'video.dolbyVision'
+  | 'video.bitDepth'
+  | 'video.frameRate'
+  | 'video.interlaced'
+  | 'subtitles.count'
+  | 'subtitles.languages'
+  | 'subtitles.hasForced'
+  | 'subtitles.hasText'
   | 'source.durationMinutes'
   | 'source.sizeGB'
   | 'source.bitrateMbps'
+  | 'source.container'
   | 'media.kind'
-  | 'media.genres';
+  | 'media.genres'
+  | 'media.year';
 
 export type SmartOperator = 'atLeast' | 'atMost' | 'equals' | 'anyOf' | 'noneOf' | 'isTrue' | 'isFalse';
 
@@ -195,7 +209,7 @@ export interface SmartCondition {
   op: SmartOperator;
   /** For atLeast / atMost / equals. */
   number?: number;
-  /** For anyOf / noneOf. */
+  /** For anyOf / noneOf. A language list takes free text as well, since a disc can carry anything. */
   list?: string[];
 }
 
@@ -205,7 +219,8 @@ export interface SmartCondition {
  */
 export interface SmartAssignment {
   path: SmartSettingPath;
-  value: string | number | boolean;
+  /** A list for the language settings, free text for a suffix or extra arguments, otherwise a scalar. */
+  value: string | number | boolean | string[];
 }
 
 export type SmartSettingPath =
@@ -217,15 +232,36 @@ export type SmartSettingPath =
   | 'video.maxHeight'
   | 'video.pixelFormat'
   | 'video.hdrPassthrough'
+  | 'video.bitrate'
+  | 'video.hwMode'
+  | 'video.extraArgs'
   | 'audio.encoder'
   | 'audio.bitrate'
   | 'audio.channels'
+  | 'audio.languages'
+  | 'audio.firstMatchOnly'
   | 'audio.dropCommentary'
-  | 'subtitles.mode';
+  | 'subtitles.mode'
+  | 'subtitles.languages'
+  | 'subtitles.burnLanguage'
+  | 'subtitles.burnForcedOnly'
+  | 'subtitles.keepFonts'
+  | 'output.suffix'
+  | 'output.directory'
+  | 'output.replaceOriginal'
+  | 'output.renameTokens'
+  | 'output.cleanMetadata'
+  | 'output.notifyArr';
 
 export interface SmartRule {
   id: string;
-  /** Every condition has to hold. A rule with no conditions never matches, so a half-built one does nothing. */
+  /** A name for the branch, shown on its node and in the job log. */
+  label?: string;
+  /** Off keeps the branch and its wiring but skips it, for trying something without losing it. */
+  enabled?: boolean;
+  /** Whether every condition has to hold, or any one of them. Defaults to all. */
+  match?: 'all' | 'any';
+  /** A rule with no conditions never matches, so a half-built one does nothing. */
   when: SmartCondition[];
   /** What that means for the encode. */
   set: SmartAssignment[];
@@ -266,10 +302,12 @@ export interface SourceFacts {
     /** The raw profile strings, for the log line that explains a decision. */
     profiles: string[];
   };
-  video: { height: number; codec: string; hdr: boolean; dolbyVision: boolean };
-  source: { durationMinutes: number; sizeGB: number; bitrateMbps: number };
+  audioExtra: { languages: string[]; hasCommentary: boolean; trackCount: number; maxBitrateKbps: number };
+  video: { height: number; width: number; codec: string; hdr: boolean; dolbyVision: boolean; bitDepth: number; frameRate: number; interlaced: boolean };
+  subtitles: { count: number; languages: string[]; hasForced: boolean; hasText: boolean };
+  source: { durationMinutes: number; sizeGB: number; bitrateMbps: number; container: string };
   /** What Radarr / Sonarr say this is. Genres are only looked up when a rule asks about them. */
-  media: { kind: 'movie' | 'series' | 'anime' | 'unknown'; genres: string[] };
+  media: { kind: 'movie' | 'series' | 'anime' | 'unknown'; genres: string[]; year: number };
 }
 
 export interface MusicFile {

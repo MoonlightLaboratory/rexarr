@@ -118,10 +118,15 @@ The wires are drawn from the chain rather than dragged by hand: the order of the
 
 | | |
 | --- | --- |
-| Audio | channels (the widest track in the file), codec, object audio (Atmos / DTS:X), whether anything lossless is present |
-| Video | height, codec, HDR, Dolby Vision |
-| Source | running time, file size, bitrate |
-| What it is | movie / series / anime, and the genres Radarr or Sonarr hold |
+| Audio | channels (the widest track in the file), codec, object audio (Atmos / DTS:X), whether anything lossless is present, languages carried, whether there is a commentary track, how many tracks, highest declared bitrate |
+| Video | height, width, codec, HDR, Dolby Vision, bit depth, frame rate, whether it is interlaced |
+| Subtitles | how many, languages, whether any are forced, whether any are text rather than bitmap |
+| Source | running time, file size, bitrate, container |
+| What it is | movie / series / anime, the genres Radarr or Sonarr hold, and the year |
+
+A branch wants **all of** its conditions by default; switch it to **any of** and one is enough. It can be given
+a name, which is what the job log calls it, and switched **off** — the branch and its wiring stay where they are
+and it is simply skipped, which is how you try something without losing it.
 
 **Object audio** is read from the stream profile FFmpeg reports — `Dolby TrueHD + Dolby Atmos`,
 `Dolby Digital Plus + Dolby Atmos`, `DTS-HD MA + DTS:X`, `DTS-HD MA + DTS:X IMAX`. Nothing else in the file says
@@ -134,9 +139,15 @@ them, so a smart profile that never mentions genre costs no extra request.
 
 ### What a branch can change
 
-Container, video encoder, CRF, preset, tune, downscale height, pixel format, HDR passthrough, audio encoder,
-bitrate, channels, whether commentary is dropped, and what happens to subtitles. Anything a branch does not touch
-stays as the profile's own settings left it.
+| | |
+| --- | --- |
+| Video | encoder, CRF, preset, tune, downscale height, pixel format, HDR passthrough, bitrate, whether to force the CPU, extra ffmpeg arguments |
+| Audio | encoder, bitrate, channels, which languages to keep, one track per language, whether commentary is dropped |
+| Subtitles | mode, which languages to keep, which language to burn in, forced only, font attachments |
+| File | container, file name suffix, output folder, replace the original, rename from the profile tokens, clean metadata, tell Radarr / Sonarr |
+
+Anything a branch does not touch stays as the profile's own settings left it. **Start from** takes the same list,
+so whatever a branch can change, a profile can also simply be.
 
 ### The two that ship with it
 

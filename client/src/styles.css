@@ -1424,3 +1424,14 @@ table.metaTags td.mono { word-break: break-word; }
 .gResultRow .spacer { flex: 1; }
 .gResultRow.set { color: var(--textColor); }
 .gResultRow.set .gTag { background: var(--successColor); color: var(--white); }
+
+/* a branch can be named, switched off, and ask for any of its conditions rather than all */
+.gName { flex: 1 1 auto; min-width: 0; padding: 2px 6px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--textColor); font-size: 14px; }
+.gName:hover:not(:read-only) { border-color: var(--borderColor); }
+.gName:focus { border-color: var(--borderColor); background: var(--inputBackgroundColor); }
+.gAskHead { display: flex; align-items: flex-start; gap: 7px; padding: 8px 11px; border-bottom: 1px solid var(--borderColor); }
+.gAnyAll { flex: 0 0 auto; width: auto; padding: 1px 20px 1px 5px; font-size: 11px; background-position: right 4px center; }
+.gAskHead .gAsk { flex: 1; padding: 0; border: 0; }
+.gNode.off { opacity: 0.5; }
+.gNode.off .gHead { border-top-style: dashed; }
+.gIcon.off { color: var(--gray); }

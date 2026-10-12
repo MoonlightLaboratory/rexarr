@@ -3,7 +3,7 @@
  * the same code on made-up discs so a rule can be tried before it is saved.
  */
 import type { AudioEncoder, Container, Profile, SmartAssignment, SmartCondition, SmartField, SmartOperator, SmartProfile, SmartRule, SmartSettingPath, SourceFacts, SubtitleMode, VideoEncoder, VideoTune } from './types.js';
-import { AUDIO_ENCODER_INFO, CONTAINER_INFO, SMART_STOCK, VIDEO_ENCODER_INFO } from './presets.js';
+import { AUDIO_ENCODER_INFO, CONTAINER_INFO, LANGUAGES, SMART_STOCK, VIDEO_ENCODER_INFO } from './presets.js';
 
 export interface SmartFieldInfo {
   field: SmartField;
@@ -38,18 +38,38 @@ const VIDEO_CODECS = [
   { value: 'vp9', label: 'VP9' },
 ];
 
+const LANGS = LANGUAGES.map((l) => ({ value: l.code, label: l.label }));
+
 export const SMART_FIELDS: SmartFieldInfo[] = [
   { field: 'audio.maxChannels', label: 'Audio channels', kind: 'number', help: 'The widest audio track in the file: 2 for stereo, 6 for 5.1, 8 for 7.1.' },
   { field: 'audio.objectBased', label: 'Object audio (Atmos / DTS:X)', kind: 'boolean', help: 'Needs an FFmpeg that reports it in the stream profile; System → Status shows the version.' },
   { field: 'audio.lossless', label: 'Lossless audio', kind: 'boolean', help: 'TrueHD, DTS-HD MA, FLAC or PCM is present.' },
   { field: 'audio.codecs', label: 'Audio codec', kind: 'list', options: AUDIO_CODECS, help: 'Matches when any audio track in the file is one of these.' },
+  { field: 'audio.languages', label: 'Audio language', kind: 'list', options: LANGS, help: 'Matches when the file carries a track in one of these.' },
+  { field: 'audio.hasCommentary', label: 'Has a commentary track', kind: 'boolean' },
+  { field: 'audio.trackCount', label: 'Audio tracks', kind: 'number' },
+  { field: 'audio.maxBitrateKbps', label: 'Audio bitrate', kind: 'number', unit: 'kbps', help: 'The highest a track declares. Many lossless tracks declare nothing, so this reads 0.' },
   { field: 'video.height', label: 'Video height', kind: 'number', unit: 'px', help: '1080 for 1080p, 2160 for 4K.' },
+  { field: 'video.width', label: 'Video width', kind: 'number', unit: 'px' },
   { field: 'video.codec', label: 'Video codec', kind: 'list', options: VIDEO_CODECS },
   { field: 'video.hdr', label: 'HDR', kind: 'boolean' },
   { field: 'video.dolbyVision', label: 'Dolby Vision', kind: 'boolean' },
+  { field: 'video.bitDepth', label: 'Video bit depth', kind: 'number', unit: 'bit', help: '8, 10 or 12, read from the pixel format.' },
+  { field: 'video.frameRate', label: 'Frame rate', kind: 'number', unit: 'fps' },
+  { field: 'video.interlaced', label: 'Interlaced', kind: 'boolean', help: 'Field order says the picture is interlaced – usually a DVD or a broadcast recording.' },
+  { field: 'subtitles.count', label: 'Subtitle tracks', kind: 'number' },
+  { field: 'subtitles.languages', label: 'Subtitle language', kind: 'list', options: LANGS },
+  { field: 'subtitles.hasForced', label: 'Has forced subtitles', kind: 'boolean' },
+  { field: 'subtitles.hasText', label: 'Has text subtitles', kind: 'boolean', help: 'SRT, ASS and friends, as opposed to the bitmap subtitles a disc carries.' },
   { field: 'source.durationMinutes', label: 'Running time', kind: 'number', unit: 'min' },
   { field: 'source.sizeGB', label: 'File size', kind: 'number', unit: 'GB' },
   { field: 'source.bitrateMbps', label: 'Bitrate', kind: 'number', unit: 'Mbps' },
+  { field: 'source.container', label: 'Source container', kind: 'list', options: [
+    { value: 'mkv', label: 'MKV' },
+    { value: 'mp4', label: 'MP4' },
+    { value: 'mov', label: 'MOV' },
+    { value: 'webm', label: 'WebM' },
+  ] },
   { field: 'media.kind', label: 'This is a', kind: 'list', options: [
     { value: 'movie', label: 'Movie' },
     { value: 'series', label: 'Series' },
@@ -65,6 +85,7 @@ export const SMART_FIELDS: SmartFieldInfo[] = [
     { value: 'drama', label: 'Drama' },
     { value: 'family', label: 'Family' },
   ], help: 'Genres as Radarr or Sonarr have them, lower-cased. Looked up only when a branch asks.' },
+  { field: 'media.year', label: 'Year', kind: 'number' },
 ];
 
 export const fieldInfo = (field: SmartField): SmartFieldInfo | undefined => SMART_FIELDS.find((f) => f.field === field);
@@ -96,24 +117,52 @@ export function factValue(field: SmartField, facts: SourceFacts): number | boole
       return facts.audio.objectBased;
     case 'audio.lossless':
       return facts.audio.lossless;
+    case 'audio.languages':
+      return facts.audioExtra?.languages ?? [];
+    case 'audio.hasCommentary':
+      return facts.audioExtra?.hasCommentary ?? false;
+    case 'audio.trackCount':
+      return facts.audioExtra?.trackCount ?? 0;
+    case 'audio.maxBitrateKbps':
+      return facts.audioExtra?.maxBitrateKbps ?? 0;
     case 'video.height':
       return facts.video.height;
+    case 'video.width':
+      return facts.video.width;
     case 'video.codec':
       return facts.video.codec ? [facts.video.codec] : [];
     case 'video.hdr':
       return facts.video.hdr;
     case 'video.dolbyVision':
       return facts.video.dolbyVision;
+    case 'video.bitDepth':
+      return facts.video.bitDepth;
+    case 'video.frameRate':
+      return facts.video.frameRate;
+    case 'video.interlaced':
+      return facts.video.interlaced;
+    case 'subtitles.count':
+      return facts.subtitles?.count ?? 0;
+    case 'subtitles.languages':
+      return facts.subtitles?.languages ?? [];
+    case 'subtitles.hasForced':
+      return facts.subtitles?.hasForced ?? false;
+    case 'subtitles.hasText':
+      return facts.subtitles?.hasText ?? false;
     case 'source.durationMinutes':
       return facts.source.durationMinutes;
     case 'source.sizeGB':
       return facts.source.sizeGB;
     case 'source.bitrateMbps':
       return facts.source.bitrateMbps;
+    case 'source.container':
+      return facts.source.container ? [facts.source.container] : [];
     case 'media.kind':
       return [facts.media.kind];
     case 'media.genres':
       return facts.media.genres;
+    case 'media.year':
+      return facts.media.year ?? 0;
   }
 }
 
@@ -137,9 +186,10 @@ export function conditionHolds(c: SmartCondition, facts: SourceFacts): boolean {
   }
 }
 
-/** A rule needs every one of its conditions. One with none is unfinished, and never matches. */
+/** A branch with no conditions is unfinished, and one that is switched off is skipped; neither ever matches. */
 export function ruleMatches(rule: SmartRule, facts: SourceFacts): boolean {
-  return rule.when.length > 0 && rule.when.every((c) => conditionHolds(c, facts));
+  if (rule.enabled === false || !rule.when.length) return false;
+  return rule.match === 'any' ? rule.when.some((c) => conditionHolds(c, facts)) : rule.when.every((c) => conditionHolds(c, facts));
 }
 
 export interface SmartDecision {
@@ -200,11 +250,58 @@ export function assign(profile: Profile, a: SmartAssignment): void {
     case 'audio.dropCommentary':
       profile.audio.dropCommentary = Boolean(a.value);
       break;
+    case 'video.bitrate':
+      profile.video.bitrate = Number(a.value);
+      break;
+    case 'video.hwMode':
+      profile.video.hwMode = a.value as 'auto' | 'software';
+      break;
+    case 'video.extraArgs':
+      profile.video.extraArgs = String(a.value);
+      break;
+    case 'audio.languages':
+      profile.audio.languages = asList(a.value);
+      break;
+    case 'audio.firstMatchOnly':
+      profile.audio.firstMatchOnly = Boolean(a.value);
+      break;
     case 'subtitles.mode':
       profile.subtitles.mode = a.value as SubtitleMode;
       break;
+    case 'subtitles.languages':
+      profile.subtitles.languages = asList(a.value);
+      break;
+    case 'subtitles.burnLanguage':
+      profile.subtitles.burnLanguage = String(a.value);
+      break;
+    case 'subtitles.burnForcedOnly':
+      profile.subtitles.burnForcedOnly = Boolean(a.value);
+      break;
+    case 'subtitles.keepFonts':
+      profile.subtitles.keepFonts = Boolean(a.value);
+      break;
+    case 'output.suffix':
+      profile.output.suffix = String(a.value);
+      break;
+    case 'output.directory':
+      profile.output.directory = String(a.value);
+      break;
+    case 'output.replaceOriginal':
+      profile.output.replaceOriginal = Boolean(a.value);
+      break;
+    case 'output.renameTokens':
+      profile.output.renameTokens = Boolean(a.value);
+      break;
+    case 'output.cleanMetadata':
+      profile.output.cleanMetadata = Boolean(a.value);
+      break;
+    case 'output.notifyArr':
+      profile.output.notifyArr = Boolean(a.value);
+      break;
   }
 }
+
+const asList = (v: SmartAssignment['value']): string[] => (Array.isArray(v) ? v : String(v ?? '').split(/[\s,]+/).filter(Boolean));
 
 /**
  * What this smart profile comes to for one file: its own settings, then every branch that fits, in order. The
@@ -269,7 +366,7 @@ export function describeCondition(c: SmartCondition): string {
 export interface SmartSettingInfo {
   path: SmartSettingPath;
   label: string;
-  kind: 'select' | 'number' | 'boolean';
+  kind: 'select' | 'number' | 'boolean' | 'text' | 'languages';
   options?: { value: string; label: string }[];
   min?: number;
   max?: number;
@@ -284,6 +381,12 @@ export const SMART_SETTINGS: SmartSettingInfo[] = [
   { path: 'video.maxHeight', label: 'Downscale to at most', kind: 'number', min: 0, max: 4320, unit: 'px' },
   { path: 'video.pixelFormat', label: 'Pixel format', kind: 'select', options: ['auto', 'yuv420p', 'yuv420p10le', 'p010le', 'nv12'].map((value) => ({ value, label: value })) },
   { path: 'video.hdrPassthrough', label: 'Keep HDR metadata', kind: 'boolean' },
+  { path: 'video.bitrate', label: 'Video bitrate', kind: 'number', min: 0, max: 200000, unit: 'kbps' },
+  { path: 'video.hwMode', label: 'Hardware encoding', kind: 'select', options: [
+    { value: 'auto', label: 'Follow the setting' },
+    { value: 'software', label: 'Always on the CPU' },
+  ] },
+  { path: 'video.extraArgs', label: 'Extra ffmpeg arguments', kind: 'text' },
   { path: 'audio.encoder', label: 'Audio encoder', kind: 'select', options: Object.entries(AUDIO_ENCODER_INFO).map(([value, v]) => ({ value, label: v.label })) },
   { path: 'audio.bitrate', label: 'Audio bitrate', kind: 'number', min: 0, max: 3000, unit: 'kbps' },
   { path: 'audio.channels', label: 'Audio channels', kind: 'select', options: [
@@ -292,6 +395,8 @@ export const SMART_SETTINGS: SmartSettingInfo[] = [
     { value: '6', label: '5.1' },
     { value: '8', label: '7.1' },
   ] },
+  { path: 'audio.languages', label: 'Keep audio languages', kind: 'languages' },
+  { path: 'audio.firstMatchOnly', label: 'One audio track per language', kind: 'boolean' },
   { path: 'audio.dropCommentary', label: 'Drop commentary tracks', kind: 'boolean' },
   { path: 'subtitles.mode', label: 'Subtitles', kind: 'select', options: [
     { value: 'copy', label: 'Copy' },
@@ -299,7 +404,17 @@ export const SMART_SETTINGS: SmartSettingInfo[] = [
     { value: 'burn', label: 'Burn in' },
     { value: 'none', label: 'Drop' },
   ] },
+  { path: 'subtitles.languages', label: 'Keep subtitle languages', kind: 'languages' },
+  { path: 'subtitles.burnLanguage', label: 'Burn in which language', kind: 'select', options: [{ value: '', label: 'The first subtitle track' }, ...LANGS] },
+  { path: 'subtitles.burnForcedOnly', label: 'Burn forced subtitles only', kind: 'boolean' },
+  { path: 'subtitles.keepFonts', label: 'Keep font attachments', kind: 'boolean' },
   { path: 'container', label: 'Container', kind: 'select', options: Object.entries(CONTAINER_INFO).filter(([, v]) => !v.music).map(([value, v]) => ({ value, label: v.label })) },
+  { path: 'output.suffix', label: 'File name suffix', kind: 'text' },
+  { path: 'output.directory', label: 'Output folder', kind: 'text' },
+  { path: 'output.replaceOriginal', label: 'Replace the original', kind: 'boolean' },
+  { path: 'output.renameTokens', label: 'Rename from the profile tokens', kind: 'boolean' },
+  { path: 'output.cleanMetadata', label: 'Clean metadata', kind: 'boolean' },
+  { path: 'output.notifyArr', label: 'Tell Radarr / Sonarr', kind: 'boolean' },
 ];
 
 export const settingInfo = (path: SmartSettingPath) => SMART_SETTINGS.find((s) => s.path === path);
@@ -308,6 +423,11 @@ export function describeAssignment(a: SmartAssignment): string {
   const info = settingInfo(a.path);
   const label = info?.label ?? a.path;
   if (info?.kind === 'boolean') return `${label}: ${a.value ? 'yes' : 'no'}`;
+  if (info?.kind === 'languages') {
+    const list = asList(a.value);
+    return `${label}: ${list.length ? list.join(', ') : 'all'}`;
+  }
+  if (info?.kind === 'text') return `${label}: ${a.value || '—'}`;
   const option = info?.options?.find((o) => o.value === String(a.value));
   return `${label}: ${option?.label ?? a.value}${info?.unit ? ` ${info.unit}` : ''}`;
 }
@@ -315,7 +435,9 @@ export function describeAssignment(a: SmartAssignment): string {
 /** One line for the job log: what was found, which branches fired, and what the encode ended up being. */
 export function explainDecision(smart: SmartProfile, facts: SourceFacts, decision: SmartDecision): string {
   const audio = `${facts.audio.maxChannels}ch ${facts.audio.codecs.join('/') || 'no audio'}${facts.audio.objectBased ? ' (object audio)' : ''}`;
-  const where = decision.applied.length ? decision.applied.map((a) => `#${a.index + 1} ${a.rule.when.map(describeCondition).join(' and ')}`).join('; ') : 'no branch matched';
+  const where = decision.applied.length
+    ? decision.applied.map((a) => `#${a.index + 1} ${a.rule.label || a.rule.when.map(describeCondition).join(a.rule.match === 'any' ? ' or ' : ' and ')}`).join('; ')
+    : 'no branch matched';
   const p = decision.profile;
   // a bitrate means nothing for a lossless encoder, so it is not quoted back as if it did
   const lossy = p.audio.encoder !== 'copy' && !AUDIO_ENCODER_INFO[p.audio.encoder]?.lossless;
@@ -327,10 +449,56 @@ export function explainDecision(smart: SmartProfile, facts: SourceFacts, decisio
 
 /** Discs to try a rule against in the editor, covering the cases these rules exist for. */
 export const SAMPLE_SOURCES: { name: string; facts: SourceFacts }[] = [
-  { name: 'UHD, TrueHD 7.1 Atmos', facts: { audio: { maxChannels: 8, codecs: ['truehd', 'ac3'], objectBased: true, lossless: true, profiles: ['Dolby TrueHD + Dolby Atmos'] }, video: { height: 2160, codec: 'hevc', hdr: true, dolbyVision: false }, source: { durationMinutes: 130, sizeGB: 58, bitrateMbps: 60 }, media: { kind: 'movie', genres: [] } } },
-  { name: 'UHD, DTS-HD MA 7.1 + DTS:X', facts: { audio: { maxChannels: 8, codecs: ['dts-hd-ma'], objectBased: true, lossless: true, profiles: ['DTS-HD MA + DTS:X'] }, video: { height: 2160, codec: 'hevc', hdr: true, dolbyVision: true }, source: { durationMinutes: 115, sizeGB: 54, bitrateMbps: 62 }, media: { kind: 'movie', genres: [] } } },
-  { name: 'Blu-ray, DTS-HD MA 5.1', facts: { audio: { maxChannels: 6, codecs: ['dts-hd-ma', 'ac3'], objectBased: false, lossless: true, profiles: ['DTS-HD MA'] }, video: { height: 1080, codec: 'h264', hdr: false, dolbyVision: false }, source: { durationMinutes: 105, sizeGB: 24, bitrateMbps: 30 }, media: { kind: 'movie', genres: [] } } },
-  { name: 'Blu-ray, TrueHD 2.0 only', facts: { audio: { maxChannels: 2, codecs: ['truehd'], objectBased: false, lossless: true, profiles: ['Dolby TrueHD'] }, video: { height: 1080, codec: 'h264', hdr: false, dolbyVision: false }, source: { durationMinutes: 96, sizeGB: 18, bitrateMbps: 25 }, media: { kind: 'movie', genres: [] } } },
-  { name: 'DVD, AC-3 2.0', facts: { audio: { maxChannels: 2, codecs: ['ac3'], objectBased: false, lossless: false, profiles: [] }, video: { height: 576, codec: 'mpeg2video', hdr: false, dolbyVision: false }, source: { durationMinutes: 92, sizeGB: 4, bitrateMbps: 6 }, media: { kind: 'movie', genres: [] } } },
-  { name: 'Episode, AAC 5.1', facts: { audio: { maxChannels: 6, codecs: ['aac'], objectBased: false, lossless: false, profiles: [] }, video: { height: 1080, codec: 'h264', hdr: false, dolbyVision: false }, source: { durationMinutes: 42, sizeGB: 2, bitrateMbps: 7 }, media: { kind: 'movie', genres: [] } } },
+  sample('UHD, TrueHD 7.1 Atmos', {
+    audio: { maxChannels: 8, codecs: ['truehd', 'ac3'], objectBased: true, lossless: true, profiles: ['Dolby TrueHD + Dolby Atmos'] },
+    audioExtra: { languages: ['eng', 'fre'], hasCommentary: true, trackCount: 4, maxBitrateKbps: 640 },
+    video: { height: 2160, width: 3840, codec: 'hevc', hdr: true, dolbyVision: false, bitDepth: 10, frameRate: 23.976, interlaced: false },
+    subtitles: { count: 12, languages: ['eng', 'fre', 'ger'], hasForced: true, hasText: false },
+    source: { durationMinutes: 130, sizeGB: 58, bitrateMbps: 60, container: 'mkv' },
+    media: { kind: 'movie', genres: ['action'], year: 2019 },
+  }),
+  sample('UHD, DTS-HD MA 7.1 + DTS:X', {
+    audio: { maxChannels: 8, codecs: ['dts-hd-ma'], objectBased: true, lossless: true, profiles: ['DTS-HD MA + DTS:X'] },
+    audioExtra: { languages: ['eng'], hasCommentary: false, trackCount: 2, maxBitrateKbps: 0 },
+    video: { height: 2160, width: 3840, codec: 'hevc', hdr: true, dolbyVision: true, bitDepth: 10, frameRate: 24, interlaced: false },
+    subtitles: { count: 6, languages: ['eng', 'spa'], hasForced: true, hasText: false },
+    source: { durationMinutes: 115, sizeGB: 54, bitrateMbps: 62, container: 'mkv' },
+    media: { kind: 'movie', genres: ['science fiction'], year: 2021 },
+  }),
+  sample('Blu-ray, DTS-HD MA 5.1', {
+    audio: { maxChannels: 6, codecs: ['dts-hd-ma', 'ac3'], objectBased: false, lossless: true, profiles: ['DTS-HD MA'] },
+    audioExtra: { languages: ['eng', 'jpn'], hasCommentary: true, trackCount: 3, maxBitrateKbps: 448 },
+    video: { height: 1080, width: 1920, codec: 'h264', hdr: false, dolbyVision: false, bitDepth: 8, frameRate: 23.976, interlaced: false },
+    subtitles: { count: 4, languages: ['eng'], hasForced: false, hasText: false },
+    source: { durationMinutes: 105, sizeGB: 24, bitrateMbps: 30, container: 'mkv' },
+    media: { kind: 'movie', genres: ['drama'], year: 2009 },
+  }),
+  sample('Blu-ray, TrueHD 2.0 only', {
+    audio: { maxChannels: 2, codecs: ['truehd'], objectBased: false, lossless: true, profiles: ['Dolby TrueHD'] },
+    audioExtra: { languages: ['eng'], hasCommentary: false, trackCount: 1, maxBitrateKbps: 0 },
+    video: { height: 1080, width: 1920, codec: 'h264', hdr: false, dolbyVision: false, bitDepth: 8, frameRate: 23.976, interlaced: false },
+    subtitles: { count: 2, languages: ['eng'], hasForced: false, hasText: false },
+    source: { durationMinutes: 96, sizeGB: 18, bitrateMbps: 25, container: 'mkv' },
+    media: { kind: 'movie', genres: ['documentary'], year: 1974 },
+  }),
+  sample('DVD, AC-3 2.0, interlaced', {
+    audio: { maxChannels: 2, codecs: ['ac3'], objectBased: false, lossless: false, profiles: [] },
+    audioExtra: { languages: ['eng'], hasCommentary: false, trackCount: 1, maxBitrateKbps: 192 },
+    video: { height: 576, width: 720, codec: 'mpeg2video', hdr: false, dolbyVision: false, bitDepth: 8, frameRate: 25, interlaced: true },
+    subtitles: { count: 3, languages: ['eng', 'dut'], hasForced: false, hasText: false },
+    source: { durationMinutes: 92, sizeGB: 4, bitrateMbps: 6, container: 'mkv' },
+    media: { kind: 'movie', genres: ['comedy'], year: 1988 },
+  }),
+  sample('Anime episode, AAC 5.1', {
+    audio: { maxChannels: 6, codecs: ['aac'], objectBased: false, lossless: false, profiles: [] },
+    audioExtra: { languages: ['jpn', 'eng'], hasCommentary: false, trackCount: 2, maxBitrateKbps: 320 },
+    video: { height: 1080, width: 1920, codec: 'h264', hdr: false, dolbyVision: false, bitDepth: 8, frameRate: 23.976, interlaced: false },
+    subtitles: { count: 2, languages: ['eng'], hasForced: false, hasText: true },
+    source: { durationMinutes: 24, sizeGB: 1.4, bitrateMbps: 7, container: 'mkv' },
+    media: { kind: 'anime', genres: ['animation'], year: 2023 },
+  }),
 ];
+
+function sample(name: string, facts: SourceFacts): { name: string; facts: SourceFacts } {
+  return { name, facts };
+}

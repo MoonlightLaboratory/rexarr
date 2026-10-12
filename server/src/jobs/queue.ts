@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { SmartProfile, Job, JobSource, JobStatus, MqaInfo, Profile, RipMedia } from '../../../shared/types.js';
+import type { SmartProfile, SourceFacts, Job, JobSource, JobStatus, MqaInfo, Profile, RipMedia } from '../../../shared/types.js';
 import { CONTAINER_INFO } from '../../../shared/presets.js';
 import { encodeMusic, freacEncoderArgs, freacInfo, probeAudio } from '../music/freac.js';
 import { estimateSize } from '../ffmpeg/estimate.js';
@@ -708,25 +708,24 @@ class JobQueue {
    * What Radarr / Sonarr say this is. The lookup only happens when a branch asks about it, so a smart profile
    * that never mentions genre costs nothing.
    */
-  private async mediaFacts(job: Job, smart: SmartProfile): Promise<{ kind: 'movie' | 'series' | 'anime' | 'unknown'; genres: string[] }> {
-    const asksAbout = (field: string) => smart.rules.some((r) => r.when.some((c) => c.field === field));
+  private async mediaFacts(job: Job, smart: SmartProfile): Promise<SourceFacts['media']> {
+    const asksAbout = (...fields: string[]) => smart.rules.some((r) => r.when.some((c) => fields.includes(c.field)));
     const kind: 'movie' | 'series' | 'unknown' = job.source.kind === 'movie' ? 'movie' : job.source.kind === 'episode' ? 'series' : 'unknown';
-    if (!asksAbout('media.genres') && !asksAbout('media.kind')) return { kind, genres: [] };
+    if (!asksAbout('media.genres', 'media.kind', 'media.year')) return { kind, genres: [], year: 0 };
     const { radarr, sonarr } = arr();
     try {
       if (job.source.arr === 'radarr' && job.source.arrId && radarr.configured) {
         const m = await radarr.movie(job.source.arrId);
-        return { kind: 'movie', genres: (m.genres ?? []).map((g) => g.toLowerCase()) };
+        return { kind: 'movie', genres: (m.genres ?? []).map((g) => g.toLowerCase()), year: m.year ?? 0 };
       }
       if (job.source.arr === 'sonarr' && job.source.arrId && sonarr.configured) {
         const series = await sonarr.seriesById(job.source.arrId);
-        const anime = series.seriesType === 'anime';
-        return { kind: anime ? 'anime' : 'series', genres: (series.genres ?? []).map((g) => g.toLowerCase()) };
+        return { kind: series.seriesType === 'anime' ? 'anime' : 'series', genres: (series.genres ?? []).map((g) => g.toLowerCase()), year: series.year ?? 0 };
       }
     } catch (err) {
-      this.log(job, `Could not read the genres for this title: ${(err as Error).message}`);
+      this.log(job, `Could not read what Radarr / Sonarr know about this title: ${(err as Error).message}`);
     }
-    return { kind, genres: [] };
+    return { kind, genres: [], year: 0 };
   }
 
   private async run(job: Job) {

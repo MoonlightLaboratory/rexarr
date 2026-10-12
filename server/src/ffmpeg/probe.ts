@@ -15,6 +15,7 @@ export interface ProbeStream {
   color_transfer?: string;
   color_space?: string;
   color_range?: string;
+  field_order?: string;
   r_frame_rate?: string;
   avg_frame_rate?: string;
   channels?: number;
