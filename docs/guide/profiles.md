@@ -48,6 +48,35 @@ and *Keep MQA intact* — see [Music](music.md).
 **Copy** everything, **copy text only**, **burn in** (choose the language, optionally preferring forced tracks), or
 **none**. *Keep fonts* copies MKV font attachments, which anime subtitles need.
 
+### Picture subtitles
+
+A DVD, a Blu-ray and a DVB recording carry their subtitles as pictures — `dvd_subtitle`, `hdmv_pgs_subtitle`,
+`dvb_subtitle` — not as words. Nothing in FFmpeg turns a picture into text, so they cannot be converted by
+changing the codec, and MP4 and WebM, which cannot hold them at all, simply lose them.
+
+**Picture subtitles** decides what happens to them:
+
+| | |
+| --- | --- |
+| **Keep as pictures** | copy them as they are, where the container can carry them. The default |
+| **Read into text (OCR)** | read them with Tesseract and keep the text instead |
+| **Read into text, keep the pictures too** | both, which an MKV has room for |
+
+Reading them turns a disc's subtitles into real SRT: searchable, stylable, and small enough that an MP4 or a
+WebM keeps them rather than dropping them. It needs [Tesseract](https://tesseract-ocr.github.io/) and a language
+model for each subtitle language — `brew install tesseract`, `apt install tesseract-ocr tesseract-ocr-eng`, or
+the Windows installer — and the path is **Settings → Tesseract**, empty to find it where it usually lives. The
+System page says whether it is there and which models it has, and warns if a profile asks for OCR without it.
+
+It happens before the encode, since it cannot happen inside it, and it is slow: minutes for a feature, written
+into the job log as it goes (*"412 lines read from 1,074 pictures in 96s"*). How well it reads depends on the
+disc — a clean white-on-black DVD font is close to perfect, a stylised one is not — so read the result before
+you delete the source. A track that cannot be read, or a language Tesseract has no model for, is noted in the
+log and left as pictures; it never fails the encode.
+
+Each track keeps its own language and its forced flag, and is named *English · OCR* so it is obvious where it
+came from.
+
 ## Output
 
 | Field | What it does |
@@ -194,7 +223,7 @@ them, so a smart profile that never mentions genre costs no extra request.
 | --- | --- |
 | Video | encoder, CRF, preset, tune, downscale height, pixel format, HDR passthrough, bitrate, whether to force the CPU, extra ffmpeg arguments |
 | Audio | encoder, bitrate, channels, which languages to keep, how many tracks per language, whether commentary is dropped |
-| Subtitles | mode, which languages to keep, which language to burn in, forced only, font attachments |
+| Subtitles | mode, which languages to keep, which language to burn in, forced only, font attachments, picture subtitles |
 | File | container, file name suffix, output folder, replace the original, rename from the profile tokens, clean metadata, tell Radarr / Sonarr |
 
 Anything a branch does not touch stays as the profile's own settings left it. **Start from** takes the same list,

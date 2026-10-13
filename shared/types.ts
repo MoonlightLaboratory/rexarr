@@ -149,7 +149,21 @@ export interface SubtitleSettings {
   burnForcedOnly: boolean;
   /** Copy font attachments (mkv only). */
   keepFonts: boolean;
+  /**
+   * What to do with picture subtitles (DVD, Blu-ray PGS, DVB). `keep` leaves them as they are, which means an
+   * MP4 or WebM loses them; the other two read them with Tesseract and mux the text in.
+   */
+  bitmapMode: BitmapSubtitleMode;
+  /** Tesseract model to read them with. Empty = from each track's own language. */
+  ocrLanguage?: string;
 }
+
+/**
+ * - `keep`: copy the pictures as they are, where the container can carry them.
+ * - `ocr`: read them into text and keep only the text.
+ * - `ocr-keep`: read them into text and keep the pictures as well, which an MKV has room for.
+ */
+export type BitmapSubtitleMode = 'keep' | 'ocr' | 'ocr-keep';
 
 export interface OutputSettings {
   /** Empty = write next to the source file. */
@@ -261,6 +275,7 @@ export type SmartSettingPath =
   | 'subtitles.burnLanguage'
   | 'subtitles.burnForcedOnly'
   | 'subtitles.keepFonts'
+  | 'subtitles.bitmapMode'
   | 'output.suffix'
   | 'output.directory'
   | 'output.replaceOriginal'
@@ -847,6 +862,8 @@ export interface Settings {
   ffprobePath: string;
   /** fre:ac command line encoder (freaccmd) for music profiles and CD ripping. Empty = auto-detect. */
   freacPath: string;
+  /** Tesseract, for reading picture subtitles into text. Empty = auto-detect. */
+  tesseractPath: string;
   /** Maximum simultaneous encodes. */
   concurrency: number;
   /** Seconds between polls when waiting for an *arr download to import. */
@@ -1431,6 +1448,8 @@ export interface SystemInfo {
   ffmpeg: FfmpegCapabilities;
   /** fre:ac (freaccmd): music encodes and CD ripping. */
   freac?: { available: boolean; path: string; version?: string; encoders: string[]; error?: string };
+  /** Tesseract: reading picture subtitles into text. */
+  tesseract?: { available: boolean; path: string; version?: string; languages: string[]; error?: string };
   arr: ArrStatus[];
   jobs: { active: number; queued: number; waiting: number; done: number; failed: number };
 }

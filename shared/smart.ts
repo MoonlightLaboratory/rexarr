@@ -2,7 +2,7 @@
  * The rules engine behind smart profiles. Pure: the server runs it on what FFprobe found, and the editor runs
  * the same code on made-up discs so a rule can be tried before it is saved.
  */
-import type { AudioEncoder, AudioPerLanguage, Container, Profile, SmartAssignment, SmartCondition, SmartField, SmartOperator, SmartProfile, SmartRule, SmartSettingPath, SourceFacts, SubtitleMode, VideoEncoder, VideoTune } from './types.js';
+import type { AudioEncoder, AudioPerLanguage, BitmapSubtitleMode, Container, Profile, SmartAssignment, SmartCondition, SmartField, SmartOperator, SmartProfile, SmartRule, SmartSettingPath, SourceFacts, SubtitleMode, VideoEncoder, VideoTune } from './types.js';
 import { AUDIO_ENCODER_INFO, CONTAINER_INFO, LANGUAGES, SMART_STOCK, VIDEO_ENCODER_INFO } from './presets.js';
 
 export interface SmartFieldInfo {
@@ -271,6 +271,9 @@ export function assign(profile: Profile, a: SmartAssignment): void {
     case 'audio.firstMatchOnly':
       profile.audio.perLanguage = a.value ? 'first' : 'all';
       break;
+    case 'subtitles.bitmapMode':
+      profile.subtitles.bitmapMode = a.value as BitmapSubtitleMode;
+      break;
     case 'subtitles.mode':
       profile.subtitles.mode = a.value as SubtitleMode;
       break;
@@ -429,6 +432,11 @@ export const SMART_SETTINGS: SmartSettingInfo[] = [
   { path: 'subtitles.languages', group: 'Subtitles', label: 'Keep subtitle languages', kind: 'languages' },
   { path: 'subtitles.burnLanguage', group: 'Subtitles', label: 'Burn in which language', kind: 'select', options: [{ value: '', label: 'The first subtitle track' }, ...LANGS] },
   { path: 'subtitles.burnForcedOnly', group: 'Subtitles', label: 'Burn forced subtitles only', kind: 'boolean' },
+  { path: 'subtitles.bitmapMode', group: 'Subtitles', label: 'Picture subtitles', kind: 'select', options: [
+    { value: 'keep', label: 'Keep as pictures' },
+    { value: 'ocr', label: 'Read into text' },
+    { value: 'ocr-keep', label: 'Read into text, keep both' },
+  ] },
   { path: 'subtitles.keepFonts', group: 'Subtitles', label: 'Keep font attachments', kind: 'boolean' },
   { path: 'container', group: 'Output', label: 'Container', kind: 'select', options: Object.entries(CONTAINER_INFO).filter(([, v]) => !v.music).map(([value, v]) => ({ value, label: shortLabel(v.label) })) },
   { path: 'output.suffix', group: 'Output', label: 'File name suffix', kind: 'text' },

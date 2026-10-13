@@ -4,6 +4,7 @@ import { canHwDecode, resolveHardware, softwareEquivalent, type HwContext } from
 import { CONTAINER_INFO, VIDEO_ENCODER_INFO } from '../../../shared/presets.js';
 import { isTextSubtitle, streamLanguage, streamTitle, type ProbeResult, type ProbeStream } from './probe.js';
 import { audioQuality } from '../disc/audio.js';
+import { isBitmapSubtitle } from './ocr.js';
 import { audioTrackTitle, describeEncode, languageName, planAudio, renameForEncode, videoTrackTitle, type EncodeDescription, type MetadataContext } from './naming.js';
 
 export interface BuildResult {
@@ -37,6 +38,21 @@ export interface BuildOptions {
   previewPath?: string;
   /** File title etc. for clean metadata. */
   metadata?: MetadataContext;
+  /**
+   * Picture subtitles already read into SRT files, in the order the tracks appear. Each becomes an extra input
+   * and a text track in the output; see `ocr.ts` for why this cannot happen inside the one ffmpeg command.
+   */
+  ocrSubtitles?: OcrSubtitle[];
+}
+
+export interface OcrSubtitle {
+  /** The stream index in the source that this was read from, so the original can be left out when replacing it. */
+  sourceIndex: number;
+  /** The .srt written beside the job. */
+  path: string;
+  language: string;
+  title?: string;
+  forced?: boolean;
 }
 
 /** A sane default bitrate when an encoder cannot run in quality mode. */
@@ -126,7 +142,19 @@ export function selectSubtitles(probe: ProbeResult, profile: Profile, containerB
   if (mode === 'none' || mode === 'burn') return [];
   let list = probe.subtitles.filter((s) => langMatches(s, profile.subtitles.languages));
   if (mode === 'copy-text' || !containerBitmap) list = list.filter(isTextSubtitle);
+  // a track that has been read into text is replaced by that text unless the profile asks to keep both
+  if (profile.subtitles.bitmapMode === 'ocr') list = list.filter((s) => !isBitmapSubtitle(s));
   return list;
+}
+
+/** The picture subtitle tracks this profile wants read into text, as `s:N` indices for `ocrSubtitleStream`. */
+export function subtitlesToOcr(probe: ProbeResult, profile: Profile): { stream: ProbeStream; subtitleIndex: number }[] {
+  const mode = profile.subtitles.mode;
+  if (mode === 'none' || mode === 'burn') return [];
+  if (profile.subtitles.bitmapMode !== 'ocr' && profile.subtitles.bitmapMode !== 'ocr-keep') return [];
+  return probe.subtitles
+    .map((stream, subtitleIndex) => ({ stream, subtitleIndex }))
+    .filter(({ stream }) => isBitmapSubtitle(stream) && langMatches(stream, profile.subtitles.languages));
 }
 
 function pickBurnStream(probe: ProbeResult, profile: Profile): ProbeStream | undefined {
@@ -310,6 +338,9 @@ export function buildFfmpegArgs(requested: Profile, probe: ProbeResult, input: s
 
   if (opts.lavfiSeconds) args.push('-f', 'lavfi', '-t', String(opts.lavfiSeconds), '-i', `testsrc2=size=${probe.video.width ?? 1920}x${probe.video.height ?? 1080}:rate=24`);
   else args.push('-i', input);
+  // each SRT read off a picture track is its own input, after the source, so it can be mapped as a stream
+  const ocr = opts.ocrSubtitles ?? [];
+  for (const o of ocr) args.push('-i', o.path);
 
   // ---------- video ----------
   const filters: string[] = [];
@@ -407,10 +438,26 @@ export function buildFfmpegArgs(requested: Profile, probe: ProbeResult, input: s
       if (name) args.push(`-metadata:s:s:${i}`, `title=${name}`);
     }
   });
-  if (profile.subtitles.mode !== 'none' && profile.subtitles.mode !== 'burn') summary.push(`Subtitles: ${subs.length} stream(s) kept`);
+  // the text read off the picture tracks, one extra input each
+  ocr.forEach((o, n) => {
+    const i = subs.length + n;
+    args.push('-map', `${n + 1}:0`, `-c:s:${i}`, container.textSubs === 'copy' ? 'srt' : container.textSubs);
+    args.push(`-metadata:s:s:${i}`, `language=${o.language}`);
+    const name = o.title ?? [languageName(o.language), o.forced ? 'Forced' : '', 'OCR'].filter(Boolean).join(' · ');
+    args.push(`-metadata:s:s:${i}`, `title=${name}`);
+    if (o.forced) args.push(`-disposition:s:${i}`, 'forced');
+  });
+  if (profile.subtitles.mode !== 'none' && profile.subtitles.mode !== 'burn') {
+    summary.push(`Subtitles: ${subs.length + ocr.length} stream(s) kept${ocr.length ? ` (${ocr.length} read from pictures)` : ''}`);
+  }
   if (probe.subtitles.length && !container.bitmapSubs && profile.subtitles.mode === 'copy') {
-    const dropped = probe.subtitles.filter((s) => !isTextSubtitle(s)).length;
-    if (dropped) warnings.push(`${dropped} bitmap subtitle stream(s) dropped (not supported by ${profile.container})`);
+    const dropped = probe.subtitles.filter((s) => !isTextSubtitle(s)).length - ocr.length;
+    if (dropped > 0) {
+      warnings.push(
+        `${dropped} bitmap subtitle stream(s) dropped (not supported by ${profile.container})` +
+          (profile.subtitles.bitmapMode === 'keep' ? ' – set Picture subtitles to "Read into text" to keep them' : ''),
+      );
+    }
   }
 
   // ---------- attachments / metadata ----------

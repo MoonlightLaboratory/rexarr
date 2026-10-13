@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { SmartProfile, SourceFacts, Job, JobSource, JobStatus, MqaInfo, Profile, RipMedia } from '../../../shared/types.js';
+import type { SmartProfile, SourceFacts, Job, JobSource, JobStatus, MqaInfo, Profile, RipMedia, Settings } from '../../../shared/types.js';
 import { CONTAINER_INFO } from '../../../shared/presets.js';
 import { encodeMusic, freacEncoderArgs, freacInfo, probeAudio } from '../music/freac.js';
 import { estimateSize } from '../ffmpeg/estimate.js';
@@ -18,8 +18,9 @@ import { bus } from '../events.js';
 import { arr } from '../arr/index.js';
 import { toArrPath, toLocalPath } from '../paths.js';
 import { findDiscImages, makemkvInfo } from '../disc/makemkv.js';
-import { probe } from '../ffmpeg/probe.js';
-import { buildFfmpegArgs, outputPathFor, type BuildOptions } from '../ffmpeg/args.js';
+import { probe, streamLanguage, type ProbeResult } from '../ffmpeg/probe.js';
+import { buildFfmpegArgs, outputPathFor, subtitlesToOcr, type BuildOptions, type OcrSubtitle } from '../ffmpeg/args.js';
+import { ocrSubtitleStream, tesseractInfo, tesseractLanguage, toSrt } from '../ffmpeg/ocr.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 import { initialProgress, runFfmpeg, type RunHandle } from '../ffmpeg/runner.js';
 
@@ -80,6 +81,8 @@ class JobQueue {
   private splitting = new Set<string>();
   /** jobId -> file ffmpeg is writing right now (for the encoded-frame preview) */
   private partials = new Map<string, { path: string; container: string }>();
+  /** The .srt files written by OCR for a job, removed with the rest of its leftovers. */
+  private ocrFiles = new Map<string, string[]>();
   private ticking = false;
   private lastPoll = 0;
   private timer: NodeJS.Timeout | null = null;
@@ -809,7 +812,9 @@ class JobQueue {
       const previewPath = this.previewPath(job.id);
       // "Frieren - S01E05 - Phantoms of the Dead" / "Blade Runner 2049 (2017)" for the file's title tag
       const metadata = { title: job.subtitle && /^S\d+E\d+/i.test(job.subtitle) ? `${job.title} - ${job.subtitle.replace(/\s+·\s+/, ' - ')}` : job.title };
-      let buildOpts: BuildOptions = { hardware: settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, previewPath, metadata };
+      // Picture subtitles the profile wants as text: read before the encode, since OCR cannot happen inside it.
+      const ocrSubtitles = await this.readBitmapSubtitles(job, profile, info, input, settings);
+      let buildOpts: BuildOptions = { hardware: settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, previewPath, metadata, ocrSubtitles };
       let lastBuilt: ReturnType<typeof buildFfmpegArgs> | undefined;
       this.partials.set(job.id, { path: tmpOutput, container: profile.container });
       job.preview = profile.video.encoder !== 'copy';
@@ -944,10 +949,60 @@ class JobQueue {
       this.partials.delete(job.id);
       job.preview = false;
       this.safeUnlink(this.previewPath(job.id));
+      for (const f of this.ocrFiles.get(job.id) ?? []) this.safeUnlink(f);
+      this.ocrFiles.delete(job.id);
       store.saveJobs();
       this.emit(job);
       void this.tick();
     }
+  }
+
+  /**
+   * Read the picture subtitle tracks this profile wants as text, before the encode runs. FFmpeg cannot do this
+   * in the encode itself – see ffmpeg/ocr.ts – so each track becomes an .srt beside the job, which the encode
+   * then takes as an extra input. A track that cannot be read is skipped with a warning rather than failing
+   * the job: losing the subtitles is better than losing the encode.
+   */
+  private async readBitmapSubtitles(job: Job, profile: Profile, info: ProbeResult, input: string, settings: Settings): Promise<OcrSubtitle[]> {
+    const wanted = subtitlesToOcr(info, profile);
+    if (!wanted.length) return [];
+    const tess = await tesseractInfo(settings.tesseractPath);
+    if (!tess.available) {
+      this.log(job, `Warning: ${wanted.length} picture subtitle track(s) cannot be read into text – ${tess.error}`);
+      return [];
+    }
+    const out: OcrSubtitle[] = [];
+    for (const { stream, subtitleIndex } of wanted) {
+      const iso = streamLanguage(stream);
+      const model = profile.subtitles.ocrLanguage?.trim() || tesseractLanguage(iso);
+      if (tess.languages.length && !tess.languages.includes(model)) {
+        this.log(job, `Warning: Tesseract has no "${model}" model, so the ${iso} picture subtitles were left as they are (it has ${tess.languages.join(', ')})`);
+        continue;
+      }
+      const srt = path.join(PATHS.transcodes, `${job.id}__sub${subtitleIndex}.${iso}.srt`);
+      try {
+        const started = Date.now();
+        const result = await ocrSubtitleStream(input, {
+          ffmpegPath: settings.ffmpegPath,
+          tesseractPath: tess.path,
+          subtitleIndex,
+          language: model,
+          onStep: (what) => this.log(job, `Subtitles (${iso}): ${what}`),
+        });
+        for (const w of result.warnings) this.log(job, `Warning: ${w}`);
+        if (!result.cues.length) {
+          this.log(job, `Warning: nothing readable in the ${iso} picture subtitles (${result.frames} pictures); they were left as they are`);
+          continue;
+        }
+        fs.writeFileSync(srt, toSrt(result.cues));
+        this.ocrFiles.set(job.id, [...(this.ocrFiles.get(job.id) ?? []), srt]);
+        out.push({ sourceIndex: stream.index, path: srt, language: iso, forced: stream.disposition?.forced === 1 });
+        this.log(job, `Subtitles (${iso}): ${result.cues.length} lines read from ${result.frames} pictures in ${Math.round((Date.now() - started) / 1000)}s`);
+      } catch (err) {
+        this.log(job, `Warning: could not read the ${iso} picture subtitles – ${(err as Error).message}`);
+      }
+    }
+    return out;
   }
 
   /** Where the live preview JPEG for a job is written. */

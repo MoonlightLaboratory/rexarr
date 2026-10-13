@@ -417,6 +417,21 @@ function ProfileEditor({ initial, caps, onClose, onSaved }: { initial: Profile; 
                   <LangPicker value={p.subtitles.languages} onChange={(v) => updS('languages', v)} />
                 </div>
               )}
+              {(p.subtitles.mode === 'copy' || p.subtitles.mode === 'copy-text') && (
+                <div className="field">
+                  <label>Picture subtitles</label>
+                  <select value={p.subtitles.bitmapMode ?? 'keep'} onChange={(e) => updS('bitmapMode', e.target.value as Profile['subtitles']['bitmapMode'])}>
+                    <option value="keep">Keep as pictures</option>
+                    <option value="ocr">Read into text (OCR)</option>
+                    <option value="ocr-keep">Read into text, keep the pictures too</option>
+                  </select>
+                  <span className="hint">
+                    A DVD or Blu-ray carries its subtitles as pictures, which {p.container.toUpperCase()} {container.bitmapSubs ? 'can hold but nothing can search' : 'cannot hold at all'}. Reading
+                    them with Tesseract turns them into real SRT text. It is slow – minutes per track – and how well it
+                    reads depends on the disc, so check the result before you throw the source away.
+                  </span>
+                </div>
+              )}
               {p.subtitles.mode === 'burn' && (
                 <div className="grid-2">
                   <div className="field">
@@ -525,7 +540,7 @@ function blankProfile(): Profile {
     container: 'mkv',
     video: { encoder: 'libx265', quality: 20, preset: 'slow', pixelFormat: 'yuv420p10le', tune: 'none', maxHeight: 0, hdrPassthrough: true, bitrate: 0, extraArgs: '', hwMode: 'auto' },
     audio: { encoder: 'copy', bitrate: 0, channels: 0, languages: [], perLanguage: 'all', dropCommentary: true },
-    subtitles: { mode: 'copy', languages: [], burnLanguage: '', burnForcedOnly: false, keepFonts: true },
+    subtitles: { mode: 'copy', languages: [], burnLanguage: '', burnForcedOnly: false, keepFonts: true, bitmapMode: 'keep' },
     output: { directory: '', suffix: '', renameTokens: true, cleanMetadata: true, replaceOriginal: false, notifyArr: true },
     createdAt: '',
     updatedAt: '',

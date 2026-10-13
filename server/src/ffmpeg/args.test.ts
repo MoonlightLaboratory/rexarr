@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Profile } from '../../../shared/types.js';
 import { BUILTIN_PROFILES } from '../../../shared/presets.js';
-import { buildFfmpegArgs, outputPathFor, selectAudio, splitArgs } from './args.js';
+import { buildFfmpegArgs, outputPathFor, selectAudio, subtitlesToOcr, splitArgs } from './args.js';
 import type { ProbeResult } from './probe.js';
 
 function probe(over: Partial<ProbeResult> = {}): ProbeResult {
@@ -300,4 +300,71 @@ test('a profile saved before perLanguage existed still decides the same thing', 
 test('only one track per language leaves one -map per language', () => {
   const { args } = buildFfmpegArgs(discProfile('best'), discProbe(), '/in/disc.mkv', '/out/disc.mkv');
   assert.equal(maps(args).length, 3); // video + one English + one Japanese
+});
+
+// ---- picture subtitles -------------------------------------------------------------------------
+function dvdProbe(): ProbeResult {
+  const streams = [
+    { index: 0, codec_type: 'video', codec_name: 'mpeg2video', width: 720, height: 480, tags: {} },
+    { index: 1, codec_type: 'audio', codec_name: 'ac3', channels: 6, tags: { language: 'eng' } },
+    { index: 2, codec_type: 'subtitle', codec_name: 'dvd_subtitle', tags: { language: 'eng' } },
+    { index: 3, codec_type: 'subtitle', codec_name: 'subrip', tags: { language: 'jpn' } },
+    { index: 4, codec_type: 'subtitle', codec_name: 'dvd_subtitle', tags: { language: 'fre' } },
+  ] as ProbeResult['streams'];
+  return {
+    path: '/in/dvd.mkv', durationSeconds: 100, sizeBytes: 1, bitRate: 1, formatName: 'matroska', streams,
+    video: streams[0], audio: streams.filter((s) => s.codec_type === 'audio'),
+    subtitles: streams.filter((s) => s.codec_type === 'subtitle'), attachments: [],
+    isHdr: false, isDolbyVision: false, frameRate: 25,
+  };
+}
+const dvdProfile = (bitmapMode: Profile['subtitles']['bitmapMode'], over: Partial<Profile> = {}): Profile => ({
+  ...byId('builtin-movie-1080p'),
+  video: { ...byId('builtin-movie-1080p').video, encoder: 'copy' },
+  subtitles: { ...byId('builtin-movie-1080p').subtitles, mode: 'copy', languages: [], bitmapMode },
+  ...over,
+});
+
+test('only the picture tracks are put forward for reading, by their s:N index', () => {
+  assert.deepEqual(subtitlesToOcr(dvdProbe(), dvdProfile('keep')), []);
+  // s:0 and s:2 - the SRT between them is already text, and does not shift the indices of the others
+  assert.deepEqual(subtitlesToOcr(dvdProbe(), dvdProfile('ocr')).map((x) => [x.subtitleIndex, x.stream.index]), [[0, 2], [2, 4]]);
+  assert.deepEqual(subtitlesToOcr(dvdProbe(), dvdProfile('ocr-keep')).map((x) => x.subtitleIndex), [0, 2]);
+  // and a language filter narrows it, so an English-only profile does not read the French
+  const eng = dvdProfile('ocr');
+  assert.deepEqual(subtitlesToOcr(dvdProbe(), { ...eng, subtitles: { ...eng.subtitles, languages: ['eng'] } }).map((x) => x.subtitleIndex), [0]);
+  // nothing to read when subtitles are not being kept at all
+  assert.deepEqual(subtitlesToOcr(dvdProbe(), { ...eng, subtitles: { ...eng.subtitles, mode: 'none' } }), []);
+});
+
+test('text read from pictures is muxed in, and replaces the pictures unless both are asked for', () => {
+  const ocrSubtitles = [
+    { sourceIndex: 2, path: '/tmp/eng.srt', language: 'eng' },
+    { sourceIndex: 4, path: '/tmp/fre.srt', language: 'fre', forced: true },
+  ];
+  const r = buildFfmpegArgs(dvdProfile('ocr'), dvdProbe(), '/in/dvd.mkv', '/out/dvd.mkv', { ocrSubtitles });
+  // the two SRT files are inputs 1 and 2
+  assert.deepEqual(r.args.filter((_, i) => r.args[i - 1] === '-i'), ['/in/dvd.mkv', '/tmp/eng.srt', '/tmp/fre.srt']);
+  // the pictures are gone; what is left is the source's own SRT plus the two read ones
+  assert.deepEqual(maps(r.args), ['0:0', '0:1', '0:3', '1:0', '2:0']);
+  assert.ok(r.args.includes('-disposition:s:2'), 'the forced flag is carried over');
+  assert.ok(r.summary.some((l) => l.includes('2 read from pictures')));
+
+  // keep both, and the pictures stay alongside the text
+  const both = buildFfmpegArgs(dvdProfile('ocr-keep'), dvdProbe(), '/in/dvd.mkv', '/out/dvd.mkv', { ocrSubtitles });
+  assert.deepEqual(maps(both.args), ['0:0', '0:1', '0:2', '0:3', '0:4', '1:0', '2:0']);
+});
+
+test('an MP4 keeps subtitles it would otherwise lose, as mov_text', () => {
+  const p = dvdProfile('ocr', { container: 'mp4' });
+  const plain = buildFfmpegArgs(dvdProfile('keep', { container: 'mp4' }), dvdProbe(), '/in/dvd.mkv', '/out/dvd.mp4');
+  // as it stands: the two picture tracks are dropped, with a warning that now says what to do about it
+  assert.deepEqual(maps(plain.args), ['0:0', '0:1', '0:3']);
+  assert.ok(plain.warnings.some((w) => w.includes('Read into text')));
+  const r = buildFfmpegArgs(p, dvdProbe(), '/in/dvd.mkv', '/out/dvd.mp4', {
+    ocrSubtitles: [{ sourceIndex: 2, path: '/tmp/eng.srt', language: 'eng' }],
+  });
+  assert.deepEqual(maps(r.args), ['0:0', '0:1', '0:3', '1:0']);
+  assert.equal(argAfter(r.args, '-c:s:1'), 'mov_text');
+  assert.ok(!r.warnings.some((w) => w.includes('Read into text')), 'nothing is being lost any more');
 });

@@ -462,6 +462,66 @@ function FreacCard({ path, onChange }: { path: string; onChange: (p: string) => 
   );
 }
 
+function TesseractCard({ path, onChange }: { path: string; onChange: (p: string) => void }) {
+  const [info, setInfo] = useState<SystemInfo['tesseract'] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const check = async () => {
+    setBusy(true);
+    try {
+      setInfo(await api.tesseract(true));
+    } finally {
+      setBusy(false);
+    }
+  };
+  useEffect(() => {
+    api.tesseract().then(setInfo).catch(() => undefined);
+  }, []);
+  return (
+    <div className="card">
+      <div className="card-h">
+        Tesseract
+        <span className="spacer" />
+        <span className="small dim">picture subtitles into text</span>
+      </div>
+      <div className="card-b">
+        <div className="field">
+          <label>tesseract binary</label>
+          <input type="text" value={path} onChange={(e) => onChange(e.target.value)} placeholder="Empty = auto-detect (/opt/homebrew/bin, /usr/bin …)" />
+          <div className="help">
+            A DVD or Blu-ray carries its subtitles as pictures. With{' '}
+            <a href="https://tesseract-ocr.github.io/" target="_blank" rel="noreferrer">Tesseract</a> installed, a profile can read
+            them into real SRT text – see <strong>Profiles → Subtitles → Picture subtitles</strong>. Install it with
+            {' '}<code>brew install tesseract</code>, <code>apt install tesseract-ocr</code> plus the language packs you need, or
+            the Windows installer. Without it, picture subtitles are simply copied as they are.
+          </div>
+        </div>
+        <div className="inline">
+          <button className="btn sm" onClick={check} disabled={busy}>
+            {busy ? <span className="spinner" /> : <Icon.Refresh />} Check
+          </button>
+          {info &&
+            (info.available ? (
+              <>
+                <span className="badge green">{info.version ?? 'found'}</span>
+                {info.languages.length ? (
+                  <span className="badge sm outline green" title={info.languages.join(', ')}>
+                    {info.languages.length} language{info.languages.length === 1 ? '' : 's'}
+                  </span>
+                ) : (
+                  <span className="badge sm red">no language models</span>
+                )}
+              </>
+            ) : (
+              <span className="badge red" title={info.path}>
+                {info.error ?? 'not found'}
+              </span>
+            ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---- Notifications ---------------------------------------------------------------------------
 
 const NOTIFY_KINDS: { kind: NotificationKind; label: string; info: string; url?: string; urlHint?: string; token?: string; tokenHint?: string; target?: string; targetHint?: string; path?: string; pathHint?: string; help: string }[] = [
@@ -862,6 +922,7 @@ export function SettingsPage() {
         </ArrCard>
         <SlskdCard conn={s.slskd} onChange={(c) => setS({ ...s, slskd: c })} />
         <FreacCard path={s.freacPath} onChange={(p) => setS({ ...s, freacPath: p })} />
+        <TesseractCard path={s.tesseractPath} onChange={(p) => setS({ ...s, tesseractPath: p })} />
       </div>
       <div className="mb">
         <NotificationCard value={s.notifications ?? { targets: [] }} onChange={(n) => setS({ ...s, notifications: n })} />

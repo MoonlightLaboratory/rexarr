@@ -112,6 +112,7 @@ export const api = {
   importMusicFolder: (path: string) => req<{ images: number; tracks?: number; encodings?: string[]; message: string }>('POST', '/api/music/import-folder', { path }),
   mediaMetadata: (path: string) => req<MediaMetadata>('GET', `/api/media/metadata?path=${encodeURIComponent(path)}`),
   freac: (refresh = false) => req<SystemInfo['freac']>('GET', `/api/music/freac${refresh ? '?refresh=1' : ''}`),
+  tesseract: (refresh = false) => req<SystemInfo['tesseract']>('GET', `/api/system/tesseract${refresh ? '?refresh=1' : ''}`),
   addAlbum: (foreignAlbumId: string) => req<Album>('POST', '/api/music/add', { foreignAlbumId }),
   musicbrainzSearch: (q: string) => req<MusicBrainzRelease[]>('GET', `/api/musicbrainz/search?q=${encodeURIComponent(q)}`),
   readCd: (driveIndex: number) => req<DiscRip>('POST', `/api/disc/drives/${driveIndex}/cd`),

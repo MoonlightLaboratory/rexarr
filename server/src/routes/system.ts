@@ -7,6 +7,7 @@ import { IN_DOCKER } from '../general.js';
 import { powerStatus } from '../power.js';
 import { store } from '../store.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
+import { tesseractInfo } from '../ffmpeg/ocr.js';
 import { testConnection } from './settings.js';
 import { queue } from '../jobs/queue.js';
 import { runHealthChecks } from '../health.js';
@@ -52,6 +53,7 @@ export default async function systemRoutes(app: FastifyInstance) {
   app.get('/api/system/health', async () => runHealthChecks());
 
   app.get<{ Querystring: { refresh?: string } }>('/api/system/ffmpeg', async (req) => ffmpegCapabilities(store.settings.ffmpegPath, req.query.refresh === '1'));
+  app.get<{ Querystring: { refresh?: string } }>('/api/system/tesseract', async (req) => tesseractInfo(store.settings.tesseractPath, req.query.refresh === '1'));
 
   /** Minimal directory listing for the folder pickers. */
   app.get<{ Querystring: { path?: string } }>('/api/fs/list', async (req, reply) => {

@@ -4,9 +4,10 @@ import fs from 'node:fs';
 import { z } from 'zod';
 import type { Profile, SmartProfile } from '../../../shared/types.js';
 import { store } from '../store.js';
-import { buildFfmpegArgs, outputPathFor } from '../ffmpeg/args.js';
+import { buildFfmpegArgs, outputPathFor, subtitlesToOcr } from '../ffmpeg/args.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
-import { probe, type ProbeResult } from '../ffmpeg/probe.js';
+import { probe, streamLanguage, type ProbeResult } from '../ffmpeg/probe.js';
+import { tesseractInfo } from '../ffmpeg/ocr.js';
 import { CONTAINER_INFO } from '../../../shared/presets.js';
 import { freacEncoderArgs, freacInfo } from '../music/freac.js';
 
@@ -52,6 +53,8 @@ const profileSchema = z.object({
     burnLanguage: z.string().default(''),
     burnForcedOnly: z.boolean().default(false),
     keepFonts: z.boolean().default(true),
+    bitmapMode: z.enum(['keep', 'ocr', 'ocr-keep']).default('keep'),
+    ocrLanguage: z.string().max(40).optional(),
   }),
   output: z.object({
     directory: z.string().default(''),
@@ -113,7 +116,7 @@ const smartAssignmentSchema = z.object({
     'container',
     'video.encoder', 'video.quality', 'video.preset', 'video.tune', 'video.maxHeight', 'video.pixelFormat', 'video.hdrPassthrough', 'video.bitrate', 'video.hwMode', 'video.extraArgs',
     'audio.encoder', 'audio.bitrate', 'audio.channels', 'audio.languages', 'audio.perLanguage', 'audio.firstMatchOnly', 'audio.dropCommentary',
-    'subtitles.mode', 'subtitles.languages', 'subtitles.burnLanguage', 'subtitles.burnForcedOnly', 'subtitles.keepFonts',
+    'subtitles.mode', 'subtitles.languages', 'subtitles.burnLanguage', 'subtitles.burnForcedOnly', 'subtitles.keepFonts', 'subtitles.bitmapMode',
     'output.suffix', 'output.directory', 'output.replaceOriginal', 'output.renameTokens', 'output.cleanMetadata', 'output.notifyArr',
   ]),
   value: z.union([z.string().max(400), z.number(), z.boolean(), z.array(z.string().max(20)).max(40)]),
@@ -273,11 +276,21 @@ export default async function profileRoutes(app: FastifyInstance) {
       // the real name depends on what the encode produces (codec after hardware mapping, resolution, audio)
       const output = outputPathFor(profile, input, draft.description, { replacingInput: profile.output.replaceOriginal });
       const built = buildFfmpegArgs(profile, info, input, output, { hardware: store.settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, metadata: { title: body.data.path ? undefined : 'Example (2024)' } });
+      // OCR runs before the encode and takes minutes, so the preview says it will happen rather than doing it
+      const toRead = subtitlesToOcr(info, profile);
+      const summary = [...built.summary];
+      const warnings = [...built.warnings];
+      if (toRead.length) {
+        const tess = await tesseractInfo(store.settings.tesseractPath);
+        const langs = toRead.map((t) => streamLanguage(t.stream)).join(', ');
+        if (tess.available) summary.push(`Subtitles: ${toRead.length} picture track(s) read into text first (${langs}), then added to the command above`);
+        else warnings.push(`${toRead.length} picture subtitle track(s) cannot be read into text – ${tess.error}`);
+      }
       return {
         command: [store.settings.ffmpegPath, ...built.args].map(quote).join(' '),
         args: built.args,
-        warnings: built.warnings,
-        summary: built.summary,
+        warnings,
+        summary,
         output,
         sample: !body.data.path,
         streams: info.streams.map((s) => ({ index: s.index, type: s.codec_type, codec: s.codec_name, language: s.tags?.language, title: s.tags?.title, channels: s.channels, width: s.width, height: s.height })),

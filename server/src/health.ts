@@ -1,5 +1,6 @@
 import { hostRuntime } from './runtime.js';
 import { freacInfo } from './music/freac.js';
+import { tesseractInfo } from './ffmpeg/ocr.js';
 import { IN_DOCKER } from './general.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -168,6 +169,17 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
     if (!fa.available) out.push({ type: 'warning', source: 'fre:ac', message: `fre:ac (freaccmd) was not found${fa.error ? ` (${fa.error})` : ''}. Music profiles and CD ripping need it: install fre:ac from freac.org and set its path in Settings.`, link: '/settings' });
   }
   if (s.slskd.enabled && !s.lidarr.enabled) out.push({ type: 'warning', source: 'Soulseek', message: 'Soulseek downloads are imported through Lidarr, but Lidarr is not connected.', link: '/settings' });
+
+  // Picture subtitles: a profile that asks for them as text needs Tesseract, and the right model for the language
+  const ocrProfiles = store.profiles.filter((p) => p.subtitles?.bitmapMode === 'ocr' || p.subtitles?.bitmapMode === 'ocr-keep');
+  if (ocrProfiles.length) {
+    const t = await tesseractInfo(s.tesseractPath);
+    if (!t.available) {
+      out.push({ type: 'warning', source: 'Tesseract', message: `${ocrProfiles.length} profile(s) read picture subtitles into text, but Tesseract was not found${t.error ? ` (${t.error})` : ''}. Those subtitles will be copied as pictures instead.`, link: '/settings' });
+    } else if (t.languages.length && !t.languages.some((l) => l !== 'osd')) {
+      out.push({ type: 'warning', source: 'Tesseract', message: 'Tesseract is installed but has no language models, so no picture subtitle can be read. Install at least the one for your subtitles (tesseract-ocr-eng and friends).', link: '/settings' });
+    }
+  }
 
   // Path mappings: check that a file the *arr app knows about actually exists here.
   try {

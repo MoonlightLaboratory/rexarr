@@ -24,6 +24,7 @@ const baseAudio: AudioSettings = {
 };
 
 const baseSubs: SubtitleSettings = {
+  bitmapMode: 'keep',
   mode: 'copy',
   languages: [],
   burnLanguage: '',
@@ -398,6 +399,7 @@ export const DEFAULT_SETTINGS = {
   ffmpegPath: 'ffmpeg',
   ffprobePath: 'ffprobe',
   freacPath: '',
+  tesseractPath: '',
   concurrency: 1,
   pollIntervalSeconds: 60,
   pathMappings: [],
