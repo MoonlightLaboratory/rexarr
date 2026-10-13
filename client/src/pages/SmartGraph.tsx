@@ -18,6 +18,43 @@ type Pos = { x: number; y: number };
 const GRID = 10;
 const snap = (n: number) => Math.round(n / GRID) * GRID;
 
+/** The same switch the Settings pages use, remembered in the same place. */
+const ADVANCED_KEY = 'rexarr.showAdvanced';
+const readAdvanced = () => {
+  try {
+    return localStorage.getItem(ADVANCED_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * What a dropdown offers: the everyday entries, and the rest under their own heading once advanced is on. One
+ * that is already in use is always offered, so turning advanced off never blanks a node built with it.
+ */
+function OptionList<T extends { advanced?: boolean; label: string }>({ all, advanced, inUse, valueOf }: { all: T[]; advanced: boolean; inUse: string; valueOf: (t: T) => string }) {
+  const common = all.filter((o) => !o.advanced || valueOf(o) === inUse);
+  const rest = all.filter((o) => o.advanced && valueOf(o) !== inUse);
+  return (
+    <>
+      {common.map((o) => (
+        <option key={valueOf(o)} value={valueOf(o)}>
+          {o.label}
+        </option>
+      ))}
+      {advanced && rest.length > 0 && (
+        <optgroup label="Advanced">
+          {rest.map((o) => (
+            <option key={valueOf(o)} value={valueOf(o)}>
+              {o.label}
+            </option>
+          ))}
+        </optgroup>
+      )}
+    </>
+  );
+}
+
 /** Every node on the canvas, with the id its position is stored under. */
 interface Node {
   id: string;
@@ -86,6 +123,7 @@ export function SmartGraphPage() {
   const [sp, setSp] = useState<SmartProfile | null>(null);
   const [details, setDetails] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
+  const [advanced, setAdvanced] = useState(readAdvanced);
   const [marquee, setMarquee] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [saved, setSaved] = useState('');
   const [busy, setBusy] = useState(false);
@@ -409,6 +447,22 @@ export function SmartGraphPage() {
         <button className={`btn sm${details ? ' primary' : ''}`} onClick={() => setDetails((d) => !d)} title="Description and what this is for">
           Details
         </button>
+        <button
+          className={`btn sm${advanced ? ' primary' : ''}`}
+          title={advanced ? 'Hide the settings and conditions most branches do not need' : 'Offer every condition and every setting, not just the everyday ones'}
+          onClick={() => {
+            setAdvanced((a: boolean) => {
+              try {
+                localStorage.setItem(ADVANCED_KEY, a ? '0' : '1');
+              } catch {
+                /* private window */
+              }
+              return !a;
+            });
+          }}
+        >
+          Advanced
+        </button>
         {readOnly && <span className="badge muted">Built-in · read-only</span>}
         {selected.length > 0 && (
           <button className="btn sm" onClick={() => setSelected([])} title="Drop the selection (Esc)">
@@ -627,11 +681,7 @@ export function SmartGraphPage() {
                           setCond(n.ruleIndex!, n.condIndex!, { field: e.target.value as SmartCondition['field'], op: operatorsFor(next?.kind ?? 'number')[0], number: next?.kind === 'number' ? 2 : undefined, list: next?.kind === 'list' ? [] : undefined });
                         }}
                       >
-                        {SMART_FIELDS.map((f) => (
-                          <option key={f.field} value={f.field}>
-                            {f.label}
-                          </option>
-                        ))}
+                        <OptionList all={SMART_FIELDS} advanced={advanced} inUse={rule.when[n.condIndex].field} valueOf={(f) => f.field} />
                       </select>
                       {fieldInfo(rule.when[n.condIndex].field)?.kind === 'boolean' && (
                         <select value={rule.when[n.condIndex].op} disabled={readOnly} onChange={(e) => setCond(n.ruleIndex!, n.condIndex!, { ...rule.when[n.condIndex!], op: e.target.value as SmartCondition['op'] })}>
@@ -666,7 +716,7 @@ export function SmartGraphPage() {
                             </option>
                           ))}
                       </select>
-                      <Assignments list={sp.base} readOnly={readOnly} onChange={(base) => setSp({ ...sp, base })} />
+                      <Assignments list={sp.base} readOnly={readOnly} advanced={advanced} onChange={(base) => setSp({ ...sp, base })} />
                     </div>
                     <Port id="base:in" side="left" />
                     <Port id="base:out" side="right" />
@@ -681,7 +731,7 @@ export function SmartGraphPage() {
                       <span className="gSub">{rule.label || `branch ${n.ruleIndex! + 1}`}</span>
                     </div>
                     <div className="gBody">
-                      <Assignments list={rule.set} readOnly={readOnly} onChange={(set) => setRule(n.ruleIndex!, { ...rule, set })} />
+                      <Assignments list={rule.set} readOnly={readOnly} advanced={advanced} onChange={(set) => setRule(n.ruleIndex!, { ...rule, set })} />
                     </div>
                     <Port id={`set:${rule.id}:in`} side="left" />
                   </>
@@ -719,11 +769,12 @@ export function SmartGraphPage() {
 }
 
 /** The rows that make up a Start from or a Set node: a setting and the value it is given. */
-function Assignments({ list, readOnly, onChange }: { list: SmartAssignment[]; readOnly?: boolean; onChange: (list: SmartAssignment[]) => void }) {
+function Assignments({ list, readOnly, advanced, onChange }: { list: SmartAssignment[]; readOnly?: boolean; advanced: boolean; onChange: (list: SmartAssignment[]) => void }) {
   const set = (i: number, a: SmartAssignment) => onChange(list.map((x, j) => (j === i ? a : x)));
   const add = () => {
     const used = new Set(list.map((a) => a.path));
-    const next = SMART_SETTINGS.find((s) => !used.has(s.path)) ?? SMART_SETTINGS[0];
+    const offered = SMART_SETTINGS.filter((s) => advanced || !s.advanced);
+    const next = offered.find((s) => !used.has(s.path)) ?? offered[0] ?? SMART_SETTINGS[0];
     onChange([...list, { path: next.path, value: defaultValue(next.path) }]);
   };
   return (
@@ -737,11 +788,7 @@ function Assignments({ list, readOnly, onChange }: { list: SmartAssignment[]; re
               disabled={readOnly}
               onChange={(e) => set(i, { path: e.target.value as SmartSettingPath, value: defaultValue(e.target.value as SmartSettingPath) })}
             >
-              {SMART_SETTINGS.map((s) => (
-                <option key={s.path} value={s.path}>
-                  {s.label}
-                </option>
-              ))}
+              <OptionList all={SMART_SETTINGS} advanced={advanced} inUse={a.path} valueOf={(x) => x.path} />
             </select>
             {info?.kind === 'number' && (
               <input type="number" min={info.min} max={info.max} disabled={readOnly} value={Number(a.value)} onChange={(e) => set(i, { ...a, value: Number(e.target.value) })} />

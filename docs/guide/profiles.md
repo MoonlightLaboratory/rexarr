@@ -113,11 +113,31 @@ lot.
 **Hold shift and drag** to draw a box over the canvas: every node it touches is selected, and dragging any one
 of them moves the whole group. Shift-click a node on its own to add it to the selection or take it out again. A
 click on the background, or <kbd>Esc</kbd>, drops the selection; the bar says how many are held. Dragging the
-background without shift pans, as before. **Details** holds the description and what the profile is for. Edits are kept until you press **Save**; an
+background without shift pans, as before. **Details** holds the description and what the profile is for, and
+**Advanced** decides how much each node offers — see below. Edits are kept until you press **Save**; an
 *Unsaved* mark appears in the bar and leaving the page asks first.
 
 The wires are drawn from the chain rather than dragged by hand: the order of the branches is what a smart profile
 *is*, and the ↑ ↓ on a branch's header changes it.
+
+### Advanced
+
+A branch can ask about 27 things and change 28, which is more than belongs in a dropdown you are choosing from.
+Off — which is how it starts — a node offers the ten of each that nearly every profile uses:
+
+| | |
+| --- | --- |
+| Ask | audio channels, object audio, lossless audio, audio codec, video height, video codec, HDR, Dolby Vision, what it is, genre |
+| Change | video encoder, quality, preset, tune, downscale height, audio encoder, bitrate, channels, subtitles, container |
+
+**Advanced** in the bar adds the rest under their own heading in each dropdown: audio languages and commentary,
+track counts and bitrates, width, bit depth, frame rate, interlacing, everything about subtitles, the source's
+size, running time and container, and the year — and on the changing side, pixel format, HDR passthrough, video
+bitrate, hardware mode, extra ffmpeg arguments, which languages to keep, and the output settings.
+
+It is the same switch the Settings pages use, remembered the same way. A node already built with an advanced
+setting keeps it and still shows it either way: turning the switch off hides what you are not using, never what
+you have already said.
 
 ### What a branch can ask about
 

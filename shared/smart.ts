@@ -8,6 +8,8 @@ import { AUDIO_ENCODER_INFO, CONTAINER_INFO, LANGUAGES, SMART_STOCK, VIDEO_ENCOD
 export interface SmartFieldInfo {
   field: SmartField;
   label: string;
+  /** Hidden until "Show advanced" is on: useful, but not what most branches ask about. */
+  advanced?: boolean;
   /** Which operators make sense, and what the value looks like. */
   kind: 'number' | 'list' | 'boolean';
   unit?: string;
@@ -45,26 +47,26 @@ export const SMART_FIELDS: SmartFieldInfo[] = [
   { field: 'audio.objectBased', label: 'Object audio (Atmos / DTS:X)', kind: 'boolean', help: 'Needs an FFmpeg that reports it in the stream profile; System → Status shows the version.' },
   { field: 'audio.lossless', label: 'Lossless audio', kind: 'boolean', help: 'TrueHD, DTS-HD MA, FLAC or PCM is present.' },
   { field: 'audio.codecs', label: 'Audio codec', kind: 'list', options: AUDIO_CODECS, help: 'Matches when any audio track in the file is one of these.' },
-  { field: 'audio.languages', label: 'Audio language', kind: 'list', options: LANGS, help: 'Matches when the file carries a track in one of these.' },
-  { field: 'audio.hasCommentary', label: 'Has a commentary track', kind: 'boolean' },
-  { field: 'audio.trackCount', label: 'Audio tracks', kind: 'number' },
-  { field: 'audio.maxBitrateKbps', label: 'Audio bitrate', kind: 'number', unit: 'kbps', help: 'The highest a track declares. Many lossless tracks declare nothing, so this reads 0.' },
+  { field: 'audio.languages', advanced: true, label: 'Audio language', kind: 'list', options: LANGS, help: 'Matches when the file carries a track in one of these.' },
+  { field: 'audio.hasCommentary', advanced: true, label: 'Has a commentary track', kind: 'boolean' },
+  { field: 'audio.trackCount', advanced: true, label: 'Audio tracks', kind: 'number' },
+  { field: 'audio.maxBitrateKbps', advanced: true, label: 'Audio bitrate', kind: 'number', unit: 'kbps', help: 'The highest a track declares. Many lossless tracks declare nothing, so this reads 0.' },
   { field: 'video.height', label: 'Video height', kind: 'number', unit: 'px', help: '1080 for 1080p, 2160 for 4K.' },
-  { field: 'video.width', label: 'Video width', kind: 'number', unit: 'px' },
+  { field: 'video.width', advanced: true, label: 'Video width', kind: 'number', unit: 'px' },
   { field: 'video.codec', label: 'Video codec', kind: 'list', options: VIDEO_CODECS },
   { field: 'video.hdr', label: 'HDR', kind: 'boolean' },
   { field: 'video.dolbyVision', label: 'Dolby Vision', kind: 'boolean' },
-  { field: 'video.bitDepth', label: 'Video bit depth', kind: 'number', unit: 'bit', help: '8, 10 or 12, read from the pixel format.' },
-  { field: 'video.frameRate', label: 'Frame rate', kind: 'number', unit: 'fps' },
-  { field: 'video.interlaced', label: 'Interlaced', kind: 'boolean', help: 'Field order says the picture is interlaced – usually a DVD or a broadcast recording.' },
-  { field: 'subtitles.count', label: 'Subtitle tracks', kind: 'number' },
-  { field: 'subtitles.languages', label: 'Subtitle language', kind: 'list', options: LANGS },
-  { field: 'subtitles.hasForced', label: 'Has forced subtitles', kind: 'boolean' },
-  { field: 'subtitles.hasText', label: 'Has text subtitles', kind: 'boolean', help: 'SRT, ASS and friends, as opposed to the bitmap subtitles a disc carries.' },
-  { field: 'source.durationMinutes', label: 'Running time', kind: 'number', unit: 'min' },
-  { field: 'source.sizeGB', label: 'File size', kind: 'number', unit: 'GB' },
-  { field: 'source.bitrateMbps', label: 'Bitrate', kind: 'number', unit: 'Mbps' },
-  { field: 'source.container', label: 'Source container', kind: 'list', options: [
+  { field: 'video.bitDepth', advanced: true, label: 'Video bit depth', kind: 'number', unit: 'bit', help: '8, 10 or 12, read from the pixel format.' },
+  { field: 'video.frameRate', advanced: true, label: 'Frame rate', kind: 'number', unit: 'fps' },
+  { field: 'video.interlaced', advanced: true, label: 'Interlaced', kind: 'boolean', help: 'Field order says the picture is interlaced – usually a DVD or a broadcast recording.' },
+  { field: 'subtitles.count', advanced: true, label: 'Subtitle tracks', kind: 'number' },
+  { field: 'subtitles.languages', advanced: true, label: 'Subtitle language', kind: 'list', options: LANGS },
+  { field: 'subtitles.hasForced', advanced: true, label: 'Has forced subtitles', kind: 'boolean' },
+  { field: 'subtitles.hasText', advanced: true, label: 'Has text subtitles', kind: 'boolean', help: 'SRT, ASS and friends, as opposed to the bitmap subtitles a disc carries.' },
+  { field: 'source.durationMinutes', advanced: true, label: 'Running time', kind: 'number', unit: 'min' },
+  { field: 'source.sizeGB', advanced: true, label: 'File size', kind: 'number', unit: 'GB' },
+  { field: 'source.bitrateMbps', advanced: true, label: 'Bitrate', kind: 'number', unit: 'Mbps' },
+  { field: 'source.container', advanced: true, label: 'Source container', kind: 'list', options: [
     { value: 'mkv', label: 'MKV' },
     { value: 'mp4', label: 'MP4' },
     { value: 'mov', label: 'MOV' },
@@ -85,7 +87,7 @@ export const SMART_FIELDS: SmartFieldInfo[] = [
     { value: 'drama', label: 'Drama' },
     { value: 'family', label: 'Family' },
   ], help: 'Genres as Radarr or Sonarr have them, lower-cased. Looked up only when a branch asks.' },
-  { field: 'media.year', label: 'Year', kind: 'number' },
+  { field: 'media.year', advanced: true, label: 'Year', kind: 'number' },
 ];
 
 export const fieldInfo = (field: SmartField): SmartFieldInfo | undefined => SMART_FIELDS.find((f) => f.field === field);
@@ -372,6 +374,8 @@ export function describeCondition(c: SmartCondition): string {
 export interface SmartSettingInfo {
   path: SmartSettingPath;
   label: string;
+  /** Hidden until "Show advanced" is on. */
+  advanced?: boolean;
   kind: 'select' | 'number' | 'boolean' | 'text' | 'languages';
   options?: { value: string; label: string }[];
   min?: number;
@@ -388,14 +392,14 @@ export const SMART_SETTINGS: SmartSettingInfo[] = [
   { path: 'video.preset', label: 'Video preset', kind: 'select', options: [...new Set(Object.values(VIDEO_ENCODER_INFO).flatMap((v) => v.presets))].map((value) => ({ value, label: value })) },
   { path: 'video.tune', label: 'Video tune', kind: 'select', options: ['none', 'animation', 'film', 'grain', 'fastdecode', 'zerolatency'].map((value) => ({ value, label: value })) },
   { path: 'video.maxHeight', label: 'Downscale to at most', kind: 'number', min: 0, max: 4320, unit: 'px' },
-  { path: 'video.pixelFormat', label: 'Pixel format', kind: 'select', options: ['auto', 'yuv420p', 'yuv420p10le', 'p010le', 'nv12'].map((value) => ({ value, label: value })) },
-  { path: 'video.hdrPassthrough', label: 'Keep HDR metadata', kind: 'boolean' },
-  { path: 'video.bitrate', label: 'Video bitrate', kind: 'number', min: 0, max: 200000, unit: 'kbps' },
-  { path: 'video.hwMode', label: 'Hardware encoding', kind: 'select', options: [
+  { path: 'video.pixelFormat', advanced: true, label: 'Pixel format', kind: 'select', options: ['auto', 'yuv420p', 'yuv420p10le', 'p010le', 'nv12'].map((value) => ({ value, label: value })) },
+  { path: 'video.hdrPassthrough', advanced: true, label: 'Keep HDR metadata', kind: 'boolean' },
+  { path: 'video.bitrate', advanced: true, label: 'Video bitrate', kind: 'number', min: 0, max: 200000, unit: 'kbps' },
+  { path: 'video.hwMode', advanced: true, label: 'Hardware encoding', kind: 'select', options: [
     { value: 'auto', label: 'Follow the setting' },
     { value: 'software', label: 'Always on the CPU' },
   ] },
-  { path: 'video.extraArgs', label: 'Extra ffmpeg arguments', kind: 'text' },
+  { path: 'video.extraArgs', advanced: true, label: 'Extra ffmpeg arguments', kind: 'text' },
   { path: 'audio.encoder', label: 'Audio encoder', kind: 'select', options: Object.entries(AUDIO_ENCODER_INFO).map(([value, v]) => ({ value, label: shortLabel(v.label) })) },
   { path: 'audio.bitrate', label: 'Audio bitrate', kind: 'number', min: 0, max: 3000, unit: 'kbps' },
   { path: 'audio.channels', label: 'Audio channels', kind: 'select', options: [
@@ -404,26 +408,26 @@ export const SMART_SETTINGS: SmartSettingInfo[] = [
     { value: '6', label: '5.1' },
     { value: '8', label: '7.1' },
   ] },
-  { path: 'audio.languages', label: 'Keep audio languages', kind: 'languages' },
-  { path: 'audio.firstMatchOnly', label: 'One audio track per language', kind: 'boolean' },
-  { path: 'audio.dropCommentary', label: 'Drop commentary tracks', kind: 'boolean' },
+  { path: 'audio.languages', advanced: true, label: 'Keep audio languages', kind: 'languages' },
+  { path: 'audio.firstMatchOnly', advanced: true, label: 'One audio track per language', kind: 'boolean' },
+  { path: 'audio.dropCommentary', advanced: true, label: 'Drop commentary tracks', kind: 'boolean' },
   { path: 'subtitles.mode', label: 'Subtitles', kind: 'select', options: [
     { value: 'copy', label: 'Copy' },
     { value: 'copy-text', label: 'Copy text only' },
     { value: 'burn', label: 'Burn in' },
     { value: 'none', label: 'Drop' },
   ] },
-  { path: 'subtitles.languages', label: 'Keep subtitle languages', kind: 'languages' },
-  { path: 'subtitles.burnLanguage', label: 'Burn in which language', kind: 'select', options: [{ value: '', label: 'The first subtitle track' }, ...LANGS] },
-  { path: 'subtitles.burnForcedOnly', label: 'Burn forced subtitles only', kind: 'boolean' },
-  { path: 'subtitles.keepFonts', label: 'Keep font attachments', kind: 'boolean' },
+  { path: 'subtitles.languages', advanced: true, label: 'Keep subtitle languages', kind: 'languages' },
+  { path: 'subtitles.burnLanguage', advanced: true, label: 'Burn in which language', kind: 'select', options: [{ value: '', label: 'The first subtitle track' }, ...LANGS] },
+  { path: 'subtitles.burnForcedOnly', advanced: true, label: 'Burn forced subtitles only', kind: 'boolean' },
+  { path: 'subtitles.keepFonts', advanced: true, label: 'Keep font attachments', kind: 'boolean' },
   { path: 'container', label: 'Container', kind: 'select', options: Object.entries(CONTAINER_INFO).filter(([, v]) => !v.music).map(([value, v]) => ({ value, label: shortLabel(v.label) })) },
-  { path: 'output.suffix', label: 'File name suffix', kind: 'text' },
-  { path: 'output.directory', label: 'Output folder', kind: 'text' },
-  { path: 'output.replaceOriginal', label: 'Replace the original', kind: 'boolean' },
-  { path: 'output.renameTokens', label: 'Rename from the profile tokens', kind: 'boolean' },
-  { path: 'output.cleanMetadata', label: 'Clean metadata', kind: 'boolean' },
-  { path: 'output.notifyArr', label: 'Tell Radarr / Sonarr', kind: 'boolean' },
+  { path: 'output.suffix', advanced: true, label: 'File name suffix', kind: 'text' },
+  { path: 'output.directory', advanced: true, label: 'Output folder', kind: 'text' },
+  { path: 'output.replaceOriginal', advanced: true, label: 'Replace the original', kind: 'boolean' },
+  { path: 'output.renameTokens', advanced: true, label: 'Rename from the profile tokens', kind: 'boolean' },
+  { path: 'output.cleanMetadata', advanced: true, label: 'Clean metadata', kind: 'boolean' },
+  { path: 'output.notifyArr', advanced: true, label: 'Tell Radarr / Sonarr', kind: 'boolean' },
 ];
 
 export const settingInfo = (path: SmartSettingPath) => SMART_SETTINGS.find((s) => s.path === path);
