@@ -69,7 +69,8 @@ label, the issue template and the docs, and starts `docs/release-notes/<version>
 
 ## Documentation screenshots
 
-The images under `docs/screenshots/` are taken from a running Rexarr, all at 1400x875:
+The images under `docs/screenshots/` are taken from a running Rexarr, 1400px wide (the script's own window is
+1400x875):
 
 ```bash
 node scripts/screenshots.mjs                   # every page a URL can reach

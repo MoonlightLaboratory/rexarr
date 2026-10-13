@@ -98,6 +98,8 @@ change it for the discs you want changed.
 
 ### The canvas
 
+![A smart profile on the canvas](../screenshots/smart-profile.webp){ decoding=async }
+
 **Profiles → a smart profile → Edit** opens it as a graph, filling the window beside the sidebar. **Start from**
 holds the settings every encode begins with. A *Branch* asks a question and has a **Then**, which goes to a *Set*
 node listing what it changes, and a **Carry on**, which continues to the next branch. A branch's **Condition**
