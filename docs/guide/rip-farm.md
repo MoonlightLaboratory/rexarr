@@ -11,7 +11,7 @@ makes a shelf of SBCs useful: a Pi can read a disc at full speed even though it 
 
 ## What you need
 
-* **Rexarr on the server**, with **Settings → Rip farm** switched on.
+* **Rexarr on the server**, with **Settings → Connections → Rip farm** switched on.
 * **`rexarr-agent` on each machine**, which ships in every Rexarr package.
 * **A folder both machines can see.** The files never travel over this connection — the agent writes a rip
   straight into the shared folder and the server picks it up from there. NFS, SMB, whatever you already use.
@@ -39,7 +39,7 @@ twice. It prints what it found — MakeMKV, FFmpeg, the encoders, the hardware �
 
 ## Approving it
 
-A new agent waits on **Settings → Rip farm** until you approve it, because an agent is given the paths of your
+A new agent waits on **Settings → Connections → Rip farm** until you approve it, because an agent is given the paths of your
 library and runs what it is told; it should be a machine you put there on purpose. Approve it there, set how many
 tasks it takes at once, and give it a path mapping if it mounts the share somewhere else than the server does:
 

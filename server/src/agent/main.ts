@@ -175,7 +175,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   for (;;) {
     try {
       const r = await post('/api/agents/enrol', enrolBody);
-      if (!r.approved) console.log('Waiting to be approved on the server (Settings → Rip farm → Agents).');
+      if (!r.approved) console.log('Waiting to be approved on the server (Settings → Connections → Rip farm).');
       break;
     } catch (err) {
       console.error(`Could not reach ${o.server}: ${(err as Error).message}`);

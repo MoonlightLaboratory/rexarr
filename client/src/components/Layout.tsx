@@ -24,7 +24,6 @@ const links = [
     children: [
       { to: '/settings', label: 'Connections' },
       { to: '/settings/general', label: 'General' },
-      { to: '/settings/agents', label: 'Rip farm' },
       { to: '/settings/experiments', label: 'Experiments' },
     ],
   },

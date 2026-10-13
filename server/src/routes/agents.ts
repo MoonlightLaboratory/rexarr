@@ -73,12 +73,12 @@ export default async function agentRoutes(app: FastifyInstance) {
   // ---- what an agent calls ----
 
   app.post('/api/agents/enrol', async (req, reply) => {
-    if (!agentSettings().enabled) return reply.code(403).send({ error: 'rip farm mode is off on this server (Settings → Rip farm)' });
+    if (!agentSettings().enabled) return reply.code(403).send({ error: 'rip farm mode is off on this server (Settings → Connections → Rip farm)' });
     const parsed = enrolSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') });
     const known = getAgent(parsed.data.id);
     const agent = enrol({ ...parsed.data, capabilities: parsed.data.capabilities as unknown as Agent['capabilities'], drives: parsed.data.drives as unknown as Agent['drives'], address: clientIp(req) });
-    if (!known) bus.notice(agent.enabled ? 'info' : 'warn', agent.enabled ? `Agent "${agent.name}" joined the farm` : `Agent "${agent.name}" is waiting to be approved (Settings → Rip farm)`);
+    if (!known) bus.notice(agent.enabled ? 'info' : 'warn', agent.enabled ? `Agent "${agent.name}" joined the farm` : `Agent "${agent.name}" is waiting to be approved (Settings → Connections → Rip farm)`);
     return { ok: true, approved: agent.enabled, pollSeconds: 5, name: agent.name };
   });
 
