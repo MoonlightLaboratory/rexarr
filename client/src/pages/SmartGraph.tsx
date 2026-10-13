@@ -606,12 +606,12 @@ export function SmartGraphPage() {
         <button className={`btn sm${details ? ' primary' : ''}`} onClick={() => setDetails((d) => !d)} title="Description and what this is for">
           Details
         </button>
-        <div className="gZoom">
+        <div className="gZoom gHistory">
           <button className="gIcon" disabled={!history.canUndo || readOnly} onClick={history.undo} title="Undo (⌘Z)">
-            ↶
+            <Icon.Undo />
           </button>
           <button className="gIcon" disabled={!history.canRedo || readOnly} onClick={history.redo} title="Redo (⇧⌘Z)">
-            ↷
+            <Icon.Redo />
           </button>
         </div>
         <button

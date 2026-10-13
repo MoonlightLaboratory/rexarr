@@ -18,6 +18,8 @@ export const Icon = {
   ChevronRight: () => (<svg {...p}><polyline points="9 18 15 12 9 6" /></svg>),
   Download: () => (<svg {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>),
   Plus: () => (<svg {...p}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>),
+  Undo: () => (<svg {...p}><polyline points="9 14 4 9 9 4" /><path d="M4 9h10.5A5.5 5.5 0 0 1 20 14.5 5.5 5.5 0 0 1 14.5 20H11" /></svg>),
+  Redo: () => (<svg {...p}><polyline points="15 14 20 9 15 4" /><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5 5.5 5.5 0 0 0 9.5 20H13" /></svg>),
   ArrowUp: () => (<svg {...p}><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></svg>),
   Disc: () => (<svg {...p}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /></svg>),
   /** An optical drive (front: tray slot + button) with a plus above it. */

@@ -1299,6 +1299,8 @@ table.metaTags td.mono { word-break: break-word; }
 .graphBar button.badge:hover { filter: brightness(1.12); }
 .graphName { width: 300px; max-width: 34vw; font-size: 15px; }
 .gZoom { display: flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--borderColor); border-radius: 4px; }
+/* The undo arrows are a curl rather than a glyph, and read better a shade larger than a bin or a tick. */
+.gHistory .gIcon svg { width: 15px; height: 15px; }
 .graphDetails { display: flex; flex-wrap: wrap; gap: 14px; padding: 12px 14px; border-bottom: 1px solid var(--borderColor); background: var(--cardBackgroundColor); }
 .graphDetails .field { flex: 1 1 260px; margin: 0; }
 .graphDetails .field.stack:last-child { flex: 0 0 190px; }
