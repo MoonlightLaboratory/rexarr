@@ -399,7 +399,7 @@ export const DEFAULT_SETTINGS = {
   ffmpegPath: 'ffmpeg',
   ffprobePath: 'ffprobe',
   freacPath: '',
-  tesseractPath: '',
+  ocr: { enabled: true, tesseractPath: '' },
   concurrency: 1,
   pollIntervalSeconds: 60,
   pathMappings: [],

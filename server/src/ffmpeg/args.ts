@@ -43,6 +43,8 @@ export interface BuildOptions {
    * and a text track in the output; see `ocr.ts` for why this cannot happen inside the one ffmpeg command.
    */
   ocrSubtitles?: OcrSubtitle[];
+  /** Reading pictures into text is switched off in Settings, so do not suggest a setting that is already on. */
+  ocrDisabled?: boolean;
 }
 
 export interface OcrSubtitle {
@@ -145,6 +147,16 @@ export function selectSubtitles(probe: ProbeResult, profile: Profile, containerB
   // a track that has been read into text is replaced by that text unless the profile asks to keep both
   if (profile.subtitles.bitmapMode === 'ocr') list = list.filter((s) => !isBitmapSubtitle(s));
   return list;
+}
+
+/**
+ * The profile as it stands with OCR switched off in Settings: picture subtitles are copied as they are. Doing
+ * it here, once, rather than checking the setting at each decision, keeps `selectSubtitles` and the warnings
+ * about dropped tracks honest – a profile set to replace its pictures with text must not do the replacing half.
+ */
+export function withoutOcr(profile: Profile): Profile {
+  if (profile.subtitles.bitmapMode === 'keep') return profile;
+  return { ...profile, subtitles: { ...profile.subtitles, bitmapMode: 'keep' } };
 }
 
 /** The picture subtitle tracks this profile wants read into text, as `s:N` indices for `ocrSubtitleStream`. */
@@ -451,11 +463,12 @@ export function buildFfmpegArgs(requested: Profile, probe: ProbeResult, input: s
     summary.push(`Subtitles: ${subs.length + ocr.length} stream(s) kept${ocr.length ? ` (${ocr.length} read from pictures)` : ''}`);
   }
   if (probe.subtitles.length && !container.bitmapSubs && profile.subtitles.mode === 'copy') {
-    const dropped = probe.subtitles.filter((s) => !isTextSubtitle(s)).length - ocr.length;
+    // a track on its way to being read into text is not lost, whether or not the SRT has been made yet
+    const dropped = probe.subtitles.filter((s) => !isTextSubtitle(s)).length - Math.max(ocr.length, subtitlesToOcr(probe, profile).length);
     if (dropped > 0) {
       warnings.push(
         `${dropped} bitmap subtitle stream(s) dropped (not supported by ${profile.container})` +
-          (profile.subtitles.bitmapMode === 'keep' ? ' – set Picture subtitles to "Read into text" to keep them' : ''),
+          (profile.subtitles.bitmapMode === 'keep' && !opts.ocrDisabled ? ' – set Picture subtitles to "Read into text" to keep them' : ''),
       );
     }
   }

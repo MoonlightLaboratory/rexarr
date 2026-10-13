@@ -39,7 +39,7 @@ Everything on these pages is also available as JSON: `GET /api/settings`, `PUT /
 | Lidarr | URL, API key, split image + cue downloads | API v1, enables the Music page |
 | slskd | URL, API key, download folder, max peer queue | Soulseek album search |
 | fre:ac | `freaccmd` path | empty = auto-detect |
-| Tesseract | `tesseract` path | empty = auto-detect; reads picture subtitles into text |
+| Tesseract | on / off, `tesseract` path | `ocr.enabled`, `ocr.tesseractPath`; empty path = auto-detect. Off copies picture subtitles as they are, whatever a profile asks for |
 | Local media | extra folders, scan interval, folder kinds | see [Local media](../guide/local-media.md) |
 | MusicBrainz | on / off | CD and album lookups, Cover Art Archive |
 | TheDiscDB | on / off | barcodes and disc contents for physical releases |

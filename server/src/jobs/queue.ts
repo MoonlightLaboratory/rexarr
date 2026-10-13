@@ -19,7 +19,7 @@ import { arr } from '../arr/index.js';
 import { toArrPath, toLocalPath } from '../paths.js';
 import { findDiscImages, makemkvInfo } from '../disc/makemkv.js';
 import { probe, streamLanguage, type ProbeResult } from '../ffmpeg/probe.js';
-import { buildFfmpegArgs, outputPathFor, subtitlesToOcr, type BuildOptions, type OcrSubtitle } from '../ffmpeg/args.js';
+import { buildFfmpegArgs, outputPathFor, subtitlesToOcr, withoutOcr, type BuildOptions, type OcrSubtitle } from '../ffmpeg/args.js';
 import { ocrSubtitleStream, tesseractInfo, tesseractLanguage, toSrt } from '../ffmpeg/ocr.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 import { initialProgress, runFfmpeg, type RunHandle } from '../ffmpeg/runner.js';
@@ -813,8 +813,14 @@ class JobQueue {
       // "Frieren - S01E05 - Phantoms of the Dead" / "Blade Runner 2049 (2017)" for the file's title tag
       const metadata = { title: job.subtitle && /^S\d+E\d+/i.test(job.subtitle) ? `${job.title} - ${job.subtitle.replace(/\s+·\s+/, ' - ')}` : job.title };
       // Picture subtitles the profile wants as text: read before the encode, since OCR cannot happen inside it.
+      let ocrDisabled = false;
+      if (settings.ocr?.enabled === false && subtitlesToOcr(info, profile).length) {
+        this.log(job, `Reading picture subtitles into text is switched off in Settings, so this profile's ${subtitlesToOcr(info, profile).length} picture track(s) are copied as they are`);
+        profile = withoutOcr(profile);
+        ocrDisabled = true;
+      }
       const ocrSubtitles = await this.readBitmapSubtitles(job, profile, info, input, settings);
-      let buildOpts: BuildOptions = { hardware: settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, previewPath, metadata, ocrSubtitles };
+      let buildOpts: BuildOptions = { hardware: settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, previewPath, metadata, ocrSubtitles, ocrDisabled };
       let lastBuilt: ReturnType<typeof buildFfmpegArgs> | undefined;
       this.partials.set(job.id, { path: tmpOutput, container: profile.container });
       job.preview = profile.video.encoder !== 'copy';
@@ -966,7 +972,7 @@ class JobQueue {
   private async readBitmapSubtitles(job: Job, profile: Profile, info: ProbeResult, input: string, settings: Settings): Promise<OcrSubtitle[]> {
     const wanted = subtitlesToOcr(info, profile);
     if (!wanted.length) return [];
-    const tess = await tesseractInfo(settings.tesseractPath);
+    const tess = await tesseractInfo(settings.ocr?.tesseractPath ?? '');
     if (!tess.available) {
       this.log(job, `Warning: ${wanted.length} picture subtitle track(s) cannot be read into text – ${tess.error}`);
       return [];

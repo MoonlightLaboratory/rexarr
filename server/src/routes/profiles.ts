@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { z } from 'zod';
 import type { Profile, SmartProfile } from '../../../shared/types.js';
 import { store } from '../store.js';
-import { buildFfmpegArgs, outputPathFor, subtitlesToOcr } from '../ffmpeg/args.js';
+import { buildFfmpegArgs, outputPathFor, subtitlesToOcr, withoutOcr } from '../ffmpeg/args.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 import { probe, streamLanguage, type ProbeResult } from '../ffmpeg/probe.js';
 import { tesseractInfo } from '../ffmpeg/ocr.js';
@@ -270,19 +270,25 @@ export default async function profileRoutes(app: FastifyInstance) {
       info = sampleProbe();
       input = info.path;
     }
+    // the switch in Settings rewrites the profile, so the preview shows what the encode would really do
+    const ocrOff = store.settings.ocr?.enabled === false;
+    const asked = subtitlesToOcr(info, profile).length;
+    if (ocrOff) profile = withoutOcr(profile);
     try {
       const caps = await ffmpegCapabilities(store.settings.ffmpegPath).catch(() => undefined);
-      const draft = buildFfmpegArgs(profile, info, input, outputPathFor(profile, input), { hardware: store.settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, metadata: { title: body.data.path ? undefined : 'Example (2024)' } });
+      const draft = buildFfmpegArgs(profile, info, input, outputPathFor(profile, input), { hardware: store.settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, metadata: { title: body.data.path ? undefined : 'Example (2024)' }, ocrDisabled: ocrOff && asked > 0 });
       // the real name depends on what the encode produces (codec after hardware mapping, resolution, audio)
       const output = outputPathFor(profile, input, draft.description, { replacingInput: profile.output.replaceOriginal });
-      const built = buildFfmpegArgs(profile, info, input, output, { hardware: store.settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, metadata: { title: body.data.path ? undefined : 'Example (2024)' } });
+      const built = buildFfmpegArgs(profile, info, input, output, { hardware: store.settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, metadata: { title: body.data.path ? undefined : 'Example (2024)' }, ocrDisabled: ocrOff && asked > 0 });
       // OCR runs before the encode and takes minutes, so the preview says it will happen rather than doing it
       const toRead = subtitlesToOcr(info, profile);
       const summary = [...built.summary];
       const warnings = [...built.warnings];
-      if (toRead.length) {
-        const tess = await tesseractInfo(store.settings.tesseractPath);
+      if (ocrOff && asked) {
+        warnings.push(`${asked} picture subtitle track(s) would be read into text, but that is switched off in Settings – this profile is treated as "Keep as pictures"`);
+      } else if (toRead.length) {
         const langs = toRead.map((t) => streamLanguage(t.stream)).join(', ');
+        const tess = await tesseractInfo(store.settings.ocr?.tesseractPath ?? '');
         if (tess.available) summary.push(`Subtitles: ${toRead.length} picture track(s) read into text first (${langs}), then added to the command above`);
         else warnings.push(`${toRead.length} picture subtitle track(s) cannot be read into text – ${tess.error}`);
       }

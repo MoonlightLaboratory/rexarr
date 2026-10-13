@@ -666,6 +666,13 @@ export interface MusicBrainzRelease {
   coverUrl?: string;
 }
 
+/** Reading picture subtitles (DVD, Blu-ray PGS, DVB) into text with Tesseract. */
+export interface OcrSettings {
+  enabled: boolean;
+  /** Tesseract binary. Empty = auto-detect. */
+  tesseractPath: string;
+}
+
 export interface CddbSettings {
   enabled: boolean;
   /** A freedb-protocol CGI endpoint, e.g. https://freedbtest.dyndns.org/~cddb/cddb.cgi */
@@ -862,8 +869,8 @@ export interface Settings {
   ffprobePath: string;
   /** fre:ac command line encoder (freaccmd) for music profiles and CD ripping. Empty = auto-detect. */
   freacPath: string;
-  /** Tesseract, for reading picture subtitles into text. Empty = auto-detect. */
-  tesseractPath: string;
+  /** Reading picture subtitles into text. Off leaves every profile's choice alone and copies the pictures. */
+  ocr: OcrSettings;
   /** Maximum simultaneous encodes. */
   concurrency: number;
   /** Seconds between polls when waiting for an *arr download to import. */

@@ -462,7 +462,7 @@ function FreacCard({ path, onChange }: { path: string; onChange: (p: string) => 
   );
 }
 
-function TesseractCard({ path, onChange }: { path: string; onChange: (p: string) => void }) {
+function TesseractCard({ enabled, path, onChange }: { enabled: boolean; path: string; onChange: (ocr: Partial<{ enabled: boolean; tesseractPath: string }>) => void }) {
   const [info, setInfo] = useState<SystemInfo['tesseract'] | null>(null);
   const [busy, setBusy] = useState(false);
   const check = async () => {
@@ -479,14 +479,16 @@ function TesseractCard({ path, onChange }: { path: string; onChange: (p: string)
   return (
     <div className="card">
       <div className="card-h">
-        Tesseract
+        <label className="check">
+          <input type="checkbox" checked={enabled} onChange={(e) => onChange({ enabled: e.target.checked })} /> Tesseract
+        </label>
         <span className="spacer" />
         <span className="small dim">picture subtitles into text</span>
       </div>
       <div className="card-b">
         <div className="field">
           <label>tesseract binary</label>
-          <input type="text" value={path} onChange={(e) => onChange(e.target.value)} placeholder="Empty = auto-detect (/opt/homebrew/bin, /usr/bin …)" />
+          <input type="text" value={path} disabled={!enabled} onChange={(e) => onChange({ tesseractPath: e.target.value })} placeholder="Empty = auto-detect (/opt/homebrew/bin, /usr/bin …)" />
           <div className="help">
             A DVD or Blu-ray carries its subtitles as pictures. With{' '}
             <a href="https://tesseract-ocr.github.io/" target="_blank" rel="noreferrer">Tesseract</a> installed, a profile can read
@@ -496,10 +498,11 @@ function TesseractCard({ path, onChange }: { path: string; onChange: (p: string)
           </div>
         </div>
         <div className="inline">
-          <button className="btn sm" onClick={check} disabled={busy}>
+          <button className="btn sm" onClick={check} disabled={busy || !enabled}>
             {busy ? <span className="spinner" /> : <Icon.Refresh />} Check
           </button>
-          {info &&
+          {!enabled && <span className="badge muted">off – picture subtitles are copied as they are</span>}
+          {enabled && info &&
             (info.available ? (
               <>
                 <span className="badge green">{info.version ?? 'found'}</span>
@@ -922,7 +925,11 @@ export function SettingsPage() {
         </ArrCard>
         <SlskdCard conn={s.slskd} onChange={(c) => setS({ ...s, slskd: c })} />
         <FreacCard path={s.freacPath} onChange={(p) => setS({ ...s, freacPath: p })} />
-        <TesseractCard path={s.tesseractPath} onChange={(p) => setS({ ...s, tesseractPath: p })} />
+        <TesseractCard
+          enabled={s.ocr?.enabled !== false}
+          path={s.ocr?.tesseractPath ?? ''}
+          onChange={(ocr) => setS({ ...s, ocr: { enabled: s.ocr?.enabled !== false, tesseractPath: s.ocr?.tesseractPath ?? '', ...ocr } })}
+        />
       </div>
       <div className="mb">
         <NotificationCard value={s.notifications ?? { targets: [] }} onChange={(n) => setS({ ...s, notifications: n })} />

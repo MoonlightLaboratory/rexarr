@@ -8,6 +8,7 @@ import { useApp } from '../App';
 import { Page, ToolbarButton } from '../components/Layout';
 import { Icon } from '../components/Icons';
 import { Modal } from '../components/Modal';
+import { withBase } from '../base';
 
 /** fre:ac encoders offered for music profiles (all open source). */
 const MUSIC_FORMATS: { encoder: Profile['audio']['encoder']; container: Profile['container']; label: string; help: string }[] = [
@@ -428,7 +429,9 @@ function ProfileEditor({ initial, caps, onClose, onSaved }: { initial: Profile; 
                   <span className="hint">
                     A DVD or Blu-ray carries its subtitles as pictures, which {p.container.toUpperCase()} {container.bitmapSubs ? 'can hold but nothing can search' : 'cannot hold at all'}. Reading
                     them with Tesseract turns them into real SRT text. It is slow – minutes per track – and how well it
-                    reads depends on the disc, so check the result before you throw the source away.
+                    reads depends on the disc, so check the result before you throw the source away. The switch for the
+                    whole of Rexarr is <a href={withBase('/settings')}>Settings → Tesseract</a>; with it off, this is
+                    ignored and the pictures are copied as they are.
                   </span>
                 </div>
               )}

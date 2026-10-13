@@ -172,8 +172,8 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
 
   // Picture subtitles: a profile that asks for them as text needs Tesseract, and the right model for the language
   const ocrProfiles = store.profiles.filter((p) => p.subtitles?.bitmapMode === 'ocr' || p.subtitles?.bitmapMode === 'ocr-keep');
-  if (ocrProfiles.length) {
-    const t = await tesseractInfo(s.tesseractPath);
+  if (ocrProfiles.length && s.ocr?.enabled !== false) {
+    const t = await tesseractInfo(s.ocr?.tesseractPath ?? '');
     if (!t.available) {
       out.push({ type: 'warning', source: 'Tesseract', message: `${ocrProfiles.length} profile(s) read picture subtitles into text, but Tesseract was not found${t.error ? ` (${t.error})` : ''}. Those subtitles will be copied as pictures instead.`, link: '/settings' });
     } else if (t.languages.length && !t.languages.some((l) => l !== 'osd')) {

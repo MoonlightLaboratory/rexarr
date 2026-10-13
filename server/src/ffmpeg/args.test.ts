@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Profile } from '../../../shared/types.js';
 import { BUILTIN_PROFILES } from '../../../shared/presets.js';
-import { buildFfmpegArgs, outputPathFor, selectAudio, subtitlesToOcr, splitArgs } from './args.js';
+import { buildFfmpegArgs, outputPathFor, selectAudio, subtitlesToOcr, withoutOcr, splitArgs } from './args.js';
 import type { ProbeResult } from './probe.js';
 
 function probe(over: Partial<ProbeResult> = {}): ProbeResult {
@@ -367,4 +367,16 @@ test('an MP4 keeps subtitles it would otherwise lose, as mov_text', () => {
   assert.deepEqual(maps(r.args), ['0:0', '0:1', '0:3', '1:0']);
   assert.equal(argAfter(r.args, '-c:s:1'), 'mov_text');
   assert.ok(!r.warnings.some((w) => w.includes('Read into text')), 'nothing is being lost any more');
+});
+
+test('with OCR switched off the profile keeps its pictures rather than losing them', () => {
+  const off = withoutOcr(dvdProfile('ocr'));
+  assert.equal(off.subtitles.bitmapMode, 'keep');
+  assert.deepEqual(subtitlesToOcr(dvdProbe(), off), []);
+  // an MKV keeps all three tracks, which is the point: half-applying "replace" would drop them
+  const r = buildFfmpegArgs(off, dvdProbe(), '/in/dvd.mkv', '/out/dvd.mkv');
+  assert.deepEqual(maps(r.args), ['0:0', '0:1', '0:2', '0:3', '0:4']);
+  // and a profile that was not asking for OCR is handed back untouched
+  const keep = dvdProfile('keep');
+  assert.equal(withoutOcr(keep), keep);
 });

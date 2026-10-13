@@ -66,6 +66,7 @@ settingsP.value = {
   musicbrainz: { ...DEFAULT_SETTINGS.musicbrainz, ...(settingsP.value.musicbrainz ?? {}) },
   thediscdb: { ...DEFAULT_SETTINGS.thediscdb, ...(settingsP.value.thediscdb ?? {}) },
   cddb: { ...DEFAULT_SETTINGS.cddb, ...(settingsP.value.cddb ?? {}) },
+  ocr: { ...DEFAULT_SETTINGS.ocr, ...(settingsP.value.ocr ?? {}) },
   notifications: { targets: settingsP.value.notifications?.targets ?? [] },
   experiments: { ...DEFAULT_SETTINGS.experiments, ...(settingsP.value.experiments ?? {}) },
   disc: { ...DEFAULT_SETTINGS.disc, ...(settingsP.value.disc ?? {}), cd: { ...DEFAULT_SETTINGS.disc.cd, ...(settingsP.value.disc?.cd ?? {}) } },

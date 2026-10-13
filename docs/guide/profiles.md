@@ -65,8 +65,12 @@ changing the codec, and MP4 and WebM, which cannot hold them at all, simply lose
 Reading them turns a disc's subtitles into real SRT: searchable, stylable, and small enough that an MP4 or a
 WebM keeps them rather than dropping them. It needs [Tesseract](https://tesseract-ocr.github.io/) and a language
 model for each subtitle language — `brew install tesseract`, `apt install tesseract-ocr tesseract-ocr-eng`, or
-the Windows installer — and the path is **Settings → Tesseract**, empty to find it where it usually lives. The
-System page says whether it is there and which models it has, and warns if a profile asks for OCR without it.
+the Windows installer. The System page says whether it is there and which models it has, and warns if a profile
+asks for OCR without it.
+
+**Settings → Tesseract** is the switch for the whole of Rexarr, and holds the path (empty to find it where it
+usually lives). Turned off, every profile's choice here is ignored and picture subtitles are copied as they
+are — the job log and the command preview say so rather than going quiet.
 
 It happens before the encode, since it cannot happen inside it, and it is slow: minutes for a feature, written
 into the job log as it goes (*"412 lines read from 1,074 pictures in 96s"*). How well it reads depends on the

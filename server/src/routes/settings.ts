@@ -146,7 +146,7 @@ export const settingsSchema = z.object({
     .default({ targets: [] }),
   experiments: z.object({ barcode: z.boolean(), wanted: z.boolean().default(false) }).default({ barcode: false, wanted: false }),
   freacPath: z.string().default(''),
-  tesseractPath: z.string().default(''),
+  ocr: z.object({ enabled: z.boolean().default(true), tesseractPath: z.string().default('') }).default({ enabled: true, tesseractPath: '' }),
   ffmpegPath: z.string().min(1),
   ffprobePath: z.string().min(1),
   concurrency: z.number().int().min(1).max(16),
