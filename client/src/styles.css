@@ -1294,6 +1294,9 @@ table.metaTags td.mono { word-break: break-word; }
 .graphPage { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .graphBar { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 9px 14px; border-bottom: 1px solid var(--borderColor); background: var(--cardBackgroundColor); }
 .graphBar .spacer { flex: 1; }
+/* The cable hint doubles as the way to put the cable down, so it takes a pointer and a hover. */
+.graphBar button.badge { cursor: pointer; font-family: inherit; }
+.graphBar button.badge:hover { filter: brightness(1.12); }
 .graphName { width: 300px; max-width: 34vw; font-size: 15px; }
 .gZoom { display: flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--borderColor); border-radius: 4px; }
 .graphDetails { display: flex; flex-wrap: wrap; gap: 14px; padding: 12px 14px; border-bottom: 1px solid var(--borderColor); background: var(--cardBackgroundColor); }
@@ -1411,3 +1414,18 @@ table.metaTags td.mono { word-break: break-word; }
 /* shift + right drag draws this over the canvas and takes every node it touches */
 .gMarquee { position: absolute; border: 1px solid var(--primaryColor); border-radius: 2px; background: rgba(93, 156, 236, 0.12); pointer-events: none; }
 .gNode.selected { border-color: var(--primaryColor); box-shadow: 0 0 0 1px var(--primaryColor), 0 6px 18px rgba(0, 0, 0, 0.35); }
+
+/* a node on the canvas with no cable to a branch: it decides nothing until one is run */
+.gNode.loose { border-style: dashed; }
+.gNode.loose .gHead { border-top-style: dashed; }
+.gNode.plugging { border-color: #d9a441; box-shadow: 0 0 0 1px #d9a441, 0 6px 18px rgba(0, 0, 0, 0.35); }
+.gPort.plug { cursor: crosshair; }
+.gPort.live { background: #d9a441; box-shadow: 0 0 0 3px rgba(217, 164, 65, 0.25); }
+.gIcon.on { background: var(--themeLightColor); color: var(--textColor); }
+
+/* the Node menu */
+.gMenuWrap { position: relative; }
+.gMenu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 5; display: flex; flex-direction: column; min-width: 260px; padding: 4px; border: 1px solid var(--borderColor); border-radius: 5px; background: var(--cardBackgroundColor); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+.gMenu button { display: flex; flex-direction: column; gap: 2px; padding: 7px 10px; border: 0; border-radius: 4px; background: transparent; color: var(--textColor); cursor: pointer; text-align: left; }
+.gMenu button:hover { background: var(--themeLightColor); }
+.gMenu button span { color: var(--gray); font-size: var(--smallFontSize); }

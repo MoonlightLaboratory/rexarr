@@ -282,6 +282,12 @@ export interface SmartProfile {
   base: SmartAssignment[];
   /** Checked top to bottom; every rule that fits applies, and a later one wins where they touch the same thing. */
   rules: SmartRule[];
+  /**
+   * Conditions that are on the canvas but not wired to a branch. They decide nothing – a condition only counts
+   * once a cable runs from it to a branch – but they are kept, and kept where they were put, so taking a cable
+   * off does not throw the node away.
+   */
+  loose?: { id: string; when: SmartCondition }[];
   /** Where each node sits on the canvas, by node id. Missing ones are laid out automatically. */
   layout?: Record<string, { x: number; y: number }>;
   createdAt: string;

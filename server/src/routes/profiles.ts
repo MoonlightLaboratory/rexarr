@@ -135,6 +135,7 @@ const smartProfileSchema = z.object({
     )
     .max(30)
     .default([]),
+  loose: z.array(z.object({ id: z.string().min(1).max(60), when: smartConditionSchema })).max(40).optional(),
   layout: z.record(z.string().max(80), z.object({ x: z.number(), y: z.number() })).optional(),
 });
 

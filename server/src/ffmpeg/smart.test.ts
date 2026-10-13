@@ -299,3 +299,22 @@ test('the wider settings a branch can change', () => {
   assert.equal(describeAssignment({ path: 'audio.languages', value: ['eng', 'jpn'] }), 'Keep audio languages: eng, jpn');
   assert.equal(describeAssignment({ path: 'audio.languages', value: [] }), 'Keep audio languages: all');
 });
+
+test('a condition with no cable to a branch decides nothing', () => {
+  const facts = SAMPLE_SOURCES[0].facts;
+  const smart: SmartProfile = {
+    id: 's', name: 'Loose', description: '', builtin: false, mediaType: 'any', container: 'mkv',
+    base: [{ path: 'video.encoder', value: 'copy' }],
+    rules: [{ id: 'r', when: [{ field: 'video.hdr', op: 'isTrue' }], set: [{ path: 'audio.encoder', value: 'flac' }] }],
+    // on the canvas, wired to nothing: it would match this disc, and it still changes nothing
+    loose: [{ id: 'n1', when: { field: 'audio.maxChannels', op: 'atLeast', number: 1 } }],
+    createdAt: '', updatedAt: '',
+  };
+  const decision = decide(smart, facts);
+  assert.deepEqual(decision.applied.map((a) => a.rule.id), ['r']);
+  assert.equal(decision.profile.audio.encoder, 'flac');
+  // and a profile whose only condition is loose applies nothing at all
+  const idle = decide({ ...smart, rules: [{ ...smart.rules[0], when: [] }] }, facts);
+  assert.deepEqual(idle.applied, []);
+  assert.equal(idle.profile.audio.encoder, 'copy');
+});

@@ -114,30 +114,44 @@ lot.
 of them moves the whole group. Shift-click a node on its own to add it to the selection or take it out again. A
 click on the background, or <kbd>Esc</kbd>, drops the selection; the bar says how many are held. Dragging the
 background without shift pans, as before. **Details** holds the description and what the profile is for, and
-**Advanced** decides how much each node offers — see below. Edits are kept until you press **Save**; an
+**Advanced** adds the node menu and cables — see below. Edits are kept until you press **Save**; an
 *Unsaved* mark appears in the bar and leaving the page asks first.
+
+**↶ ↷** in the bar undo and redo, as do <kbd>⌘Z</kbd> and <kbd>⇧⌘Z</kbd> (<kbd>Ctrl</kbd> on Windows and
+Linux). They cover everything on the canvas — a value typed, a node added or taken away, a cable run or pulled,
+a node dragged — and a run of small changes is one step, so undoing a drag puts the node back where it started
+rather than walking it there.
 
 The wires are drawn from the chain rather than dragged by hand: the order of the branches is what a smart profile
 *is*, and the ↑ ↓ on a branch's header changes it.
 
 ### Advanced
 
-A branch can ask about 27 things and change 28, which is more than belongs in a dropdown you are choosing from.
-Off — which is how it starts — a node offers the ten of each that nearly every profile uses:
+Nothing is ever hidden. A branch can ask about 27 things and change 28, and every one of them is in the dropdown,
+sorted under a heading — *Audio*, *Video*, *Subtitles*, *Source*, *What it is* on the asking side, *Video*,
+*Audio*, *Subtitles*, *Output* on the changing side — so a long list is still something you can read down.
 
-| | |
-| --- | --- |
-| Ask | audio channels, object audio, lossless audio, audio codec, video height, video codec, HDR, Dolby Vision, what it is, genre |
-| Change | video encoder, quality, preset, tune, downscale height, audio encoder, bitrate, channels, subtitles, container |
+**Advanced** in the bar is about the canvas rather than the dropdowns. On, it adds:
 
-**Advanced** in the bar adds the rest under their own heading in each dropdown: audio languages and commentary,
-track counts and bitrates, width, bit depth, frame rate, interlacing, everything about subtitles, the source's
-size, running time and container, and the year — and on the changing side, pixel format, HDR passthrough, video
-bitrate, hardware mode, extra ffmpeg arguments, which languages to keep, and the output settings.
+**A node menu.** **+ Node** drops a node on the canvas on its own: a *Branch* (which lands at the end of the
+chain, like the ordinary **+ Branch** button), a *Comparison* — a number read off the file, measured against one
+of yours — or a *Yes / no*. A comparison arrives with its *Read from the file* already attached, so the field is
+yours to pick straight away.
 
-It is the same switch the Settings pages use, remembered the same way. A node already built with an advanced
-setting keeps it and still shows it either way: turning the switch off hides what you are not using, never what
-you have already said.
+**Cables.** Every condition node grows a **⌁** button. On a condition that is wired to a branch it takes the
+cable off: the node stays exactly where it is, drawn with a dashed border, and the branch simply stops asking it.
+On a node with no cable it picks the cable up — the bar says *Cable in hand*, the branches' condition ports light
+up and say **Plug in here**, and clicking one makes that condition one of the branch's questions. <kbd>Esc</kbd>,
+or the bar's own hint, puts the cable down again.
+
+A node with no cable decides nothing. It is not a condition that is switched off and it is not a branch that
+never fires — it is simply not wired to anything, and the profile encodes as if it were not there. It is saved
+with the profile, where it sat and all, so a question you are still thinking about survives a reload.
+
+To be rid of one for good, use its bin.
+
+Advanced is the same switch the Settings pages use, remembered the same way, and it changes nothing about how a
+profile encodes.
 
 ### What a branch can ask about
 

@@ -14,6 +14,8 @@ import { Icon } from '../components/Icons';
  * saved with the profile.
  */
 
+const newId = () => Math.random().toString(36).slice(2, 10);
+
 type Pos = { x: number; y: number };
 const GRID = 10;
 const snap = (n: number) => Math.round(n / GRID) * GRID;
@@ -28,29 +30,22 @@ const readAdvanced = () => {
   }
 };
 
-/**
- * What a dropdown offers: the everyday entries, and the rest under their own heading once advanced is on. One
- * that is already in use is always offered, so turning advanced off never blanks a node built with it.
- */
-function OptionList<T extends { advanced?: boolean; label: string }>({ all, advanced, inUse, valueOf }: { all: T[]; advanced: boolean; inUse: string; valueOf: (t: T) => string }) {
-  const common = all.filter((o) => !o.advanced || valueOf(o) === inUse);
-  const rest = all.filter((o) => o.advanced && valueOf(o) !== inUse);
+/** Every entry, under its heading. Nothing is hidden: a long list is easier to read grouped than shortened. */
+function OptionList<T extends { group: string; label: string }>({ all, valueOf }: { all: T[]; valueOf: (t: T) => string }) {
+  const groups = [...new Set(all.map((o) => o.group))];
   return (
     <>
-      {common.map((o) => (
-        <option key={valueOf(o)} value={valueOf(o)}>
-          {o.label}
-        </option>
-      ))}
-      {advanced && rest.length > 0 && (
-        <optgroup label="Advanced">
-          {rest.map((o) => (
-            <option key={valueOf(o)} value={valueOf(o)}>
-              {o.label}
-            </option>
-          ))}
+      {groups.map((g) => (
+        <optgroup key={g} label={g}>
+          {all
+            .filter((o) => o.group === g)
+            .map((o) => (
+              <option key={valueOf(o)} value={valueOf(o)}>
+                {o.label}
+              </option>
+            ))}
         </optgroup>
-      )}
+      ))}
     </>
   );
 }
@@ -62,6 +57,8 @@ interface Node {
   pos: Pos;
   ruleIndex?: number;
   condIndex?: number;
+  /** Index into sp.loose, for a condition with no cable to a branch. */
+  looseIndex?: number;
 }
 
 /** A wire between two ports. */
@@ -99,9 +96,14 @@ function autoLayout(sp: SmartProfile): Record<string, Pos> {
   return out;
 }
 
-function Port({ id, side, tone, label }: { id: string; side: 'left' | 'right' | 'top' | 'bottom'; tone?: 'flow' | 'data' | 'value'; label?: string }) {
+function Port({ id, side, tone, label, onClick, live }: { id: string; side: 'left' | 'right' | 'top' | 'bottom'; tone?: 'flow' | 'data' | 'value'; label?: string; /** Set while cables can be run, which makes the port a target. */ onClick?: () => void; live?: boolean }) {
   return (
-    <span className={`gPort ${side} ${tone ?? 'flow'}`} data-port={id}>
+    <span
+      className={`gPort ${side} ${tone ?? 'flow'}${onClick ? ' plug' : ''}${live ? ' live' : ''}`}
+      data-port={id}
+      onMouseDown={onClick ? (e) => (e.stopPropagation(), e.preventDefault(), onClick()) : undefined}
+      title={onClick ? 'Click to run a cable here' : undefined}
+    >
       {label && <span className="gPortLabel">{label}</span>}
     </span>
   );
@@ -116,6 +118,76 @@ function BranchRow({ id, label }: { id: string; label: string }) {
   );
 }
 
+/**
+ * Undo and redo over the whole profile. Every change is a new profile object, so a step is just the JSON of what
+ * it was before. Changes that arrive in a stream – dragging a node, typing a name – settle for a moment first, so
+ * a drag is one step rather than forty.
+ */
+function useHistory(value: SmartProfile | null, restore: (v: SmartProfile) => void, settle = 400) {
+  const past = useRef<string[]>([]);
+  const future = useRef<string[]>([]);
+  const committed = useRef<string>('');
+  /** Where the current burst of changes started, which is what an undo goes back to. */
+  const base = useRef<string>('');
+  const restoring = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [, bump] = useState(0);
+
+  useEffect(() => {
+    if (!value) return;
+    const now = JSON.stringify(value);
+    if (now === committed.current) return;
+    if (restoring.current) {
+      restoring.current = false;
+      committed.current = now;
+      bump((n) => n + 1);
+      return;
+    }
+    // a burst of changes is one step, and the step goes back to where the burst started – not to the state one
+    // mouse-move before it ended
+    if (!timer.current) base.current = committed.current;
+    else clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      if (base.current && base.current !== now) {
+        past.current.push(base.current);
+        if (past.current.length > 100) past.current.shift();
+        future.current = [];
+      }
+      committed.current = now;
+      bump((n) => n + 1);
+    }, settle);
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, [value, settle]);
+
+  /** Opening a profile is where undo stops, not a step of its own. */
+  const reset = (v: SmartProfile) => {
+    past.current = [];
+    future.current = [];
+    committed.current = JSON.stringify(v);
+  };
+
+  const step = (from: string[], to: string[]) => {
+    const text = from.pop();
+    if (!text) return;
+    to.push(committed.current);
+    committed.current = text;
+    restoring.current = true;
+    restore(JSON.parse(text) as SmartProfile);
+    bump((n) => n + 1);
+  };
+
+  return {
+    canUndo: past.current.length > 0,
+    canRedo: future.current.length > 0,
+    undo: () => step(past.current, future.current),
+    redo: () => step(future.current, past.current),
+    reset,
+  };
+}
+
 export function SmartGraphPage() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -124,6 +196,10 @@ export function SmartGraphPage() {
   const [details, setDetails] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [advanced, setAdvanced] = useState(readAdvanced);
+  /** The loose condition waiting for its other end, while a cable is being run. */
+  const [plugging, setPlugging] = useState<number | null>(null);
+  const [palette, setPalette] = useState(false);
+  const history = useHistory(sp, (v) => setSp(v));
   const [marquee, setMarquee] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [saved, setSaved] = useState('');
   const [busy, setBusy] = useState(false);
@@ -155,12 +231,15 @@ export function SmartGraphPage() {
       setSp(blank);
       // a new one starts dirty: there is something to save
       setSaved('');
+      history.reset(blank);
       return;
     }
     const found = smartProfiles.find((x) => x.id === id);
     if (found) {
-      setSp(structuredClone(found));
+      const copy = structuredClone(found);
+      setSp(copy);
       setSaved(JSON.stringify(found));
+      history.reset(copy);
     }
   }, [id, smartProfiles, sp]);
 
@@ -215,6 +294,19 @@ export function SmartGraphPage() {
     });
     nodes.push({ id: 'result', kind: 'result', pos: at('result') });
     wires.push({ from: previous, to: 'result:in', kind: 'flow' });
+    // conditions with no cable: they hang about on the canvas until one is run to a branch
+    (sp.loose ?? []).forEach((l, i) => {
+      const kind = fieldInfo(l.when.field)?.kind === 'boolean' ? 'read' : 'compare';
+      const nid = `loose:${l.id}`;
+      const spot = sp.layout?.[nid] ?? { x: 60 + i * 290, y: 620 };
+      nodes.push({ id: nid, kind, pos: spot, looseIndex: i });
+      // a comparison reads its left-hand side off the file, so it brings its own reader along
+      if (kind === 'compare') {
+        const rid = `looseread:${l.id}`;
+        nodes.push({ id: rid, kind: 'read', pos: sp.layout?.[rid] ?? { x: spot.x, y: spot.y + 185 }, looseIndex: i });
+        wires.push({ from: `${rid}:out`, to: `${nid}:a`, kind: 'data' });
+      }
+    });
     return { nodes, wires };
   }, [sp]);
 
@@ -266,13 +358,21 @@ export function SmartGraphPage() {
   };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !readOnly) {
+        e.preventDefault();
+        if (e.shiftKey) history.redo();
+        else history.undo();
+        return;
+      }
       if (e.key !== 'Escape') return;
       setDetails(false);
       setSelected([]);
+      setPalette(false);
+      setPlugging(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [history, readOnly]);
   useEffect(() => {
     const move = (e: MouseEvent) => {
       const d = drag.current;
@@ -327,6 +427,8 @@ export function SmartGraphPage() {
     if (e.button !== 0) return;
     touched.current = true;
     setSelected([]);
+    setPlugging(null);
+    setPalette(false);
     drag.current = { panning: true, startPos: { x: view.x, y: view.y }, origin: { x: e.clientX, y: e.clientY } };
   };
   /** Zoom about the middle of the canvas, so the graph does not walk off the corner as it grows. */
@@ -389,7 +491,7 @@ export function SmartGraphPage() {
   const setCond = (ri: number, ci: number, c: SmartCondition) => sp && setRule(ri, { ...sp.rules[ri], when: sp.rules[ri].when.map((x, j) => (j === ci ? c : x)) });
   const addRule = () =>
     setSp((x) =>
-      x ? { ...x, rules: [...x.rules, { id: Math.random().toString(36).slice(2, 10), when: [{ field: 'audio.maxChannels', op: 'atMost', number: 2 }], set: [{ path: 'audio.encoder', value: 'flac' }] }] } : x,
+      x ? { ...x, rules: [...x.rules, { id: newId(), when: [{ field: 'audio.maxChannels', op: 'atMost', number: 2 }], set: [{ path: 'audio.encoder', value: 'flac' }] }] } : x,
     );
   const removeRule = (i: number) => setSp((x) => (x ? { ...x, rules: x.rules.filter((_, j) => j !== i) } : x));
   const moveRule = (i: number, by: number) =>
@@ -401,6 +503,63 @@ export function SmartGraphPage() {
       [rules[i], rules[j]] = [rules[j], rules[i]];
       return { ...x, rules };
     });
+
+  /** Take the cable off a branch: the condition stays on the canvas, where it was, doing nothing. */
+  const unplug = (ruleIndex: number, condIndex: number, nodeId: string) => {
+    if (!sp) return;
+    const rule = sp.rules[ruleIndex];
+    const when = rule.when[condIndex];
+    const id = newId();
+    const reader = nodes.find((n) => n.id === `read:${rule.id}:${condIndex}`);
+    setSp({
+      ...sp,
+      rules: sp.rules.map((r, i) => (i === ruleIndex ? { ...r, when: r.when.filter((_, j) => j !== condIndex) } : r)),
+      loose: [...(sp.loose ?? []), { id, when }],
+      // it keeps the place it already had on the canvas, reader and all
+      layout: {
+        ...sp.layout,
+        [`loose:${id}`]: nodes.find((n) => n.id === nodeId)?.pos ?? { x: 60, y: 620 },
+        ...(reader ? { [`looseread:${id}`]: reader.pos } : {}),
+      },
+    });
+    setPlugging(null);
+  };
+
+  /** Run the waiting cable into a branch: the condition becomes one of that branch's questions. */
+  const plugInto = (ruleIndex: number) => {
+    if (!sp || plugging === null) return;
+    const entry = (sp.loose ?? [])[plugging];
+    if (!entry) return;
+    const rule = sp.rules[ruleIndex];
+    const ci = rule.when.length;
+    const kind = fieldInfo(entry.when.field)?.kind === 'boolean' ? 'read' : 'compare';
+    // the node lands where it was sitting, not back in the auto-layout, and its old places are forgotten
+    const layout = { ...sp.layout };
+    const spot = layout[`loose:${entry.id}`];
+    const readerSpot = layout[`looseread:${entry.id}`];
+    delete layout[`loose:${entry.id}`];
+    delete layout[`looseread:${entry.id}`];
+    if (spot) layout[condNodeId(rule.id, ci, kind)] = spot;
+    if (readerSpot && kind === 'compare') layout[`read:${rule.id}:${ci}`] = readerSpot;
+    setSp({
+      ...sp,
+      rules: sp.rules.map((r, i) => (i === ruleIndex ? { ...r, when: [...r.when, entry.when] } : r)),
+      loose: (sp.loose ?? []).filter((_, i) => i !== plugging),
+      layout,
+    });
+    setPlugging(null);
+  };
+
+  /** A node of your own, dropped where there is room for it. */
+  const addNode = (kind: 'compare' | 'read' | 'branch') => {
+    if (!sp) return;
+    setPalette(false);
+    if (kind === 'branch') return addRule();
+    const id = newId();
+    const when: SmartCondition = kind === 'read' ? { field: 'audio.objectBased', op: 'isTrue' } : { field: 'audio.maxChannels', op: 'atMost', number: 2 };
+    const lowest = nodes.reduce((y, n) => Math.max(y, n.pos.y), 0);
+    setSp({ ...sp, loose: [...(sp.loose ?? []), { id, when }], layout: { ...sp.layout, [`loose:${id}`]: { x: 60, y: lowest + 80 } } });
+  };
 
   const save = async () => {
     if (!sp) return;
@@ -447,6 +606,14 @@ export function SmartGraphPage() {
         <button className={`btn sm${details ? ' primary' : ''}`} onClick={() => setDetails((d) => !d)} title="Description and what this is for">
           Details
         </button>
+        <div className="gZoom">
+          <button className="gIcon" disabled={!history.canUndo || readOnly} onClick={history.undo} title="Undo (⌘Z)">
+            ↶
+          </button>
+          <button className="gIcon" disabled={!history.canRedo || readOnly} onClick={history.redo} title="Redo (⇧⌘Z)">
+            ↷
+          </button>
+        </div>
         <button
           className={`btn sm${advanced ? ' primary' : ''}`}
           title={advanced ? 'Hide the settings and conditions most branches do not need' : 'Offer every condition and every setting, not just the everyday ones'}
@@ -469,6 +636,11 @@ export function SmartGraphPage() {
             {selected.length} selected
           </button>
         )}
+        {plugging !== null && (
+          <button className="badge amber" onClick={() => setPlugging(null)} title="Put the cable down (Esc)">
+            Cable in hand – click a branch’s condition port
+          </button>
+        )}
         {dirty && !readOnly && <span className="badge amber">Unsaved</span>}
         <span className="spacer" />
         <div className="gZoom">
@@ -485,9 +657,33 @@ export function SmartGraphPage() {
         <button className="btn sm" onClick={() => setSp({ ...sp, layout: {} })} disabled={readOnly} title="Put every node back where it started">
           Tidy up
         </button>
-        <button className="btn sm" onClick={addRule} disabled={readOnly}>
-          <Icon.Plus /> Branch
-        </button>
+        {advanced ? (
+          <div className="gMenuWrap">
+            <button className={`btn sm${palette ? ' primary' : ''}`} disabled={readOnly} onClick={() => setPalette((o) => !o)} title="Add a node to the canvas">
+              <Icon.Plus /> Node
+            </button>
+            {palette && (
+              <div className="gMenu" onMouseLeave={() => setPalette(false)}>
+                <button onClick={() => addNode('branch')}>
+                  <strong>Branch</strong>
+                  <span>a question, with what it changes</span>
+                </button>
+                <button onClick={() => addNode('compare')}>
+                  <strong>Comparison</strong>
+                  <span>a number read off the file, measured against yours</span>
+                </button>
+                <button onClick={() => addNode('read')}>
+                  <strong>Yes / no</strong>
+                  <span>something the file either is or is not</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button className="btn sm" onClick={addRule} disabled={readOnly}>
+            <Icon.Plus /> Branch
+          </button>
+        )}
         <button className="btn sm primary" onClick={save} disabled={busy || readOnly || !sp.name.trim() || !dirty}>
           {busy ? <span className="spinner" /> : <Icon.Check />} Save
         </button>
@@ -529,11 +725,40 @@ export function SmartGraphPage() {
           )}
           {nodes.map((n) => {
             const rule = n.ruleIndex !== undefined ? sp.rules[n.ruleIndex] : undefined;
+            const cond = n.looseIndex !== undefined ? sp.loose?.[n.looseIndex]?.when : n.condIndex !== undefined ? rule?.when[n.condIndex] : undefined;
+            const putCond = (c: SmartCondition): void => {
+              if (n.looseIndex !== undefined) setSp({ ...sp, loose: (sp.loose ?? []).map((l, i) => (i === n.looseIndex ? { ...l, when: c } : l)) });
+              else setCond(n.ruleIndex!, n.condIndex!, c);
+            };
+            const dropCond = (): void => {
+              if (n.looseIndex === undefined) {
+                setRule(n.ruleIndex!, { ...rule!, when: rule!.when.filter((_, j) => j !== n.condIndex) });
+                return;
+              }
+              const gone = sp.loose![n.looseIndex].id;
+              const layout = { ...sp.layout };
+              delete layout[`loose:${gone}`];
+              delete layout[`looseread:${gone}`];
+              setSp({ ...sp, loose: sp.loose!.filter((_, i) => i !== n.looseIndex), layout });
+              setPlugging(null);
+            };
+            const cable =
+              advanced && cond ? (
+                n.looseIndex === undefined ? (
+                  <button className="gIcon" disabled={readOnly} onClick={() => unplug(n.ruleIndex!, n.condIndex!, n.id)} title="Take the cable off – the node stays, wired to nothing">
+                    ⌁
+                  </button>
+                ) : (
+                  <button className={`gIcon${plugging === n.looseIndex ? ' on' : ''}`} disabled={readOnly} onClick={() => setPlugging(plugging === n.looseIndex ? null : n.looseIndex!)} title="Run a cable from here to a branch">
+                    ⌁
+                  </button>
+                )
+              ) : null;
             return (
               <div
                 key={n.id}
                 data-node={n.id}
-                className={`gNode ${n.kind}${rule?.enabled === false ? ' off' : ''}${selected.includes(n.id) ? ' selected' : ''}`}
+                className={`gNode ${n.kind}${rule?.enabled === false ? ' off' : ''}${selected.includes(n.id) ? ' selected' : ''}${n.looseIndex !== undefined ? ' loose' : ''}${plugging !== null && plugging === n.looseIndex ? ' plugging' : ''}`}
                 style={{ left: n.pos.x, top: n.pos.y }}
                 onMouseDown={(e) => e.button === 0 && e.shiftKey && onNodeDown(e, n.id, n.pos)}
               >
@@ -591,7 +816,14 @@ export function SmartGraphPage() {
                       <BranchRow id={`rule:${rule.id}:next`} label="Carry on" />
                     </div>
                     <Port id={`rule:${rule.id}:in`} side="left" />
-                    <Port id={`rule:${rule.id}:cond`} side="bottom" tone="data" label="Condition" />
+                    <Port
+                      id={`rule:${rule.id}:cond`}
+                      side="bottom"
+                      tone="data"
+                      label={plugging !== null ? 'Plug in here' : 'Condition'}
+                      onClick={plugging !== null && !readOnly ? () => plugInto(n.ruleIndex!) : undefined}
+                      live={plugging !== null}
+                    />
                   </>
                 )}
 
@@ -612,39 +844,40 @@ export function SmartGraphPage() {
                 )}
 
                 {/* ---- compare a number ---- */}
-                {n.kind === 'compare' && rule && n.condIndex !== undefined && (
+                {n.kind === 'compare' && cond && (
                   <>
                     <div className="gHead" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
-                      <span>{fieldInfo(rule.when[n.condIndex].field)?.kind === 'list' ? 'Is one of' : 'Comparison'}</span>
+                      <span>{fieldInfo(cond.field)?.kind === 'list' ? 'Is one of' : 'Comparison'}</span>
                       <span className="spacer" />
-                      <button className="gIcon danger" disabled={readOnly || rule.when.length < 2} onClick={() => setRule(n.ruleIndex!, { ...rule, when: rule.when.filter((_, j) => j !== n.condIndex) })} title="Remove this condition">
+                      {cable}
+                      <button className="gIcon danger" disabled={readOnly || (n.looseIndex === undefined && (rule?.when.length ?? 0) < 2)} onClick={dropCond} title="Remove this condition">
                         <Icon.Trash />
                       </button>
                     </div>
                     <div className="gBody">
-                      {fieldInfo(rule.when[n.condIndex].field)?.kind === 'number' && <label className="gLabel">Operation</label>}
-                      <select value={rule.when[n.condIndex].op} disabled={readOnly} onChange={(e) => setCond(n.ruleIndex!, n.condIndex!, { ...rule.when[n.condIndex!], op: e.target.value as SmartCondition['op'] })}>
-                        {operatorsFor(fieldInfo(rule.when[n.condIndex].field)?.kind ?? 'number').map((op) => (
+                      {fieldInfo(cond.field)?.kind === 'number' && <label className="gLabel">Operation</label>}
+                      <select value={cond.op} disabled={readOnly} onChange={(e) => putCond({ ...cond, op: e.target.value as SmartCondition['op'] })}>
+                        {operatorsFor(fieldInfo(cond.field)?.kind ?? 'number').map((op) => (
                           <option key={op} value={op}>
                             {OPERATOR_LABELS[op]}
                           </option>
                         ))}
                       </select>
-                      {fieldInfo(rule.when[n.condIndex].field)?.kind === 'number' ? (
+                      {fieldInfo(cond.field)?.kind === 'number' ? (
                         <div className="gB">
                           <span className="gLabel">B:</span>
-                          <input type="number" min={0} disabled={readOnly} value={rule.when[n.condIndex].number ?? 0} onChange={(e) => setCond(n.ruleIndex!, n.condIndex!, { ...rule.when[n.condIndex!], number: Number(e.target.value) })} />
-                          <span className="gUnit">{fieldInfo(rule.when[n.condIndex].field)?.unit}</span>
+                          <input type="number" min={0} disabled={readOnly} value={cond.number ?? 0} onChange={(e) => putCond({ ...cond, number: Number(e.target.value) })} />
+                          <span className="gUnit">{fieldInfo(cond.field)?.unit}</span>
                         </div>
                       ) : (
                         <div className="chips">
-                          {(fieldInfo(rule.when[n.condIndex].field)?.options ?? []).map((o) => {
-                            const on = (rule.when[n.condIndex!].list ?? []).includes(o.value);
+                          {(fieldInfo(cond.field)?.options ?? []).map((o) => {
+                            const on = (cond.list ?? []).includes(o.value);
                             return (
                               <span
                                 key={o.value}
                                 className={`chip${on ? ' on' : ''}`}
-                                onClick={() => !readOnly && setCond(n.ruleIndex!, n.condIndex!, { ...rule.when[n.condIndex!], list: on ? (rule.when[n.condIndex!].list ?? []).filter((v) => v !== o.value) : [...(rule.when[n.condIndex!].list ?? []), o.value] })}
+                                onClick={() => !readOnly && putCond({ ...cond, list: on ? (cond.list ?? []).filter((v) => v !== o.value) : [...(cond.list ?? []), o.value] })}
                               >
                                 {o.label}
                               </span>
@@ -659,14 +892,15 @@ export function SmartGraphPage() {
                 )}
 
                 {/* ---- read something off the file ---- */}
-                {n.kind === 'read' && rule && n.condIndex !== undefined && (
+                {n.kind === 'read' && cond && (
                   <>
                     <div className="gHead" onMouseDown={(e) => onNodeDown(e, n.id, n.pos)}>
                       <span>Read from the file</span>
-                      {fieldInfo(rule.when[n.condIndex].field)?.kind === 'boolean' && (
+                      {fieldInfo(cond.field)?.kind === 'boolean' && (
                         <>
                           <span className="spacer" />
-                          <button className="gIcon danger" disabled={readOnly || rule.when.length < 2} onClick={() => setRule(n.ruleIndex!, { ...rule, when: rule.when.filter((_, j) => j !== n.condIndex) })} title="Remove this condition">
+                          {cable}
+                          <button className="gIcon danger" disabled={readOnly || (n.looseIndex === undefined && (rule?.when.length ?? 0) < 2)} onClick={dropCond} title="Remove this condition">
                             <Icon.Trash />
                           </button>
                         </>
@@ -674,24 +908,24 @@ export function SmartGraphPage() {
                     </div>
                     <div className="gBody">
                       <select
-                        value={rule.when[n.condIndex].field}
+                        value={cond.field}
                         disabled={readOnly}
                         onChange={(e) => {
                           const next = fieldInfo(e.target.value as SmartCondition['field']);
-                          setCond(n.ruleIndex!, n.condIndex!, { field: e.target.value as SmartCondition['field'], op: operatorsFor(next?.kind ?? 'number')[0], number: next?.kind === 'number' ? 2 : undefined, list: next?.kind === 'list' ? [] : undefined });
+                          putCond({ field: e.target.value as SmartCondition['field'], op: operatorsFor(next?.kind ?? 'number')[0], number: next?.kind === 'number' ? 2 : undefined, list: next?.kind === 'list' ? [] : undefined });
                         }}
                       >
-                        <OptionList all={SMART_FIELDS} advanced={advanced} inUse={rule.when[n.condIndex].field} valueOf={(f) => f.field} />
+                        <OptionList all={SMART_FIELDS} valueOf={(f) => f.field} />
                       </select>
-                      {fieldInfo(rule.when[n.condIndex].field)?.kind === 'boolean' && (
-                        <select value={rule.when[n.condIndex].op} disabled={readOnly} onChange={(e) => setCond(n.ruleIndex!, n.condIndex!, { ...rule.when[n.condIndex!], op: e.target.value as SmartCondition['op'] })}>
+                      {fieldInfo(cond.field)?.kind === 'boolean' && (
+                        <select value={cond.op} disabled={readOnly} onChange={(e) => putCond({ ...cond, op: e.target.value as SmartCondition['op'] })}>
                           <option value="isTrue">yes</option>
                           <option value="isFalse">no</option>
                         </select>
                       )}
-                      {fieldInfo(rule.when[n.condIndex].field)?.help && (
-                        <div className="gHelp" title={fieldInfo(rule.when[n.condIndex].field)!.help}>
-                          {fieldInfo(rule.when[n.condIndex].field)!.help}
+                      {fieldInfo(cond.field)?.help && (
+                        <div className="gHelp" title={fieldInfo(cond.field)!.help}>
+                          {fieldInfo(cond.field)!.help}
                         </div>
                       )}
                     </div>
@@ -773,8 +1007,7 @@ function Assignments({ list, readOnly, advanced, onChange }: { list: SmartAssign
   const set = (i: number, a: SmartAssignment) => onChange(list.map((x, j) => (j === i ? a : x)));
   const add = () => {
     const used = new Set(list.map((a) => a.path));
-    const offered = SMART_SETTINGS.filter((s) => advanced || !s.advanced);
-    const next = offered.find((s) => !used.has(s.path)) ?? offered[0] ?? SMART_SETTINGS[0];
+    const next = SMART_SETTINGS.find((s) => !used.has(s.path)) ?? SMART_SETTINGS[0];
     onChange([...list, { path: next.path, value: defaultValue(next.path) }]);
   };
   return (
@@ -788,7 +1021,7 @@ function Assignments({ list, readOnly, advanced, onChange }: { list: SmartAssign
               disabled={readOnly}
               onChange={(e) => set(i, { path: e.target.value as SmartSettingPath, value: defaultValue(e.target.value as SmartSettingPath) })}
             >
-              <OptionList all={SMART_SETTINGS} advanced={advanced} inUse={a.path} valueOf={(x) => x.path} />
+              <OptionList all={SMART_SETTINGS} valueOf={(x) => x.path} />
             </select>
             {info?.kind === 'number' && (
               <input type="number" min={info.min} max={info.max} disabled={readOnly} value={Number(a.value)} onChange={(e) => set(i, { ...a, value: Number(e.target.value) })} />
