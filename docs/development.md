@@ -67,6 +67,24 @@ node scripts/bump-version.mjs feature   # major | backend | feature | minor, or 
 The script updates `shared/version.ts` (the only place the version lives), the `package.json` files, the Dockerfile
 label, the issue template and the docs, and starts `docs/release-notes/<version>.md`.
 
+## Documentation screenshots
+
+The images under `docs/screenshots/` are taken from a running Rexarr, all at 1400x875:
+
+```bash
+node scripts/screenshots.mjs                   # every page a URL can reach
+node scripts/screenshots.mjs --only profiles,smart-profile
+node scripts/screenshots.mjs --url http://nas:3939
+```
+
+It drives whichever Chromium-family browser is installed (Brave, Chrome, Chromium, Edge) in headless mode and
+converts each one with `cwebp`, so nothing has to be installed for it. Ids for the pages that need one — a film, a
+series, an artist, a local item — are read from the running instance, so it works against any library.
+
+A handful of shots are a dialog, or need a disc in the drive or an encode in flight, and cannot be reached by URL:
+the transcode dialog, the header search popup, the live preview, the before / after comparison, and the two disc
+ones. The script lists them at the end so they can be retaken by hand when they change.
+
 ## Publishing a release (maintainers)
 
 1. Bump the version and fill in the release notes it created.
