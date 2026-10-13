@@ -94,6 +94,15 @@ export interface VideoSettings {
   hwMode?: 'auto' | 'software';
 }
 
+/**
+ * Which track to keep when a language has more than one.
+ * - `all` keeps every one of them.
+ * - `best` keeps the widest, then lossless over lossy, then the highest bitrate.
+ * - `smallest` is the other way round, for a copy that has to be small.
+ * - `first` keeps whichever the file lists first, which is what Rexarr used to do.
+ */
+export type AudioPerLanguage = 'all' | 'best' | 'smallest' | 'first';
+
 export interface AudioSettings {
   encoder: AudioEncoder;
   /** Bitrate in kbps per stream (0 = encoder default). */
@@ -102,8 +111,13 @@ export interface AudioSettings {
   channels: number;
   /** ISO 639-2 language codes to keep. Empty = keep all. */
   languages: string[];
-  /** Only keep the first matching stream per language. */
-  firstMatchOnly: boolean;
+  /**
+   * What to do when one language has several tracks, which discs do constantly: English in DTS-HD MA 5.1 and
+   * Dolby Digital 2.0, or the same mix twice in two codecs. `all` keeps the lot; the others keep one.
+   */
+  perLanguage: AudioPerLanguage;
+  /** @deprecated The old form of `perLanguage`. Read from stored profiles, never written. */
+  firstMatchOnly?: boolean;
   /** Skip commentary tracks (matched by title). */
   dropCommentary: boolean;
   // ---- music profiles ----
@@ -240,6 +254,7 @@ export type SmartSettingPath =
   | 'audio.channels'
   | 'audio.languages'
   | 'audio.firstMatchOnly'
+  | 'audio.perLanguage'
   | 'audio.dropCommentary'
   | 'subtitles.mode'
   | 'subtitles.languages'

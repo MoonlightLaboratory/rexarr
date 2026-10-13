@@ -79,6 +79,36 @@ settingsP.value = {
   },
   defaultProfiles: { ...DEFAULT_SETTINGS.defaultProfiles, ...(settingsP.value.defaultProfiles ?? {}) },
 } as Settings;
+/**
+ * `audio.firstMatchOnly` became `audio.perLanguage`, which can also keep the best or the smallest track rather
+ * than whichever the file listed first. The old value says exactly one of the new ones, so it is rewritten once.
+ */
+function migratePerLanguage(): boolean {
+  let changed = false;
+  for (const p of profilesP.value) {
+    if (p.audio && p.audio.perLanguage === undefined) {
+      p.audio.perLanguage = p.audio.firstMatchOnly ? 'first' : 'all';
+      delete p.audio.firstMatchOnly;
+      changed = true;
+    }
+  }
+  for (const sp of smartP.value) {
+    for (const list of [sp.base, ...sp.rules.map((r) => r.set)]) {
+      for (const a of list ?? []) {
+        if (a.path !== 'audio.firstMatchOnly') continue;
+        a.path = 'audio.perLanguage';
+        a.value = a.value ? 'first' : 'all';
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+if (migratePerLanguage()) {
+  save(profilesP);
+  save(smartP);
+}
+
 const hadApiKey = Boolean(settingsP.value.general?.security?.apiKey);
 settingsP.value.general = withGeneralDefaults(settingsP.value);
 let settingsChanged = !hadApiKey; // a new API key must be persisted

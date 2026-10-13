@@ -25,7 +25,7 @@ export function codecRank(codec: string): { rank: number; lossless: boolean } {
 }
 
 /** Higher is better: codec first, then channels, then bitrate. Commentary tracks rank last. */
-export function audioQuality(t: Pick<DiscAudioTrack, 'codec' | 'channels' | 'bitrateKbps' | 'label' | 'name'>): number {
+export function audioQuality(t: Partial<Pick<DiscAudioTrack, 'label' | 'name' | 'bitrateKbps' | 'channels'>> & Pick<DiscAudioTrack, 'codec'>): number {
   const { rank } = codecRank(t.codec);
   // a commentary track is never the automatic pick, however good it sounds
   const commentary = /comment|director|descriptive|narration/i.test(`${t.label ?? ''} ${t.name ?? ''}`);

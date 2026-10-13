@@ -1,8 +1,9 @@
 import path from 'node:path';
-import type { Profile, TranscodingSettings, VideoEncoder } from '../../../shared/types.js';
+import type { AudioPerLanguage, Profile, TranscodingSettings, VideoEncoder } from '../../../shared/types.js';
 import { canHwDecode, resolveHardware, softwareEquivalent, type HwContext } from './hardware.js';
 import { CONTAINER_INFO, VIDEO_ENCODER_INFO } from '../../../shared/presets.js';
 import { isTextSubtitle, streamLanguage, streamTitle, type ProbeResult, type ProbeStream } from './probe.js';
+import { audioQuality } from '../disc/audio.js';
 import { audioTrackTitle, describeEncode, languageName, planAudio, renameForEncode, videoTrackTitle, type EncodeDescription, type MetadataContext } from './naming.js';
 
 export interface BuildResult {
@@ -71,6 +72,30 @@ function isCommentary(stream: ProbeStream) {
   return /commentar/i.test(streamTitle(stream)) || stream.disposition?.comment === 1;
 }
 
+/**
+ * How good a track is, on the same scale the disc ripper's "best audio per language" uses – codec first
+ * (TrueHD, DTS-HD MA, LPCM, FLAC, then DTS over Dolby Digital), then channels, then bitrate. One idea of
+ * "best" for the whole of Rexarr, whether the tracks are being dropped at the rip or at the encode.
+ */
+function rank(s: ProbeStream): number {
+  // the codec name a person would use, which is what the ranking matches on: "dts" alone does not say DTS-HD MA
+  const codec = `${s.codec_name ?? ''} ${s.profile ?? ''}`.trim();
+  return audioQuality({ codec, channels: s.channels ?? 2, bitrateKbps: Math.round(Number(s.bit_rate ?? 0) / 1000) });
+}
+
+function better(a: ProbeStream, b: ProbeStream, want: 'best' | 'smallest'): boolean {
+  // a commentary track is never the pick, whichever end of the scale is being asked for
+  if (isCommentary(a) !== isCommentary(b)) return isCommentary(b);
+  const [x, y] = [rank(a), rank(b)];
+  if (x === y) return false; // a tie keeps the one the file listed first
+  return want === 'best' ? x > y : x < y;
+}
+
+/** `perLanguage`, with the boolean it replaced still honoured for profiles saved before it existed. */
+function perLanguageMode(audio: Profile['audio']): AudioPerLanguage {
+  return audio.perLanguage ?? (audio.firstMatchOnly ? 'first' : 'all');
+}
+
 export function selectAudio(probe: ProbeResult, profile: Profile): ProbeStream[] {
   let list = probe.audio;
   if (profile.audio.dropCommentary) {
@@ -80,14 +105,18 @@ export function selectAudio(probe: ProbeResult, profile: Profile): ProbeStream[]
   const byLang = list.filter((s) => langMatches(s, profile.audio.languages));
   if (byLang.length) list = byLang;
   else if (profile.audio.languages.length) list = list.slice(0, 1); // nothing matched; keep the first track rather than none
-  if (profile.audio.firstMatchOnly) {
-    const seen = new Set<string>();
-    list = list.filter((s) => {
+  const mode = perLanguageMode(profile.audio);
+  if (mode !== 'all') {
+    // one per language, keeping the order the file had them in
+    const keep = new Map<string, ProbeStream>();
+    for (const s of list) {
       const l = streamLanguage(s);
-      if (seen.has(l)) return false;
-      seen.add(l);
-      return true;
-    });
+      const held = keep.get(l);
+      if (!held) keep.set(l, s);
+      else if (mode !== 'first' && better(s, held, mode)) keep.set(l, s);
+    }
+    const chosen = new Set(keep.values());
+    list = list.filter((s) => chosen.has(s));
   }
   return list;
 }

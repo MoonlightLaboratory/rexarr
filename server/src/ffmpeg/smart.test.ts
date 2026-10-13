@@ -274,6 +274,7 @@ test('the wider settings a branch can change', () => {
         set: [
           { path: 'audio.languages', value: ['eng', 'jpn'] },
           { path: 'audio.firstMatchOnly', value: true },
+          { path: 'audio.perLanguage', value: 'best' },
           { path: 'subtitles.languages', value: ['eng'] },
           { path: 'subtitles.burnForcedOnly', value: true },
           { path: 'video.extraArgs', value: '-x265-params aq-mode=3' },
@@ -287,7 +288,8 @@ test('the wider settings a branch can change', () => {
   };
   const { profile } = decide(smart, SAMPLE_SOURCES[0].facts);
   assert.deepEqual(profile.audio.languages, ['eng', 'jpn']);
-  assert.equal(profile.audio.firstMatchOnly, true);
+  // the old boolean still lands somewhere sensible, as a profile written before perLanguage existed will carry it
+  assert.equal(profile.audio.perLanguage, 'best');
   assert.deepEqual(profile.subtitles.languages, ['eng']);
   assert.equal(profile.subtitles.burnForcedOnly, true);
   assert.equal(profile.video.extraArgs, '-x265-params aq-mode=3');

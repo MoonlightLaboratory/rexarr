@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Profile } from '../../../shared/types.js';
 import { BUILTIN_PROFILES } from '../../../shared/presets.js';
-import { buildFfmpegArgs, outputPathFor, splitArgs } from './args.js';
+import { buildFfmpegArgs, outputPathFor, selectAudio, splitArgs } from './args.js';
 import type { ProbeResult } from './probe.js';
 
 function probe(over: Partial<ProbeResult> = {}): ProbeResult {
@@ -227,4 +227,77 @@ test('live preview is a second image output, skipped when video is copied', () =
   assert.equal(argAfter(a, '-update'), '1');
   const copy = buildFfmpegArgs(byId('builtin-remux-audio-only'), probe({ isHdr: false }), '/in/x.mkv', '/out/x.mkv', { previewPath: '/t/p.jpg' }).args;
   assert.ok(!copy.includes('/t/p.jpg'));
+});
+
+// ---- one language, several tracks ---------------------------------------------------------------
+// What a disc actually hands you: English three times over, and Japanese once.
+function discProbe(): ProbeResult {
+  const streams = [
+    { index: 0, codec_type: 'video', codec_name: 'hevc', width: 3840, height: 2160, tags: {} },
+    { index: 1, codec_type: 'audio', codec_name: 'ac3', channels: 2, bit_rate: '192000', tags: { language: 'eng', title: 'Dolby Digital 2.0' } },
+    { index: 2, codec_type: 'audio', codec_name: 'truehd', channels: 6, bit_rate: '4000000', profile: 'Dolby TrueHD + Dolby Atmos', tags: { language: 'eng', title: 'TrueHD 5.1' } },
+    { index: 3, codec_type: 'audio', codec_name: 'ac3', channels: 6, bit_rate: '640000', tags: { language: 'eng', title: 'Dolby Digital 5.1' } },
+    { index: 4, codec_type: 'audio', codec_name: 'dts', channels: 6, bit_rate: '768000', tags: { language: 'jpn' } },
+  ] as ProbeResult['streams'];
+  return {
+    path: '/in/disc.mkv', durationSeconds: 100, sizeBytes: 1, bitRate: 1, formatName: 'matroska', streams,
+    video: streams[0], audio: streams.filter((s) => s.codec_type === 'audio'), subtitles: [], attachments: [],
+    isHdr: false, isDolbyVision: false, frameRate: 24,
+  };
+}
+const discProfile = (perLanguage: Profile['audio']['perLanguage']): Profile => ({
+  ...byId('builtin-movie-1080p'),
+  audio: { ...byId('builtin-movie-1080p').audio, encoder: 'copy', languages: [], dropCommentary: true, perLanguage },
+});
+const titlesOf = (p: Profile) => selectAudio(discProbe(), p).map((s) => s.tags?.title ?? s.tags?.language);
+
+test('a language carried more than once can be cut down to one track', () => {
+  assert.deepEqual(titlesOf(discProfile('all')), ['Dolby Digital 2.0', 'TrueHD 5.1', 'Dolby Digital 5.1', 'jpn']);
+  // widest first, then lossless over lossy: TrueHD 5.1 beats both Dolby Digital tracks
+  assert.deepEqual(titlesOf(discProfile('best')), ['TrueHD 5.1', 'jpn']);
+  // and the other way for a small copy
+  assert.deepEqual(titlesOf(discProfile('smallest')), ['Dolby Digital 2.0', 'jpn']);
+  // whichever the file listed first, which is what the old firstMatchOnly did
+  assert.deepEqual(titlesOf(discProfile('first')), ['Dolby Digital 2.0', 'jpn']);
+  // a language with one track is never touched, whatever the mode
+  assert.ok(titlesOf(discProfile('best')).includes('jpn'));
+});
+
+test('best reads the codec from the stream profile, not the codec name alone', () => {
+  // ffprobe calls both of these "dts"; only the profile says which is the lossless one
+  const two = discProbe();
+  two.streams = two.audio = [
+    { index: 1, codec_type: 'audio', codec_name: 'dts', profile: 'DTS', channels: 6, bit_rate: '1509000', tags: { language: 'eng', title: 'DTS 5.1' } },
+    { index: 2, codec_type: 'audio', codec_name: 'dts', profile: 'DTS-HD MA', channels: 6, bit_rate: '3000000', tags: { language: 'eng', title: 'DTS-HD MA 5.1' } },
+  ] as ProbeResult['streams'];
+  const pick = (mode: Profile['audio']['perLanguage']) => selectAudio(two, discProfile(mode)).map((s) => s.tags?.title);
+  assert.deepEqual(pick('best'), ['DTS-HD MA 5.1']);
+  assert.deepEqual(pick('smallest'), ['DTS 5.1']);
+});
+
+test('a commentary track is never the pick, at either end of the scale', () => {
+  const two = discProbe();
+  two.streams = two.audio = [
+    { index: 1, codec_type: 'audio', codec_name: 'ac3', channels: 2, bit_rate: '192000', tags: { language: 'eng', title: 'Commentary by the director' } },
+    { index: 2, codec_type: 'audio', codec_name: 'truehd', channels: 6, bit_rate: '4000000', tags: { language: 'eng', title: 'TrueHD 5.1' } },
+  ] as ProbeResult['streams'];
+  // commentary is dropped outright here, so ask with that switched off
+  const keep = (mode: Profile['audio']['perLanguage']) => {
+    const p = discProfile(mode);
+    return selectAudio(two, { ...p, audio: { ...p.audio, dropCommentary: false } }).map((s) => s.tags?.title);
+  };
+  assert.deepEqual(keep('best'), ['TrueHD 5.1']);
+  assert.deepEqual(keep('smallest'), ['TrueHD 5.1']);
+});
+
+test('a profile saved before perLanguage existed still decides the same thing', () => {
+  const old = { ...discProfile('all'), audio: { ...discProfile('all').audio, perLanguage: undefined, firstMatchOnly: true } } as unknown as Profile;
+  assert.deepEqual(selectAudio(discProbe(), old).map((s) => s.tags?.title ?? s.tags?.language), ['Dolby Digital 2.0', 'jpn']);
+  const older = { ...discProfile('all'), audio: { ...discProfile('all').audio, perLanguage: undefined } } as unknown as Profile;
+  assert.equal(selectAudio(discProbe(), older).length, 4);
+});
+
+test('only one track per language leaves one -map per language', () => {
+  const { args } = buildFfmpegArgs(discProfile('best'), discProbe(), '/in/disc.mkv', '/out/disc.mkv');
+  assert.equal(maps(args).length, 3); // video + one English + one Japanese
 });

@@ -19,7 +19,7 @@ const baseAudio: AudioSettings = {
   bitrate: 0,
   channels: 0,
   languages: [],
-  firstMatchOnly: false,
+  perLanguage: 'all',
   dropCommentary: true,
 };
 
@@ -73,7 +73,7 @@ export const BUILTIN_PROFILES: Profile[] = [
       'Tuned for animation: HEVC 10-bit with the animation tune, Japanese + English audio in Opus, all subtitles and fonts kept for typesetting.',
     mediaType: 'anime',
     video: { ...baseVideo, encoder: 'libx265', quality: 18, preset: 'slow', tune: 'animation', pixelFormat: 'yuv420p10le' },
-    audio: { ...baseAudio, encoder: 'libopus', bitrate: 192, languages: ['jpn', 'eng'], firstMatchOnly: false },
+    audio: { ...baseAudio, encoder: 'libopus', bitrate: 192, languages: ['jpn', 'eng'], perLanguage: 'all' },
     subtitles: { ...baseSubs, mode: 'copy', keepFonts: true },
   }),
   make({

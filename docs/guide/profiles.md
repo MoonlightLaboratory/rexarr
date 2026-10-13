@@ -27,8 +27,18 @@ uses exactly one profile. The built-in presets cannot be edited — **clone** on
 | **Encoder** | copy, AAC, Opus, E-AC-3, AC-3, FLAC, TrueHD (plus LAME MP3, Vorbis, WavPack, Monkey's Audio for music profiles) |
 | **Bitrate / channels** | kbps per stream; channels 0 (keep), 2, 6 or 8 |
 | **Languages** | ISO 639-2 codes to keep, e.g. `jpn`, `eng`. Empty keeps all |
-| **First match only** | keep only the first stream per language |
+| **Tracks per language** | *Keep them all*, or one of them: the **best**, the **smallest**, or the **first** in the file |
 | **Drop commentary** | skip tracks whose title says commentary |
+
+A disc almost always carries a language more than once — DTS-HD MA 5.1 beside Dolby Digital 2.0, or the same mix
+in two codecs — and **Tracks per language** is how to be rid of the extras. *Best* and *smallest* rank a track the
+way [disc ripping](disc-ripping.md#audio-tracks) does: codec first (TrueHD, DTS-HD MA, LPCM, FLAC, then DTS over
+Dolby Digital), then channels, then bitrate; a commentary track is never the pick either way. *First* is whichever
+the file happens to list first, which is what Rexarr did before this was a choice.
+
+Dropping a track here happens at the encode, so it works on files you already have as much as on a fresh rip, and
+the size estimate counts it. For a disc you are about to rip, **Settings → Disc ripping → Best audio per
+language** does the same thing earlier, and leaves less to carry about.
 
 Music profiles add VBR quality, maximum sample rate, bit depth, FLAC compression level, ReplayGain, embedded cover
 and *Keep MQA intact* — see [Music](music.md).
@@ -183,7 +193,7 @@ them, so a smart profile that never mentions genre costs no extra request.
 | | |
 | --- | --- |
 | Video | encoder, CRF, preset, tune, downscale height, pixel format, HDR passthrough, bitrate, whether to force the CPU, extra ffmpeg arguments |
-| Audio | encoder, bitrate, channels, which languages to keep, one track per language, whether commentary is dropped |
+| Audio | encoder, bitrate, channels, which languages to keep, how many tracks per language, whether commentary is dropped |
 | Subtitles | mode, which languages to keep, which language to burn in, forced only, font attachments |
 | File | container, file name suffix, output folder, replace the original, rename from the profile tokens, clean metadata, tell Radarr / Sonarr |
 

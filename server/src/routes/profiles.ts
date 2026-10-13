@@ -33,7 +33,9 @@ const profileSchema = z.object({
     bitrate: z.number().int().min(0).default(0),
     channels: z.number().int().min(0).default(0),
     languages: z.array(z.string()).default([]),
-    firstMatchOnly: z.boolean().default(false),
+    perLanguage: z.enum(['all', 'best', 'smallest', 'first']).default('all'),
+    // the boolean perLanguage replaced; still accepted so a profile saved by an older Rexarr round-trips
+    firstMatchOnly: z.boolean().optional(),
     dropCommentary: z.boolean().default(true),
     vbrQuality: z.number().min(0).max(10).optional(),
     maxSampleRate: z.number().int().min(0).max(768000).optional(),
@@ -110,7 +112,7 @@ const smartAssignmentSchema = z.object({
   path: z.enum([
     'container',
     'video.encoder', 'video.quality', 'video.preset', 'video.tune', 'video.maxHeight', 'video.pixelFormat', 'video.hdrPassthrough', 'video.bitrate', 'video.hwMode', 'video.extraArgs',
-    'audio.encoder', 'audio.bitrate', 'audio.channels', 'audio.languages', 'audio.firstMatchOnly', 'audio.dropCommentary',
+    'audio.encoder', 'audio.bitrate', 'audio.channels', 'audio.languages', 'audio.perLanguage', 'audio.firstMatchOnly', 'audio.dropCommentary',
     'subtitles.mode', 'subtitles.languages', 'subtitles.burnLanguage', 'subtitles.burnForcedOnly', 'subtitles.keepFonts',
     'output.suffix', 'output.directory', 'output.replaceOriginal', 'output.renameTokens', 'output.cleanMetadata', 'output.notifyArr',
   ]),

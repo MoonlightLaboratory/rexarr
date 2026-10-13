@@ -2,7 +2,7 @@
  * The rules engine behind smart profiles. Pure: the server runs it on what FFprobe found, and the editor runs
  * the same code on made-up discs so a rule can be tried before it is saved.
  */
-import type { AudioEncoder, Container, Profile, SmartAssignment, SmartCondition, SmartField, SmartOperator, SmartProfile, SmartRule, SmartSettingPath, SourceFacts, SubtitleMode, VideoEncoder, VideoTune } from './types.js';
+import type { AudioEncoder, AudioPerLanguage, Container, Profile, SmartAssignment, SmartCondition, SmartField, SmartOperator, SmartProfile, SmartRule, SmartSettingPath, SourceFacts, SubtitleMode, VideoEncoder, VideoTune } from './types.js';
 import { AUDIO_ENCODER_INFO, CONTAINER_INFO, LANGUAGES, SMART_STOCK, VIDEO_ENCODER_INFO } from './presets.js';
 
 export interface SmartFieldInfo {
@@ -264,8 +264,12 @@ export function assign(profile: Profile, a: SmartAssignment): void {
     case 'audio.languages':
       profile.audio.languages = asList(a.value);
       break;
+    case 'audio.perLanguage':
+      profile.audio.perLanguage = a.value as AudioPerLanguage;
+      break;
+    // the boolean this replaced, kept so a smart profile saved before it existed still decides the same thing
     case 'audio.firstMatchOnly':
-      profile.audio.firstMatchOnly = Boolean(a.value);
+      profile.audio.perLanguage = a.value ? 'first' : 'all';
       break;
     case 'subtitles.mode':
       profile.subtitles.mode = a.value as SubtitleMode;
@@ -409,7 +413,12 @@ export const SMART_SETTINGS: SmartSettingInfo[] = [
     { value: '8', label: '7.1' },
   ] },
   { path: 'audio.languages', group: 'Audio', label: 'Keep audio languages', kind: 'languages' },
-  { path: 'audio.firstMatchOnly', group: 'Audio', label: 'One audio track per language', kind: 'boolean' },
+  { path: 'audio.perLanguage', group: 'Audio', label: 'Tracks per language', kind: 'select', options: [
+    { value: 'all', label: 'Keep them all' },
+    { value: 'best', label: 'Best only' },
+    { value: 'smallest', label: 'Smallest only' },
+    { value: 'first', label: 'First only' },
+  ] },
   { path: 'audio.dropCommentary', group: 'Audio', label: 'Drop commentary tracks', kind: 'boolean' },
   { path: 'subtitles.mode', group: 'Subtitles', label: 'Subtitles', kind: 'select', options: [
     { value: 'copy', label: 'Copy' },

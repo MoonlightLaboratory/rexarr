@@ -378,9 +378,20 @@ function ProfileEditor({ initial, caps, onClose, onSaved }: { initial: Profile; 
                 <label>Languages to keep</label>
                 <LangPicker value={p.audio.languages} onChange={(v) => updA('languages', v)} />
               </div>
-              <label className="check mb">
-                <input type="checkbox" checked={p.audio.firstMatchOnly} onChange={(e) => updA('firstMatchOnly', e.target.checked)} /> Only one track per language
-              </label>
+              <div className="field">
+                <label>Tracks per language</label>
+                <select value={p.audio.perLanguage ?? (p.audio.firstMatchOnly ? 'first' : 'all')} onChange={(e) => updA('perLanguage', e.target.value as Profile['audio']['perLanguage'])}>
+                  <option value="all">Keep them all</option>
+                  <option value="best">Keep the best one</option>
+                  <option value="smallest">Keep the smallest one</option>
+                  <option value="first">Keep the first one</option>
+                </select>
+                <span className="hint">
+                  A disc usually carries a language more than once – DTS-HD MA 5.1 beside Dolby Digital 2.0, or the same mix in two
+                  codecs. <em>Best</em> keeps the widest, then lossless over lossy, then the highest bitrate; <em>smallest</em> is the
+                  other way round.
+                </span>
+              </div>
               <label className="check">
                 <input type="checkbox" checked={p.audio.dropCommentary} onChange={(e) => updA('dropCommentary', e.target.checked)} /> Drop commentary tracks
               </label>
@@ -513,7 +524,7 @@ function blankProfile(): Profile {
     mediaType: 'any',
     container: 'mkv',
     video: { encoder: 'libx265', quality: 20, preset: 'slow', pixelFormat: 'yuv420p10le', tune: 'none', maxHeight: 0, hdrPassthrough: true, bitrate: 0, extraArgs: '', hwMode: 'auto' },
-    audio: { encoder: 'copy', bitrate: 0, channels: 0, languages: [], firstMatchOnly: false, dropCommentary: true },
+    audio: { encoder: 'copy', bitrate: 0, channels: 0, languages: [], perLanguage: 'all', dropCommentary: true },
     subtitles: { mode: 'copy', languages: [], burnLanguage: '', burnForcedOnly: false, keepFonts: true },
     output: { directory: '', suffix: '', renameTokens: true, cleanMetadata: true, replaceOriginal: false, notifyArr: true },
     createdAt: '',
