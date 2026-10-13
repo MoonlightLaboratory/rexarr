@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseTitle } from './omdb.js';
+import { nameScore } from './disc/identify.js';
 
 test('an OMDb answer becomes the facts a smart profile decides on', () => {
   const t = parseTitle({
@@ -45,4 +46,23 @@ test('OMDb’s "N/A" is not a value', () => {
 test('a miss is a miss, not an empty title', () => {
   assert.equal(parseTitle({ Response: 'False', Error: 'Movie not found!' }), null);
   assert.equal(parseTitle({}), null);
+});
+
+// ---- how far an OMDb answer is allowed to be from what was asked ------------------------------
+// Both callers - a disc label and a shop listing - score OMDb's answer before using it, the same way the rest
+// of disc identification does. These pin the cases that decide whether a suggestion is taken.
+test('an OMDb suggestion is taken only when it is close to what was asked', () => {
+  const close = (a: string, b: string) => nameScore(a, b) >= 0.6;
+  // what a shop listing becomes after the edition noise is stripped, against OMDb's proper title
+  assert.ok(close('Reign Of The Supermen', 'Reign of the Supermen'));
+  assert.ok(close('Blade Runner 2049', 'Blade Runner 2049'));
+  // a disc label is usually a shortening of the real title, which is what nameScore is built for
+  assert.ok(close('Spirited Away', 'Spirited Away'));
+  // a shortened label still matches the full title, which is the usual case for a disc
+  assert.ok(close('Snafu', 'My Teen Romantic Comedy SNAFU'));
+  // and a different film is not accepted just because OMDb answered something
+  assert.equal(nameScore('Reign Of The Supermen', 'Superman'), 0);
+  // the one this cannot catch: a sequel contains the whole of the original's name, so "The Matrix" scores
+  // highly against "The Matrix Resurrections". The year, when the label carries one, is what separates them.
+  assert.ok(nameScore('The Matrix', 'The Matrix Resurrections') >= 0.6);
 });

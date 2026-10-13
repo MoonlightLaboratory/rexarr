@@ -9,7 +9,8 @@
 import type { ExpectedDisc } from '../../shared/types.js';
 import { APP_VERSION } from './config.js';
 import { httpFetch } from './net.js';
-import { matchLibrary, type LibraryCandidate } from './disc/identify.js';
+import { matchLibrary, nameScore, type LibraryCandidate } from './disc/identify.js';
+import { byTitle, omdbConfigured } from './omdb.js';
 import { discDbByBarcode } from './discdb.js';
 
 export interface BarcodeProduct {
@@ -141,7 +142,29 @@ export async function lookupBarcode(code: string): Promise<BarcodeProduct | null
   }
   const mb = await musicbrainz(clean).catch(() => null);
   if (mb) return mb;
-  return upcitemdb(clean);
+  const shop = await upcitemdb(clean);
+  // A shop listing is a product name, not a title: "Reign Of The Supermen (4k Ultra Hd + Blu-ray + Digital)".
+  // cleanProductTitle gets the noise off it; OMDb says whether what is left is a real film, and what it is
+  // properly called - with an IMDb id, which is what makes the *arr lookup afterwards exact rather than a guess.
+  return shop ? firmUpWithOmdb(shop) : shop;
+}
+
+async function firmUpWithOmdb(product: BarcodeProduct): Promise<BarcodeProduct> {
+  if (!omdbConfigured() || product.kind === 'album' || product.imdbId || product.tmdbId) return product;
+  try {
+    const hit = await byTitle(product.title, { year: product.year, kind: product.kind });
+    if (!hit || nameScore(product.title, hit.title) < 0.6) return product;
+    return {
+      ...product,
+      title: hit.title,
+      year: hit.year || product.year,
+      kind: hit.kind === 'series' ? 'series' : hit.kind === 'movie' ? 'movie' : product.kind,
+      imdbId: hit.imdbId ?? product.imdbId,
+    };
+  } catch {
+    // a barcode scan is not the place to fail over a metadata lookup
+    return product;
+  }
 }
 
 /** The library entries that could be what was scanned, best first. */

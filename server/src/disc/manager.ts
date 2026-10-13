@@ -21,6 +21,7 @@ import { appEvents } from '../system.js';
 import { ejectDrive, emptyScanNote, labelToTitle, listDrives, listVirtualDrives, readDisc, readScanOutput, resolveMakemkv, ripArgs, ripTitle, scanArgs, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
 import { isOnline, listAgents } from '../agents/registry.js';
 import { readOnAgent, runOnAgent } from '../agents/remote.js';
+import { byTitle, omdbConfigured } from '../omdb.js';
 import { audioSelectionFor, describeTracks } from './audio.js';
 import { ensureRipFolder } from './ripFolder.js';
 import { extraFileName, extraLabel, guessExtraRoles } from './extras.js';
@@ -679,11 +680,47 @@ export class DiscManager {
       }
       return hit && hit.score >= 0.6 ? { kind: 'series', title: hit.r.title, year: hit.r.year, externalId: hit.r.externalId, arrId: hit.r.arrId, poster: hit.r.poster, seriesType: hit.r.seriesType as RipMedia['seriesType'], seasonNumber: season ?? 1, episodeStart: 1 } : null;
     };
+    /**
+     * OMDb, last. A TMDB or TVDB search wants something close to the catalogue title; OMDb is good at the other
+     * end - a short, slightly wrong label - and what it hands back is the canonical title and an IMDb id. Those
+     * go straight back to Radarr or Sonarr, which have the ids, the poster and the library status. When neither
+     * is configured, or neither knows it, OMDb's own answer still names the disc, which beats not naming it.
+     */
+    const tryOmdb = async (): Promise<RipMedia | null> => {
+      if (!omdbConfigured()) return null;
+      // "Fate Zero Season 2" is a title plus a season; OMDb wants the title
+      const base = sequel?.base ?? term;
+      const season = sequel?.season ?? rip.media.seasonNumber;
+      const hit = (await byTitle(base, { kind: preferSeries ? 'series' : undefined })) ?? (preferSeries ? await byTitle(base) : null);
+      if (!hit) return null;
+      const score = nameScore(base, hit.title);
+      if (score < 0.6) {
+        this.log(rip, `OMDb suggested "${hit.title}" for "${base}", which is too far off to use`);
+        return null;
+      }
+      this.log(rip, `OMDb: "${base}" is ${hit.title} (${hit.year || '?'})${hit.imdbId ? `, ${hit.imdbId}` : ''}`);
+      if (hit.kind === 'movie' && radarr.configured) {
+        // an IMDb id is exact, which is the whole point of having asked
+        const r = (await radarr.lookup(hit.imdbId ? `imdb:${hit.imdbId}` : hit.title))[0];
+        if (r) return { kind: 'movie', title: r.title, year: r.year, externalId: r.externalId, arrId: r.arrId, poster: r.poster };
+      }
+      if (hit.kind === 'series' && sonarr.configured) {
+        const r = bestOf(await sonarr.lookup(hit.title), hit.title);
+        if (r && r.score >= 0.6) {
+          return { kind: 'series', title: r.r.title, year: r.r.year, externalId: r.r.externalId, arrId: r.r.arrId, poster: r.r.poster, seriesType: r.r.seriesType as RipMedia['seriesType'], seasonNumber: season ?? 1, episodeStart: 1 };
+        }
+      }
+      // no *arr app could place it: the name and year are still worth having on the rip
+      return hit.kind === 'series'
+        ? { kind: 'series', title: hit.title, year: hit.year || undefined, seasonNumber: season ?? 1, episodeStart: 1 }
+        : { kind: 'movie', title: hit.title, year: hit.year || undefined };
+    };
+
     try {
-      const hit = preferSeries ? (await trySeries()) ?? (await tryMovie()) : (await tryMovie()) ?? (await trySeries());
+      const hit = (preferSeries ? (await trySeries()) ?? (await tryMovie()) : (await tryMovie()) ?? (await trySeries())) ?? (await tryOmdb());
       if (hit) {
         rip.media = { ...rip.media, ...hit };
-        this.log(rip, `Identified as ${hit.kind}: ${hit.title} (${hit.year ?? '?'})${hit.arrId ? ' – already in library' : ''}`);
+        this.log(rip, `Identified as ${hit.kind}: ${hit.title} (${hit.year ?? '?'})${hit.arrId ? ' – already in library' : hit.externalId ? '' : ' – named by OMDb only, with no *arr match'}`);
       } else this.log(rip, `Could not identify "${term}" automatically; set it in the UI`);
     } catch (err) {
       this.log(rip, `Lookup failed: ${(err as Error).message}`);

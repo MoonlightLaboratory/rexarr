@@ -117,7 +117,12 @@ Disc labels are terse (`SNAFU_2_DISC_1`, `NARUTO_S1_D2`, `MOVIE_DISC`). Rexarr:
 2. reads a trailing number, `S2`, `II` or `2nd Season` as a **season**;
 3. scores search results instead of taking the first hit;
 4. ignores labels made only of generic words (`MOVIE_DISC`, `BONUS`, `DISC1`) rather than matching a library title
-   by those words alone.
+   by those words alone;
+5. asks **OMDb** last, when it is switched on (**Settings → Connections → Metadata**). A TMDB or TVDB search
+   wants something close to the catalogue title, and OMDb is better at the other end — a short, slightly wrong
+   label. What comes back is the proper title and an IMDb id, which goes straight to Radarr or Sonarr so the
+   match is exact rather than another guess. Its answer is scored like any other, and if neither \*arr app knows
+   the title, OMDb's own name and year still go on the rip — better than *could not identify*.
 
 **Match again** re-runs identification on a disc that was matched wrongly, and you can always pick the title
 yourself. For a series, set the **season** and the **first episode number**; absolute numbering is used for anime
@@ -166,7 +171,13 @@ upgrade queue. See [Settings → Experiments](../reference/settings.md#ripping-t
 
 An experiment (**Settings → Experiments**, off by default): scan the barcode on the case with your phone and Rexarr
 resolves the release, adds it to Radarr / Sonarr and remembers that the disc is coming, so it is already in the
-library when you put it in the drive. See
+library when you put it in the drive.
+
+Barcodes go to [TheDiscDB](https://thediscdb.com) first, where a hit is the exact release with its ids; then
+MusicBrainz for a CD; then UPCitemdb, which returns a shop listing rather than a title (*"Reign Of The Supermen
+(4k Ultra Hd + Blu-ray + Digital) Sealed With Slipcover"*). The edition noise is stripped off, and with **OMDb**
+switched on, what is left is checked against it — so the shop's product name becomes a real title, year and IMDb
+id before anything is added to Radarr or Sonarr. See
 [Settings → Experiments](../reference/settings.md#barcode-scanning) — including why the camera needs HTTPS.
 
 ## Adding missing shows and movies
