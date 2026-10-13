@@ -18,7 +18,9 @@ import { cdTrackTags } from '../music/tags.js';
 import { detectMqa } from '../audio/mqa.js';
 import { proxiedImage } from '../routes/images.js';
 import { appEvents } from '../system.js';
-import { ejectDrive, emptyScanNote, labelToTitle, listDrives, listVirtualDrives, readDisc, resolveMakemkv, ripTitle, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
+import { ejectDrive, emptyScanNote, labelToTitle, listDrives, listVirtualDrives, readDisc, readScanOutput, resolveMakemkv, ripArgs, ripTitle, scanArgs, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
+import { isOnline, listAgents } from '../agents/registry.js';
+import { readOnAgent, runOnAgent } from '../agents/remote.js';
 import { audioSelectionFor, describeTracks } from './audio.js';
 import { ensureRipFolder } from './ripFolder.js';
 import { extraFileName, extraLabel, guessExtraRoles } from './extras.js';
@@ -165,10 +167,26 @@ export class DiscManager {
         if (p.label) match.name = p.label;
       } else manual.push(await probePhysicalDrive(p, 4000 + i));
     }
-    this.drives = [...real, ...manual, ...virtual, ...linked];
+    // Rip farm: the drives on the agents, as they last reported them. They keep their own source string -
+    // the agent runs makemkvcon on its own machine, where disc:0 means that machine's first drive.
+    const farm: DiscDrive[] = [];
+    if (store.settings.agents?.enabled) {
+      for (const [ai, a] of listAgents().filter((x) => x.enabled && x.capabilities.rip && isOnline(x)).entries()) {
+        for (const [di, d] of (a.drives ?? []).entries()) {
+          farm.push({ ...d, index: 5000 + ai * 100 + di, agentId: a.id, agentName: a.name, name: `${d.name || 'Drive'} · ${a.name}` });
+        }
+      }
+    }
+    this.drives = [...real, ...manual, ...virtual, ...linked, ...farm];
     bus.publish({ type: 'drives', drives: this.drives });
     return this.drives;
   }
+  /** The agent whose drive this rip is in, when it is not one of ours. */
+  private agentFor(rip: DiscRip): { id: string; name: string } | undefined {
+    const d = this.drives.find((x) => x.index === rip.driveIndex);
+    return d?.agentId && d.agentName ? { id: d.agentId, name: d.agentName } : undefined;
+  }
+
   get driveError() {
     return this.lastDriveError;
   }
@@ -263,7 +281,16 @@ export class DiscManager {
       this.scans.set(rip.id, abort);
       const source = rip.source ?? `disc:${rip.driveIndex}`;
       this.log(rip, `makemkvcon info ${source}, minimum title length ${rip.scanMinSeconds}s`);
-      const info = await readDisc(this.makemkv(), source, rip.scanMinSeconds, abort.signal).finally(() => this.scans.delete(rip.id));
+      const onAgent = this.agentFor(rip);
+      if (onAgent) this.log(rip, `Reading it on agent "${onAgent.name}"`);
+      const scan = (minSeconds: number) =>
+        onAgent
+          ? readOnAgent({ agentId: onAgent.id, ownerId: rip.id, label: `Scan ${rip.label || source}`, args: scanArgs(source, minSeconds), onLog: (l) => this.log(rip, l) }).done.then((r) => {
+              if (r.code !== 0 && !r.stdout) throw new Error(`makemkvcon on ${onAgent.name} exited with code ${r.code}`);
+              return readScanOutput(r.stdout);
+            })
+          : readDisc(this.makemkv(), source, minSeconds, abort.signal);
+      const info = await scan(rip.scanMinSeconds).finally(() => this.scans.delete(rip.id));
       if ((rip.status as RipStatus) === 'cancelled') return;
       for (const t of info.titles) if (t.durationSeconds < d.minTitleSeconds) t.short = true;
       rip.discType = info.type;
@@ -275,7 +302,7 @@ export class DiscManager {
       rip.scanNote = undefined;
       if (!info.titles.length) {
         // Nothing came back: read it again with no minimum, so the note can say which of the two reasons it is.
-        const plain = rip.scanMinSeconds > 0 ? await readDisc(this.makemkv(), source, 0, abort.signal).catch(() => null) : info;
+        const plain = rip.scanMinSeconds > 0 ? await scan(0).catch(() => null) : info;
         rip.scanNote = emptyScanNote(
           source,
           rip.scanMinSeconds,
@@ -835,23 +862,36 @@ export class DiscManager {
         fs.rmSync(work, { recursive: true, force: true });
         fs.mkdirSync(work, { recursive: true });
         let lastEmit = 0;
-        const handle = ripTitle(
-          this.makemkv(),
-          rip.source ?? `disc:${rip.driveIndex}`,
-          t.id,
-          work,
-          rip.scanMinSeconds ?? store.settings.disc.minTitleSeconds,
-          (pct, step) => {
-            rip.progress.percent = pct;
-            rip.progress.step = step;
-            rip.progress.etaSeconds = ripEta(rip, i, pct);
-            if (Date.now() - lastEmit > 1000) {
-              lastEmit = Date.now();
-              this.emit(rip);
-            }
-          },
-          (line) => this.log(rip, line),
-        );
+        const onProgress = (pct: number, step: string) => {
+          rip.progress.percent = pct;
+          rip.progress.step = step;
+          rip.progress.etaSeconds = ripEta(rip, i, pct);
+          if (Date.now() - lastEmit > 1000) {
+            lastEmit = Date.now();
+            this.emit(rip);
+          }
+        };
+        const source = rip.source ?? `disc:${rip.driveIndex}`;
+        const minSeconds = rip.scanMinSeconds ?? store.settings.disc.minTitleSeconds;
+        const agent = this.agentFor(rip);
+        // The agent writes into the same shared folder the server reads from, so only the command travels.
+        const handle = agent
+          ? (() => {
+              this.log(rip, `Ripping title ${t.id} on agent "${agent.name}"`);
+              const h = runOnAgent({
+                agentId: agent.id,
+                agentName: agent.name,
+                kind: 'rip',
+                ownerId: rip.id,
+                label: `${rip.label || source} title ${t.id}`,
+                program: 'makemkvcon',
+                args: ripArgs(source, t.id, work, minSeconds),
+                onProgress: (p) => onProgress(p.percent, rip.progress.step),
+                onLog: (line) => this.log(rip, line),
+              });
+              return { process: undefined as never, done: h.done.then((r) => r.code), cancel: h.cancel };
+            })()
+          : ripTitle(this.makemkv(), source, t.id, work, minSeconds, onProgress, (line) => this.log(rip, line));
         this.running.set(rip.id, handle);
         const code = await handle.done;
         this.running.delete(rip.id);

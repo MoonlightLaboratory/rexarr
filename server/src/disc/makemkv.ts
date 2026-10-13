@@ -225,19 +225,34 @@ export async function unmountForDirectAccess(devicePath: string): Promise<string
   return ok ? `Unmounted ${dev} so MakeMKV can read the disc directly (macOS keeps DVDs mounted)` : `Could not unmount ${dev}; MakeMKV may fail to open the disc`;
 }
 
+/** The arguments a scan is, so an agent can be given exactly the same ones. */
+export function scanArgs(source: string, minLengthSeconds: number): string[] {
+  return ['-r', '--cache=1', `--minlength=${Math.max(0, Math.floor(minLengthSeconds))}`, 'info', source];
+}
+
+/** The arguments a rip is. Same reason. */
+export function ripArgs(source: string, titleId: number, outDir: string, minLengthSeconds: number): string[] {
+  return ['-r', '--progress=-same', '--messages=-stdout', `--minlength=${Math.max(0, Math.floor(minLengthSeconds))}`, 'mkv', source, String(titleId), outDir];
+}
+
+/** Read what a scan printed. Split out so a scan run on an agent is read exactly as a local one is. */
+export function readScanOutput(stdout: string): DiscInfo {
+  if (/Failed to open disc/i.test(stdout)) {
+    throw new Error(
+      `MakeMKV could not open the disc${process.platform === 'darwin' ? ' (macOS may still have it mounted: eject and reinsert it, or unmount the volume in Disk Utility)' : ' \u2013 check that the drive can read it and that MakeMKV has access to the device'}`,
+    );
+  }
+  return parseDiscInfo(stdout);
+}
+
 export async function readDisc(makemkv: string, source: string, minLengthSeconds: number, signal?: AbortSignal): Promise<DiscInfo> {
-  const { stdout } = await run(makemkv, ['-r', '--cache=1', `--minlength=${Math.max(0, Math.floor(minLengthSeconds))}`, 'info', source], { timeout: 15 * 60_000, maxBuffer: 64 * 1024 * 1024, signal }).catch((e: { stdout?: string; message?: string; name?: string }) => {
+  const { stdout } = await run(makemkv, scanArgs(source, minLengthSeconds), { timeout: 15 * 60_000, maxBuffer: 64 * 1024 * 1024, signal }).catch((e: { stdout?: string; message?: string; name?: string }) => {
     if (signal?.aborted) throw new Error('Scan cancelled');
     if (e.stdout) return { stdout: e.stdout };
     throw new Error(e.message ?? 'makemkvcon failed');
   });
   // an empty title list is usually this, not a disc without titles
-  if (/Failed to open disc/i.test(stdout)) {
-    throw new Error(
-      `MakeMKV could not open the disc${process.platform === 'darwin' ? ' (macOS may still have it mounted: eject and reinsert it, or unmount the volume in Disk Utility)' : ' – check that the drive can read it and that MakeMKV has access to the device'}`,
-    );
-  }
-  return parseDiscInfo(stdout);
+  return readScanOutput(stdout);
 }
 
 /**
@@ -286,7 +301,7 @@ export function ripTitle(
   onProgress: (percent: number, step: string) => void,
   onLog: (line: string) => void,
 ): RipHandle {
-  const child = spawn(makemkv, ['-r', '--progress=-same', '--messages=-stdout', `--minlength=${Math.max(0, Math.floor(minLengthSeconds))}`, 'mkv', source, String(titleId), outDir], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(makemkv, ripArgs(source, titleId, outDir, minLengthSeconds), { stdio: ['ignore', 'pipe', 'pipe'] });
   let cancelled = false;
   let step = '';
   let buf = '';

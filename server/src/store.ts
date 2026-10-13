@@ -2,7 +2,7 @@ import { withGeneralDefaults } from './general.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DATA_DIR } from './config.js';
-import type { DiscRip, ExpectedDisc, Job, Profile, Settings, SmartProfile } from '../../shared/types.js';
+import type { Agent, DiscRip, ExpectedDisc, Job, Profile, Settings, SmartProfile } from '../../shared/types.js';
 import { BUILTIN_PROFILES, BUILTIN_SMART_PROFILES, DEFAULT_SETTINGS } from '../../shared/presets.js';
 
 interface Persisted<T> {
@@ -52,6 +52,7 @@ const smartP = load<SmartProfile[]>('smart-profiles.json', []);
 const jobsP = load<Job[]>('jobs.json', []);
 const ripsP = load<DiscRip[]>('rips.json', []);
 const expectedP = load<ExpectedDisc[]>('expected-discs.json', []);
+const agentsP = load<Agent[]>('agents.json', []);
 
 // Merge defaults for settings keys added in later versions.
 settingsP.value = {
@@ -67,6 +68,7 @@ settingsP.value = {
   thediscdb: { ...DEFAULT_SETTINGS.thediscdb, ...(settingsP.value.thediscdb ?? {}) },
   cddb: { ...DEFAULT_SETTINGS.cddb, ...(settingsP.value.cddb ?? {}) },
   ocr: { ...DEFAULT_SETTINGS.ocr, ...(settingsP.value.ocr ?? {}) },
+  agents: { ...DEFAULT_SETTINGS.agents, ...(settingsP.value.agents ?? {}) },
   notifications: { targets: settingsP.value.notifications?.targets ?? [] },
   experiments: { ...DEFAULT_SETTINGS.experiments, ...(settingsP.value.experiments ?? {}) },
   disc: { ...DEFAULT_SETTINGS.disc, ...(settingsP.value.disc ?? {}), cd: { ...DEFAULT_SETTINGS.disc.cd, ...(settingsP.value.disc?.cd ?? {}) } },
@@ -159,6 +161,21 @@ export const store = {
     else smartP.value.push(profile);
     save(smartP);
   },
+  // ---- rip farm: the agents that report in ----
+  get agents(): Agent[] {
+    return agentsP.value;
+  },
+  saveAgent(agent: Agent) {
+    const i = agentsP.value.findIndex((a) => a.id === agent.id);
+    if (i >= 0) agentsP.value[i] = agent;
+    else agentsP.value.push(agent);
+    save(agentsP);
+  },
+  deleteAgent(id: string) {
+    agentsP.value = agentsP.value.filter((a) => a.id !== id);
+    save(agentsP);
+  },
+
   deleteSmartProfile(id: string) {
     smartP.value = smartP.value.filter((p) => p.id !== id);
     save(smartP);
@@ -214,6 +231,7 @@ export const store = {
   flushAll() {
     flush(settingsP);
     flush(profilesP);
+    flush(agentsP);
     flush(smartP);
     flush(jobsP);
     flush(ripsP);

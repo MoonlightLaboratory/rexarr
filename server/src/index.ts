@@ -17,6 +17,7 @@ import { store } from './store.js';
 import { queue } from './jobs/queue.js';
 import settingsRoutes from './routes/settings.js';
 import profileRoutes from './routes/profiles.js';
+import agentRoutes from './routes/agents.js';
 import libraryRoutes from './routes/library.js';
 import searchRoutes from './routes/search.js';
 import jobRoutes from './routes/jobs.js';
@@ -96,6 +97,7 @@ async function buildApp(host: { bindAddress: string; port: number; urlBase: stri
   registerAuth(instance, urlBase);
   await instance.register(settingsRoutes);
   await instance.register(profileRoutes);
+  await instance.register(agentRoutes);
   await instance.register(libraryRoutes);
   await instance.register(searchRoutes);
   await instance.register(jobRoutes);

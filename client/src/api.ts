@@ -1,4 +1,5 @@
 import { withBase } from './base';
+import type { Agent, AgentTask } from '@shared/types';
 import type { DiscEstimate, TitleRole, AnidbInfo, AutoScanResult, AutoStatus, AppEvent, StoragePath, HwDevices, HwTestResult, TranscodingSettings, BackupInfo, DiscDrive, DiscRip, LogFileInfo, ScheduledTask, VirtualDrive, Episode, FfmpegCapabilities, HealthCheck, Job, LookupResult, MakemkvInfo, Movie, Profile, Release, RipMedia, RipOptions, Series, Settings, SystemInfo, SmartSearchResult, HostRuntime, DriveCandidate, PhysicalDrive, Artist, Album, Track, MqaInfo, MusicBrainzRelease, LocalItem, LocalFile, LocalScanStatus, LocalMeta, LocalMetaCandidate, SizeEstimateResult, SetupTools, UpdateStatus, NotificationTarget, ExpectedDisc, BarcodeLookup, WantedDisc, SmartProfile } from '@shared/types';
 
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
@@ -72,6 +73,12 @@ export interface ReleaseSearch {
   releases: Release[];
 }
 
+/** What `GET /api/agents` adds to a stored agent. */
+export interface AgentRow extends Agent {
+  online: boolean;
+  tasks: AgentTask[];
+}
+
 export const api = {
   settings: () => req<Settings>('GET', '/api/settings'),
   saveSettings: (s: Settings) => req<Settings>('PUT', '/api/settings', s),
@@ -112,6 +119,13 @@ export const api = {
   importMusicFolder: (path: string) => req<{ images: number; tracks?: number; encodings?: string[]; message: string }>('POST', '/api/music/import-folder', { path }),
   mediaMetadata: (path: string) => req<MediaMetadata>('GET', `/api/media/metadata?path=${encodeURIComponent(path)}`),
   freac: (refresh = false) => req<SystemInfo['freac']>('GET', `/api/music/freac${refresh ? '?refresh=1' : ''}`),
+  // ---- rip farm ----
+  agents: () => req<AgentRow[]>('GET', '/api/agents'),
+  agentTasks: () => req<AgentTask[]>('GET', '/api/agents/tasks'),
+  updateAgent: (id: string, patch: Partial<Pick<Agent, 'name' | 'enabled' | 'concurrency' | 'pathMappings'>>) => req<Agent>('PATCH', `/api/agents/${id}`, patch),
+  deleteAgent: (id: string) => req<{ ok: true }>('DELETE', `/api/agents/${id}`),
+  cancelAgentTask: (id: string) => req<{ ok: true }>('POST', `/api/agents/tasks/${id}/cancel`),
+
   tesseract: (refresh = false) => req<SystemInfo['tesseract']>('GET', `/api/system/tesseract${refresh ? '?refresh=1' : ''}`),
   addAlbum: (foreignAlbumId: string) => req<Album>('POST', '/api/music/add', { foreignAlbumId }),
   musicbrainzSearch: (q: string) => req<MusicBrainzRelease[]>('GET', `/api/musicbrainz/search?q=${encodeURIComponent(q)}`),

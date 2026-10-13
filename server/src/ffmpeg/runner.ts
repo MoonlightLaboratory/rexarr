@@ -2,9 +2,14 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import type { JobProgress } from '../../../shared/types.js';
 
 export interface RunHandle {
-  process: ChildProcess;
+  /** The local child, when there is one. A task running on an agent has no process here - use `kill`. */
+  process?: ChildProcess;
   done: Promise<{ code: number | null; signal: NodeJS.Signals | null }>;
   cancel: () => void;
+  /** Stop it now, wherever it is running. */
+  kill: () => void;
+  /** The agent running this, when it is not this machine. */
+  agentName?: string;
 }
 
 export function initialProgress(): JobProgress {
@@ -105,6 +110,7 @@ export function runFfmpeg(
   return {
     process: child,
     done,
+    kill: () => child.kill('SIGKILL'),
     cancel: () => {
       cancelled = true;
       child.kill('SIGTERM');

@@ -40,6 +40,7 @@ Everything on these pages is also available as JSON: `GET /api/settings`, `PUT /
 | slskd | URL, API key, download folder, max peer queue | Soulseek album search |
 | fre:ac | `freaccmd` path | empty = auto-detect |
 | Tesseract | on / off, `tesseract` path | `ocr.enabled`, `ocr.tesseractPath`; empty path = auto-detect. Off copies picture subtitles as they are, whatever a profile asks for |
+| Rip farm | on / off, approval, how many encodes to keep here | `agents.*`; see [Rip farm](../guide/rip-farm.md) |
 | Local media | extra folders, scan interval, folder kinds | see [Local media](../guide/local-media.md) |
 | MusicBrainz | on / off | CD and album lookups, Cover Art Archive |
 | TheDiscDB | on / off | barcodes and disc contents for physical releases |

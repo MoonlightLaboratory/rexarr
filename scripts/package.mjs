@@ -187,11 +187,22 @@ fi
 exec "$NODE" "$DIR/server/dist/server/src/index.js" "$@"
 `;
 
+// A machine in a rip farm runs this instead of the server: same package, one program thinner.
+const UNIX_AGENT_LAUNCHER = UNIX_LAUNCHER.replace('server/dist/server/src/index.js', 'server/dist/server/src/agent/main.js').replace(
+  'rexarr: Node.js 22 or newer is required',
+  'rexarr-agent: Node.js 22 or newer is required',
+);
+
 const APP_LAUNCHER = `#!/bin/sh
 # rexarr.app: runs the server in the background and opens the web UI. Stop it from System → Shutdown.
 # Data lives in ~/.config/rexarr; logs in ~/.config/rexarr/log.
 APP="$(cd "$(dirname "$0")/../Resources/rexarr" && pwd)"
 exec "$APP/runtime/node" "$APP/server/dist/server/src/index.js" --browser
+`;
+
+const WIN_AGENT_CMD = `@echo off
+rem Rexarr agent: joins a rip farm. rexarr-agent --server http://nas:3939 --key <api key>
+"%~dp0runtime\\node.exe" "%~dp0server\\dist\\server\\src\\agent\\main.js" %*
 `;
 
 const WIN_CMD = `@echo off
@@ -257,9 +268,13 @@ async function packageTarget(target, app) {
     if (t.os !== 'windows') fs.chmodSync(path.join(files, 'runtime', bin), 0o755);
   }
 
-  if (t.os === 'unix') write(path.join(files, 'rexarr'), UNIX_LAUNCHER, 0o755);
+  if (t.os === 'unix') {
+    write(path.join(files, 'rexarr'), UNIX_LAUNCHER, 0o755);
+    write(path.join(files, 'rexarr-agent'), UNIX_AGENT_LAUNCHER, 0o755);
+  }
   if (t.os === 'windows') {
     write(path.join(files, 'rexarr.cmd'), crlf(WIN_CMD));
+    write(path.join(files, 'rexarr-agent.cmd'), crlf(WIN_AGENT_CMD));
     write(path.join(files, 'rexarr.vbs'), crlf(WIN_VBS));
   }
   if (t.os === 'app') {

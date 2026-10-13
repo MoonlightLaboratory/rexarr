@@ -9,6 +9,7 @@ npm run dev     # Vite on :7979, API on :3939
 npm run build
 npm test        # node --import tsx --test "src/**/*.test.ts"
 npm run typecheck
+npm run agent -- --server http://localhost:3939 --key <api key>   # a rip farm agent
 ```
 
 See [CONTRIBUTING.md](https://github.com/MoonlightLaboratory/rexarr/blob/main/CONTRIBUTING.md) for the contribution
@@ -34,6 +35,11 @@ This generates, with ffmpeg only:
 
 **Transcoding**: queue any of the MKVs directly (`POST /api/jobs` with `source.localPath`, or add `test-media/Movies`
 as a Radarr root folder and use the library pages). Every built-in profile has been run against these.
+
+**Rip farm**: an agent takes the same `--virtual-drives` folder, so a farm can be exercised on one machine —
+start the server, then `npm run agent -- --server http://localhost:3939 --key <key> --name test-agent
+--virtual-drives test-media/discs --config /tmp/agent1`. Its drives appear on the Discs page named after the
+agent, and scans, rips and encodes run in the agent process.
 
 **Disc ripping**: set **Settings → Disc ripping → Virtual drives folder** to `test-media/discs`. Every `.iso` /
 `.img` file and every DVD or Blu-ray folder (`VIDEO_TS`, `BDMV`) there appears on the **Discs** page as a loaded

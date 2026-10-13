@@ -5,8 +5,13 @@
   "license": "GPL-3.0-or-later",
   "description": "Remux-first transcoding companion for the *arr stack (beta): finds Blu-ray remuxes via Radarr/Sonarr/Lidarr/Prowlarr and re-encodes them with FFmpeg or fre:ac using your own profiles.",
   "homepage": "https://github.com/MoonlightLaboratory/rexarr#readme",
-  "repository": { "type": "git", "url": "git+https://github.com/MoonlightLaboratory/rexarr.git" },
-  "bugs": { "url": "https://github.com/MoonlightLaboratory/rexarr/issues" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MoonlightLaboratory/rexarr.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MoonlightLaboratory/rexarr/issues"
+  },
   "type": "module",
   "workspaces": [
     "server",
@@ -18,7 +23,8 @@
     "start": "node server/dist/server/src/index.js",
     "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
     "test": "npm test -w server",
-    "test-media": "node scripts/make-test-media.mjs test-media"
+    "test-media": "node scripts/make-test-media.mjs test-media",
+    "agent": "node server/dist/server/src/agent/main.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

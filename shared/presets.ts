@@ -400,6 +400,7 @@ export const DEFAULT_SETTINGS = {
   ffprobePath: 'ffprobe',
   freacPath: '',
   ocr: { enabled: true, tesseractPath: '' },
+  agents: { enabled: false, requireApproval: true, localFirst: 0, offlineAfterSeconds: 90 },
   concurrency: 1,
   pollIntervalSeconds: 60,
   pathMappings: [],

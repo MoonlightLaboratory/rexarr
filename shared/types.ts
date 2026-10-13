@@ -871,6 +871,8 @@ export interface Settings {
   freacPath: string;
   /** Reading picture subtitles into text. Off leaves every profile's choice alone and copies the pictures. */
   ocr: OcrSettings;
+  /** Rip farm: agents on other machines taking rips and encodes off the same queue. */
+  agents: AgentSettings;
   /** Maximum simultaneous encodes. */
   concurrency: number;
   /** Seconds between polls when waiting for an *arr download to import. */
@@ -933,6 +935,8 @@ export interface JobProgress {
 }
 
 export interface Job {
+  /** The agent running this, when it is not the server itself. */
+  agentName?: string;
   id: string;
   title: string;
   subtitle?: string;
@@ -1464,6 +1468,9 @@ export interface SystemInfo {
 export type DriveState = 'empty' | 'open' | 'loaded' | 'loading' | 'unknown';
 
 export interface DiscDrive {
+  /** The agent this drive is plugged into, when it is not this machine. */
+  agentId?: string;
+  agentName?: string;
   index: number;
   name: string;
   path: string;
@@ -1590,6 +1597,103 @@ export interface RippedFile {
   jobId?: string;
   /** Final path after transcode / delivery. */
   finalPath?: string;
+}
+
+/**
+ * Rip farm: a Rexarr agent on another machine.
+ *
+ * An agent is deliberately thin. It has MakeMKV and/or FFmpeg and it runs what the central server tells it to
+ * run, reporting progress back; it holds no profiles, no library and no metadata, and it never decides anything.
+ * Everything that makes a decision - identification, profile resolution, naming, *arr - stays on the server,
+ * which is also why a farm can be a shelf of SBCs with optical drives and one real machine with the library.
+ *
+ * Agent and server reach the same files through a shared folder. Where they mount it at different paths, the
+ * agent's own `pathMappings` rewrite the server's path into the one it sees.
+ */
+export interface AgentSettings {
+  /** Off refuses every agent, so a machine that is still enrolled simply does nothing. */
+  enabled: boolean;
+  /**
+   * A new agent waits to be approved on the Agents page. On is the safe default: an agent is given the paths of
+   * your library and runs what it is told, so it should be a machine you put there on purpose.
+   */
+  requireApproval: boolean;
+  /** Give an encode to an agent only once this many are running on the server itself. 0 = prefer agents. */
+  localFirst: number;
+  /** An agent that has not polled for this long is treated as gone and its work is handed back. */
+  offlineAfterSeconds: number;
+}
+
+export interface AgentCapabilities {
+  /** MakeMKV is present, so this agent can scan and rip discs. */
+  rip: boolean;
+  /** FFmpeg is present, so this agent can take encodes off the queue. */
+  transcode: boolean;
+  makemkvVersion?: string;
+  ffmpegVersion?: string;
+  /** Video encoders its FFmpeg has, so the server never sends it one it cannot run. */
+  videoEncoders?: VideoEncoder[];
+  /** Hardware encoding it found, as a name to show ("VideoToolbox", "NVENC"). */
+  hardware?: string;
+  platform: string;
+  arch: string;
+  cpus: number;
+  totalMemoryBytes: number;
+}
+
+export interface Agent {
+  /** Made by the agent on first run and kept in its own config, so a restart is the same agent. */
+  id: string;
+  name: string;
+  version: string;
+  capabilities: AgentCapabilities;
+  /** Optical drives this agent can see, as it last reported them. */
+  drives: DiscDrive[];
+  /** How many tasks it will run at once. */
+  concurrency: number;
+  /** Server path -> the path this agent sees for the same file. */
+  pathMappings: PathMapping[];
+  /** Off means it keeps reporting in but is given nothing to do. */
+  enabled: boolean;
+  firstSeen: string;
+  lastSeen: string;
+  address?: string;
+  /** Task ids it is running right now, as of its last poll. */
+  running: string[];
+}
+
+export type AgentTaskKind = 'scan' | 'rip' | 'transcode';
+export type AgentTaskStatus = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
+
+/**
+ * One piece of work for an agent: a program, its arguments and how long the thing being read is. The server
+ * builds the arguments, so the agent needs none of the knowledge that went into them - but it also means an
+ * agent will only ever run the two programs it is configured with, never an arbitrary command.
+ */
+export interface AgentTask {
+  id: string;
+  kind: AgentTaskKind;
+  status: AgentTaskStatus;
+  /** The job or rip this belongs to, for the UI. */
+  ownerId: string;
+  label: string;
+  /** Only this agent may take it (a rip belongs to the machine with the disc in it). */
+  agentId?: string;
+  /** Encoders the agent must have for this to be worth giving it. */
+  needsEncoders?: string[];
+  program: 'ffmpeg' | 'makemkvcon';
+  args: string[];
+  /** Seconds of source, so the agent can work out a percentage. */
+  durationSeconds?: number;
+  /** Send the program's whole stdout back, not just its log lines: a disc scan is read from it. */
+  capture?: boolean;
+  createdAt: string;
+  startedAt?: string;
+  finishedAt?: string;
+  takenBy?: string;
+  progress?: JobProgress;
+  exitCode?: number | null;
+  error?: string;
 }
 
 export interface DiscRip {

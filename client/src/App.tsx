@@ -26,6 +26,7 @@ const ToolsPage = lazy(() => import('./pages/Tools').then((m) => ({ default: m.T
 const LogsPage = lazy(() => import('./pages/SystemPages').then((m) => ({ default: m.LogsPage })));
 const UpdatesPage = lazy(() => import('./pages/Updates').then((m) => ({ default: m.UpdatesPage })));
 const ExperimentsPage = lazy(() => import('./pages/Experiments').then((m) => ({ default: m.ExperimentsPage })));
+const AgentsPage = lazy(() => import('./pages/Agents').then((m) => ({ default: m.AgentsPage })));
 const ScanPage = lazy(() => import('./pages/Scan').then((m) => ({ default: m.ScanPage })));
 
 export interface AppState {
@@ -101,6 +102,7 @@ export default function App() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/general" element={<SettingsGeneralPage />} />
             <Route path="/settings/experiments" element={<ExperimentsPage />} />
+            <Route path="/settings/agents" element={<AgentsPage />} />
             <Route path="/system" element={<SystemPage />} />
             <Route path="/system/tasks" element={<TasksPage />} />
             <Route path="/system/backup" element={<BackupPage />} />

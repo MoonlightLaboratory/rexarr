@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { SmartProfile, SourceFacts, Job, JobSource, JobStatus, MqaInfo, Profile, RipMedia, Settings } from '../../../shared/types.js';
+import type { SmartProfile, SourceFacts, Job, JobProgress, JobSource, JobStatus, MqaInfo, Profile, RipMedia, Settings } from '../../../shared/types.js';
 import { CONTAINER_INFO } from '../../../shared/presets.js';
 import { encodeMusic, freacEncoderArgs, freacInfo, probeAudio } from '../music/freac.js';
 import { estimateSize } from '../ffmpeg/estimate.js';
@@ -20,6 +20,7 @@ import { toArrPath, toLocalPath } from '../paths.js';
 import { findDiscImages, makemkvInfo } from '../disc/makemkv.js';
 import { probe, streamLanguage, type ProbeResult } from '../ffmpeg/probe.js';
 import { buildFfmpegArgs, outputPathFor, subtitlesToOcr, withoutOcr, type BuildOptions, type OcrSubtitle } from '../ffmpeg/args.js';
+import { pickAgentFor, runOnAgent } from '../agents/remote.js';
 import { ocrSubtitleStream, tesseractInfo, tesseractLanguage, toSrt } from '../ffmpeg/ocr.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 import { initialProgress, runFfmpeg, type RunHandle } from '../ffmpeg/runner.js';
@@ -655,8 +656,8 @@ class JobQueue {
         },
       });
       this.running.set(job.id, {
-        process: undefined as never,
         done: done.then(() => ({ code: 0, signal: null }), () => ({ code: 1, signal: null })),
+        kill: () => signal.kill?.(),
         cancel: () => {
           signal.cancelled = true;
           signal.kill?.();
@@ -838,23 +839,36 @@ class JobQueue {
 
         let lastEmit = 0;
         let qualityModeRejected = false;
-        const handle = runFfmpeg(
-          settings.ffmpegPath,
-          built.args,
-          info.durationSeconds,
-          (p) => {
-            job.progress = p;
-            const now = Date.now();
-            if (now - lastEmit > 1000) {
-              lastEmit = now;
-              this.emit(job);
-            }
-          },
-          (line) => {
-            if (/qscale not available|not available for encoder/i.test(line)) qualityModeRejected = true;
-            this.log(job, line);
-          },
-        );
+        const onProgress = (p: JobProgress) => {
+          job.progress = p;
+          const now = Date.now();
+          if (now - lastEmit > 1000) {
+            lastEmit = now;
+            this.emit(job);
+          }
+        };
+        const onLog = (line: string) => {
+          if (/qscale not available|not available for encoder/i.test(line)) qualityModeRejected = true;
+          this.log(job, line);
+        };
+        // Rip farm: an agent with the right encoder can take this one, looking at the same shared folder.
+        const farmed = triedSoftware ? undefined : pickAgentFor(built.videoEncoder ? [built.videoEncoder] : [], this.running.size);
+        const handle = farmed
+          ? runOnAgent({
+              agentId: farmed.id,
+              agentName: farmed.name,
+              kind: 'transcode',
+              ownerId: job.id,
+              label: job.title,
+              program: 'ffmpeg',
+              args: built.args,
+              durationSeconds: info.durationSeconds,
+              onProgress,
+              onLog,
+            })
+          : runFfmpeg(settings.ffmpegPath, built.args, info.durationSeconds, onProgress, onLog);
+        if (farmed) this.log(job, `Running on agent "${farmed.name}"`);
+        job.agentName = farmed?.name;
         this.running.set(job.id, handle);
         // Watchdog: a read that never returns (stalled network share) leaves ffmpeg waiting forever
         const stallMs = (settings.stallTimeoutMinutes ?? 10) * 60_000;
@@ -870,7 +884,7 @@ class JobQueue {
               } else if (Date.now() - lastChange > stallMs) {
                 stalled = true;
                 this.log(job, `No progress for ${settings.stallTimeoutMinutes ?? 10} minutes – stopping ffmpeg`);
-                handle.process.kill('SIGKILL');
+                handle.kill();
               }
             }, 15_000)
           : null;
