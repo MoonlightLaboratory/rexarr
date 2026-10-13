@@ -199,6 +199,7 @@ export function SmartGraphPage() {
   /** The loose condition waiting for its other end, while a cable is being run. */
   const [plugging, setPlugging] = useState<number | null>(null);
   const [palette, setPalette] = useState(false);
+  const menu = useRef<HTMLDivElement | null>(null);
   const history = useHistory(sp, (v) => setSp(v));
   const [marquee, setMarquee] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [saved, setSaved] = useState('');
@@ -373,6 +374,16 @@ export function SmartGraphPage() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [history, readOnly]);
+
+  // The node menu hangs off its button, and the button moves as the bar wraps, so it is nudged back inside.
+  useLayoutEffect(() => {
+    const el = menu.current;
+    if (!el) return;
+    el.style.transform = '';
+    const r = el.getBoundingClientRect();
+    const over = r.right > window.innerWidth - 8 ? window.innerWidth - 8 - r.right : r.left < 8 ? 8 - r.left : 0;
+    if (over) el.style.transform = `translateX(${Math.round(over)}px)`;
+  }, [palette]);
   useEffect(() => {
     const move = (e: MouseEvent) => {
       const d = drag.current;
@@ -663,7 +674,7 @@ export function SmartGraphPage() {
               <Icon.Plus /> Node
             </button>
             {palette && (
-              <div className="gMenu" onMouseLeave={() => setPalette(false)}>
+              <div className="gMenu" ref={menu} onMouseLeave={() => setPalette(false)}>
                 <button onClick={() => addNode('branch')}>
                   <strong>Branch</strong>
                   <span>a question, with what it changes</span>

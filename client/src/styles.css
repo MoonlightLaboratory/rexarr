@@ -1427,7 +1427,8 @@ table.metaTags td.mono { word-break: break-word; }
 
 /* the Node menu */
 .gMenuWrap { position: relative; }
-.gMenu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 5; display: flex; flex-direction: column; min-width: 260px; padding: 4px; border: 1px solid var(--borderColor); border-radius: 5px; background: var(--cardBackgroundColor); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+/* It hangs from the button's right edge: the button lives at the right of the bar, so left-aligning ran it off the window. */
+.gMenu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 5; max-width: calc(100vw - 24px); display: flex; flex-direction: column; min-width: 260px; padding: 4px; border: 1px solid var(--borderColor); border-radius: 5px; background: var(--cardBackgroundColor); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
 .gMenu button { display: flex; flex-direction: column; gap: 2px; padding: 7px 10px; border: 0; border-radius: 4px; background: transparent; color: var(--textColor); cursor: pointer; text-align: left; }
 .gMenu button:hover { background: var(--themeLightColor); }
-.gMenu button span { color: var(--gray); font-size: var(--smallFontSize); }
+.gMenu button span { color: var(--gray); font-size: var(--smallFontSize); white-space: normal; }
