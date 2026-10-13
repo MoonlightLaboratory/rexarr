@@ -1,6 +1,6 @@
 import { URL_BASE, withBase } from '../base';
 import { useEffect, useState } from 'react';
-import type { AgentSettings, ArrConnection, LocalMediaSettings, LocalScanStatus, NotificationEvent, NotificationKind, NotificationSettings, NotificationTarget, Settings, SlskdConnection, SystemInfo } from '@shared/types';
+import type { AgentSettings, ArrConnection, LocalMediaSettings, OmdbSettings, LocalScanStatus, NotificationEvent, NotificationKind, NotificationSettings, NotificationTarget, Settings, SlskdConnection, SystemInfo } from '@shared/types';
 import { Modal } from '../components/Modal';
 import { api, fmtAge, type AgentRow } from '../api';
 import { useApp } from '../App';
@@ -732,6 +732,73 @@ function ArrCard({ name, label, hint, conn, onChange, placeholder, keyHint, chil
  * and encodes it is given. It holds no library and decides nothing, so there is little to configure - whether it
  * may take work, how much at once, and where it mounts the shared folder when that differs from here.
  */
+/**
+ * Settings → Metadata → OMDb. Genre, year and kind for a title Radarr and Sonarr have never heard of, which is
+ * what a smart profile decides on. Asked last, and only when a branch actually wants the answer.
+ */
+function OmdbCard({ value, onChange }: { value: OmdbSettings; onChange: (v: OmdbSettings) => void }) {
+  const [result, setResult] = useState<{ ok: boolean; error?: string; sample?: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const on = value?.enabled === true;
+  const test = async () => {
+    setBusy(true);
+    setResult(null);
+    try {
+      setResult(await api.testOmdb(value?.apiKey ?? ''));
+    } catch (e) {
+      setResult({ ok: false, error: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="card mb">
+      <div className="card-h">
+        <label className="check">
+          <input type="checkbox" checked={on} onChange={(e) => onChange({ ...value, enabled: e.target.checked })} /> OMDb
+        </label>
+        <span className="spacer" />
+        <span className="small dim">free key, 1,000 requests a day</span>
+      </div>
+      <div className="card-b">
+        <div className="small dim mb">
+          The IMDb data, by title or IMDb id. A <a href={withBase('/profiles')}>smart profile</a> decides on genre, year
+          and whether a title is a film or a series — and until now those could only come from Radarr and Sonarr, so a
+          rule like <em>if it is animation, use the animation tune</em> did nothing for a local file, a disc being
+          ripped, or anything added by hand. OMDb answers for those. It is asked last, after the *arr apps, and only
+          when a branch actually wants the answer, so a library that is entirely in Radarr and Sonarr never sends it a
+          request. Answers are kept for a day.
+        </div>
+        <div className="field stack">
+          <label>API key</label>
+          <input
+            type="password"
+            className="mono"
+            autoComplete="off"
+            value={value?.apiKey ?? ''}
+            disabled={!on}
+            placeholder="from omdbapi.com/apikey.aspx"
+            onChange={(e) => onChange({ ...value, apiKey: e.target.value })}
+          />
+          <div className="help">
+            Free from{' '}
+            <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noreferrer">
+              omdbapi.com
+            </a>
+            : pick the FREE tier, give an email, and click the link they send to activate it.
+          </div>
+        </div>
+        <div className="inline">
+          <button className="btn sm" onClick={test} disabled={busy || !on || !(value?.apiKey ?? '').trim()}>
+            {busy ? <span className="spinner" /> : <Icon.Check />} Test
+          </button>
+          {result && (result.ok ? <span className="badge green">{result.sample ?? 'working'}</span> : <span className="badge red">{result.error ?? 'failed'}</span>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RipFarmCard({ value, onChange }: { value: AgentSettings; onChange: (v: AgentSettings) => void }) {
   const { toast } = useApp();
   const [agents, setAgents] = useState<AgentRow[] | null>(null);
@@ -1204,6 +1271,8 @@ export function SettingsPage() {
           US releases, and it will not know every disc.
         </div>
       </div>
+
+      <OmdbCard value={s.omdb} onChange={(omdb) => setS({ ...s, omdb })} />
 
       <div className="card mb">
         <div className="card-h">

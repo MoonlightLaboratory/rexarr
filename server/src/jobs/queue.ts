@@ -19,8 +19,10 @@ import { arr } from '../arr/index.js';
 import { toArrPath, toLocalPath } from '../paths.js';
 import { findDiscImages, makemkvInfo } from '../disc/makemkv.js';
 import { probe, streamLanguage, type ProbeResult } from '../ffmpeg/probe.js';
+import { labelToTitle } from '../disc/makemkv.js';
 import { buildFfmpegArgs, outputPathFor, subtitlesToOcr, withoutOcr, type BuildOptions, type OcrSubtitle } from '../ffmpeg/args.js';
 import { pickAgentFor, runOnAgent } from '../agents/remote.js';
+import { byTitle, omdbConfigured } from '../omdb.js';
 import { ocrSubtitleStream, tesseractInfo, tesseractLanguage, toSrt } from '../ffmpeg/ocr.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 import { initialProgress, runFfmpeg, type RunHandle } from '../ffmpeg/runner.js';
@@ -66,6 +68,21 @@ function freeBytes(p: string): number {
     return 0;
   }
 }
+
+/**
+ * The best name and year to look a job up by. A job's title is already the clean one for a library file; for
+ * anything else it came from a disc label or a file name, which `labelToTitle` knows how to tidy.
+ */
+function titleAndYear(job: Job): { title: string; year?: number } {
+  const raw = (job.title ?? '').trim();
+  if (!raw) return { title: '' };
+  const tidied = labelToTitle(raw);
+  // a year in brackets is already clean - "Blade Runner 2049 (2017)" must not lose the 2049
+  const bracketed = raw.match(/\((19|20)\d{2}\)\s*$/);
+  if (bracketed) return { title: raw.slice(0, bracketed.index).trim(), year: Number(bracketed[0].replace(/[()]/g, '')) };
+  return { title: tidied.title || raw, year: tidied.year };
+}
+
 
 class JobQueue {
   private running = new Map<string, RunHandle>();
@@ -712,8 +729,8 @@ class JobQueue {
   }
 
   /**
-   * What Radarr / Sonarr say this is. The lookup only happens when a branch asks about it, so a smart profile
-   * that never mentions genre costs nothing.
+   * What Radarr / Sonarr say this is, and OMDb when they do not know it. The lookup only happens when a branch
+   * asks about it, so a smart profile that never mentions genre costs nothing.
    */
   private async mediaFacts(job: Job, smart: SmartProfile): Promise<SourceFacts['media']> {
     const asksAbout = (...fields: string[]) => smart.rules.some((r) => r.when.some((c) => fields.includes(c.field)));
@@ -731,6 +748,21 @@ class JobQueue {
       }
     } catch (err) {
       this.log(job, `Could not read what Radarr / Sonarr know about this title: ${(err as Error).message}`);
+    }
+    // Nothing in the *arr apps knows it - a local file, a disc being ripped, anything added by hand. OMDb does,
+    // and is only asked here, after they have had their turn and when a branch actually wants the answer.
+    if (omdbConfigured()) {
+      try {
+        const guess = titleAndYear(job);
+        const hit = guess.title ? await byTitle(guess.title, { year: guess.year, kind: kind === 'unknown' ? undefined : kind }) : null;
+        if (hit) {
+          this.log(job, `OMDb: ${hit.title} (${hit.year})${hit.genres.length ? ` – ${hit.genres.join(', ')}` : ', no genres listed'}`);
+          return { kind: kind === 'unknown' ? hit.kind : kind, genres: hit.genres, year: hit.year || 0 };
+        }
+        this.log(job, `OMDb had nothing for "${guess.title}"${guess.year ? ` (${guess.year})` : ''}`);
+      } catch (err) {
+        this.log(job, `OMDb lookup failed: ${(err as Error).message}`);
+      }
     }
     return { kind, genres: [], year: 0 };
   }

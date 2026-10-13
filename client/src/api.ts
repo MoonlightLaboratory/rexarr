@@ -119,6 +119,8 @@ export const api = {
   importMusicFolder: (path: string) => req<{ images: number; tracks?: number; encodings?: string[]; message: string }>('POST', '/api/music/import-folder', { path }),
   mediaMetadata: (path: string) => req<MediaMetadata>('GET', `/api/media/metadata?path=${encodeURIComponent(path)}`),
   freac: (refresh = false) => req<SystemInfo['freac']>('GET', `/api/music/freac${refresh ? '?refresh=1' : ''}`),
+  testOmdb: (apiKey?: string) => req<{ ok: boolean; error?: string; sample?: string }>('POST', '/api/settings/test/omdb', { apiKey }),
+
   // ---- rip farm ----
   agents: () => req<AgentRow[]>('GET', '/api/agents'),
   agentTasks: () => req<AgentTask[]>('GET', '/api/agents/tasks'),

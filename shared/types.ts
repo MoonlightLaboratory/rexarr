@@ -673,6 +673,13 @@ export interface OcrSettings {
   tesseractPath: string;
 }
 
+/** OMDb (omdbapi.com): genre, year and kind for titles the *arr apps have never heard of. */
+export interface OmdbSettings {
+  enabled: boolean;
+  /** A free key from omdbapi.com/apikey.aspx; 1,000 requests a day. */
+  apiKey: string;
+}
+
 export interface CddbSettings {
   enabled: boolean;
   /** A freedb-protocol CGI endpoint, e.g. https://freedbtest.dyndns.org/~cddb/cddb.cgi */
@@ -859,6 +866,8 @@ export interface Settings {
   musicbrainz: { enabled: boolean };
   /** TheDiscDB: barcodes, disc contents and the ids that go with a physical release. */
   thediscdb: { enabled: boolean };
+  /** OMDb: what a film or series is, when Radarr and Sonarr do not know it. */
+  omdb: OmdbSettings;
   /** CDDB / freedb: track titles for audio CDs MusicBrainz does not have. */
   cddb: CddbSettings;
   /** Discord, Slack, ntfy and friends: told when an encode or a rip finishes or fails. */

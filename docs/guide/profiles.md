@@ -206,7 +206,12 @@ profile encodes.
 | Video | height, width, codec, HDR, Dolby Vision, bit depth, frame rate, whether it is interlaced |
 | Subtitles | how many, languages, whether any are forced, whether any are text rather than bitmap |
 | Source | running time, file size, bitrate, container |
-| What it is | movie / series / anime, the genres Radarr or Sonarr hold, and the year |
+| What it is | movie / series / anime, genres, and the year |
+
+**What it is** comes from Radarr or Sonarr when they have the title. For anything they do not — a local file, a
+disc being ripped, something queued by hand — it comes from [OMDb](../reference/settings.md) when that is
+switched on, which is what makes *if it is animation, use the animation tune* work outside the \*arr apps. Either
+way the lookup only happens when a branch actually asks, so a profile that never mentions genre costs nothing.
 
 A branch wants **all of** its conditions by default; switch it to **any of** and one is enough. It can be given
 a name, which is what the job log calls it, and switched **off** — the branch and its wiring stay where they are
