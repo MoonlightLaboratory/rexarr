@@ -158,7 +158,18 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       body: JSON.stringify(body),
     });
     const text = await res.text();
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}${text ? ` – ${text.slice(0, 300)}` : ''}`);
+    if (!res.ok) {
+      // the server's own words, when it gave any: "rip farm mode is off" beats "403 Forbidden"
+      let said = text.slice(0, 300);
+      try {
+        said = (JSON.parse(text) as { error?: string }).error ?? said;
+      } catch {
+        /* not JSON */
+      }
+      const e = new Error(said ? `${said} (HTTP ${res.status})` : `${res.status} ${res.statusText}`);
+      (e as Error & { status?: number }).status = res.status;
+      throw e;
+    }
     return text ? (JSON.parse(text) as Record<string, unknown>) : {};
   };
 
@@ -178,7 +189,13 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       if (!r.approved) console.log('Waiting to be approved on the server (Settings → Connections → Rip farm).');
       break;
     } catch (err) {
-      console.error(`Could not reach ${o.server}: ${(err as Error).message}`);
+      const status = (err as Error & { status?: number }).status;
+      // an answer is not the same as no answer: a 401 or a 403 is something to go and change, not to wait out
+      if (status === 401 || status === 403) console.error(`${o.server} refused this agent: ${(err as Error).message}`);
+      else if (status) console.error(`${o.server} answered: ${(err as Error).message}`);
+      else console.error(`Could not reach ${o.server}: ${(err as Error).message}`);
+      if (status === 401) console.error('  The API key is wrong. It is under Settings → General → Security on that server.');
+      if (status === 403) console.error('  Switch rip farm mode on there: Settings → Connections → Rip farm.');
       await new Promise((r) => setTimeout(r, 10_000));
     }
   }
