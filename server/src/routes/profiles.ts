@@ -8,6 +8,8 @@ import { buildFfmpegArgs, outputPathFor, subtitlesToOcr, withoutOcr } from '../f
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 import { probe, streamLanguage, type ProbeResult } from '../ffmpeg/probe.js';
 import { tesseractInfo } from '../ffmpeg/ocr.js';
+import { baseProfile, decide, explainDecision } from '../../../shared/smart.js';
+import { sourceFacts } from '../ffmpeg/facts.js';
 import { CONTAINER_INFO } from '../../../shared/presets.js';
 import { freacEncoderArgs, freacInfo } from '../music/freac.js';
 
@@ -232,7 +234,11 @@ export default async function profileRoutes(app: FastifyInstance) {
     const body = z.object({ profile: profileSchema.optional(), profileId: z.string().optional(), path: z.string().optional(), audioOnly: z.boolean().optional() }).safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: 'invalid body' });
     let profile: Profile | undefined;
+    const smartSummary: string[] = [];
+    // a smart profile id is as good as a profile id here; it just needs the file first
+    const smart = body.data.profileId ? store.getSmartProfile(body.data.profileId) : undefined;
     if (body.data.profile) profile = { ...body.data.profile, id: body.data.profile.id ?? 'preview', builtin: false, createdAt: '', updatedAt: '' } as Profile;
+    else if (smart) profile = { ...baseProfile(smart), id: smart.id, name: smart.name, builtin: false, createdAt: '', updatedAt: '' } as Profile;
     else if (body.data.profileId) profile = store.getProfile(body.data.profileId);
     if (!profile) return reply.code(400).send({ error: 'profile required' });
     // an audio-only job copies the video whatever the profile says, so the command has to show that
@@ -270,6 +276,18 @@ export default async function profileRoutes(app: FastifyInstance) {
       info = sampleProbe();
       input = info.path;
     }
+    // A smart profile has no settings until it has seen a file, so the preview resolves it against this one -
+    // which is the only honest command to show. What it settled on, and why, goes in the summary.
+    if (smart) {
+      const facts = sourceFacts(info, { kind: smart.mediaType === 'anime' ? 'anime' : 'unknown', genres: [], year: 0 });
+      const decision = decide(smart, facts);
+      profile = { ...decision.profile, id: smart.id, name: smart.name, builtin: false, createdAt: '', updatedAt: '' } as Profile;
+      if (body.data.audioOnly) profile = { ...profile, video: { ...profile.video, encoder: 'copy', maxHeight: 0 } };
+      smartSummary.push(explainDecision(smart, facts, decision));
+      if (smart.rules.some((r) => r.when.some((c) => c.field.startsWith('media.')))) {
+        smartSummary.push('A branch asks what the title is (kind, genre, year). That is looked up when the encode runs, not here, so the real decision may differ.');
+      }
+    }
     // the switch in Settings rewrites the profile, so the preview shows what the encode would really do
     const ocrOff = store.settings.ocr?.enabled === false;
     const asked = subtitlesToOcr(info, profile).length;
@@ -296,7 +314,7 @@ export default async function profileRoutes(app: FastifyInstance) {
         command: [store.settings.ffmpegPath, ...built.args].map(quote).join(' '),
         args: built.args,
         warnings,
-        summary,
+        summary: [...smartSummary, ...summary],
         output,
         sample: !body.data.path,
         streams: info.streams.map((s) => ({ index: s.index, type: s.codec_type, codec: s.codec_name, language: s.tags?.language, title: s.tags?.title, channels: s.channels, width: s.width, height: s.height })),

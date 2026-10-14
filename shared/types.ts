@@ -1193,6 +1193,10 @@ export interface SizeEstimate {
   notes: string[];
   /** Copy / bitrate modes: close to exact. */
   exact: boolean;
+  /** A smart profile, decided per file: the estimate is of what it settled on for these files. */
+  smart?: boolean;
+  /** What it settled on, for the dialog: "HEVC CRF 20 + copy", or the two it split between. */
+  resolved?: string;
 }
 
 export interface SizeEstimateResult {

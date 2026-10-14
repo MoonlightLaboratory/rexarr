@@ -20,13 +20,15 @@ export interface TranscodeItem {
 
 /** Pick a profile and queue one or more library files for encoding. */
 export function TranscodeModal({ items, mediaType, onClose, onQueued, defaultAudioOnly }: { items: TranscodeItem[]; mediaType: 'movie' | 'tv' | 'anime' | 'music'; onClose: () => void; onQueued?: () => void; /** Open with "audio only" already ticked. */ defaultAudioOnly?: boolean }) {
-  const { profiles, settings, toast } = useApp();
+  const { profiles, smartProfiles, settings, toast } = useApp();
   const [profileId, setProfileId] = useState(settings?.defaultProfiles[mediaType] ?? profiles[0]?.id ?? '');
   const [audioOnly, setAudioOnly] = useState(Boolean(defaultAudioOnly));
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
   const profile: Profile | undefined = profiles.find((p) => p.id === profileId);
+  // a smart profile is chosen here like any other; it just has no settings of its own until it sees the file
+  const smart = smartProfiles.find((p) => p.id === profileId);
   const previewPath = items.length === 1 ? items[0].source.localPath : undefined;
   const doPreview = async () => {
     setPreviewBusy(true);
@@ -122,8 +124,20 @@ export function TranscodeModal({ items, mediaType, onClose, onQueued, defaultAud
       {nonRemux > 0 && <div className="warn">{nonRemux} selected file(s) are not Blu-ray remuxes. Re-encoding an already lossy file loses more quality.</div>}
       <div className="field stack">
         <label>Encoding profile</label>
-        <ProfileSelect profiles={profiles} value={profileId} onChange={setProfileId} mediaType={mediaType} suffix={suffix} />
-        {profile && <div className="help">{profile.description}</div>}
+        <ProfileSelect profiles={profiles} smart={smartProfiles} value={profileId} onChange={setProfileId} mediaType={mediaType} suffix={suffix} />
+        {smart ? (
+          <div className="help">
+            {smart.description}
+            {est?.resolved ? (
+              <>
+                {smart.description ? ' ' : ''}
+                For {items.length === 1 ? 'this file' : 'these files'} it settles on <strong>{est.resolved}</strong>.
+              </>
+            ) : null}
+          </div>
+        ) : profile ? (
+          <div className="help">{profile.description}</div>
+        ) : null}
       </div>
       {mediaType !== 'music' && (
         <label className="check mb">

@@ -4,8 +4,11 @@
     {
       "name": "rexarr",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["start"],
-      "port": 3939
+      "runtimeArgs": [
+        "start"
+      ],
+      "port": 3939,
+      "autoPort": false
     }
   ]
 }

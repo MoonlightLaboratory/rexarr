@@ -16,6 +16,7 @@ export function ProfileSelect({ profiles, smart = [], value, onChange, mediaType
           {usableSmart.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
+              {suffix?.[p.id] ? `  —  ${suffix[p.id]}` : ''}
             </option>
           ))}
         </optgroup>

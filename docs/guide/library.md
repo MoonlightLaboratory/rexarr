@@ -21,6 +21,12 @@ video and audio codecs, and how many episodes of a season are present.
   the audio as well is pointed out, since that would leave the file unchanged. The size estimate is of the job
   that will actually run — the video part is the real size of the stream being carried over, so the number is
   exact rather than a guess at an encode.
+- **Smart profiles** are offered in the transcode dialog alongside the ordinary ones, with an estimated size like
+  everything else. Because a smart profile has no settings until it has seen a file, the estimate is of what it
+  actually settles on for the files selected — the dialog says which that is (*"For this file it settles on
+  libx265 CRF 18 tune animation + copy"*), and **Preview command** shows the real command with the branches that
+  fired. Where a branch asks what the title is — its kind, genre or year — that is only looked up when the
+  encode runs, so the estimate says the real decision may differ.
 - Titles that are missing, or already queued, are marked (*Missing*, *In queue*).
 
 ## Activity

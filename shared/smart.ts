@@ -468,9 +468,12 @@ export function explainDecision(smart: SmartProfile, facts: SourceFacts, decisio
   const where = decision.applied.length
     ? decision.applied.map((a) => `#${a.index + 1} ${a.rule.label || a.rule.when.map(describeCondition).join(a.rule.match === 'any' ? ' or ' : ' and ')}`).join('; ')
     : 'no branch matched';
-  const p = decision.profile;
+  return `${smart.name}: ${audio}, ${facts.video.height || '?'}p${facts.video.hdr ? ' HDR' : ''} – ${where} → ${describeResolved(decision.profile)}`;
+}
+
+/** What a smart profile settled on, in a few words: "libx265 CRF 20 tune animation + flac". */
+export function describeResolved(p: Profile): string {
   // a bitrate means nothing for a lossless encoder, so it is not quoted back as if it did
   const lossy = p.audio.encoder !== 'copy' && !AUDIO_ENCODER_INFO[p.audio.encoder]?.lossless;
-  const result = `${p.video.encoder}${p.video.encoder !== 'copy' ? ` CRF ${p.video.quality}${p.video.tune !== 'none' ? ` tune ${p.video.tune}` : ''}` : ''} + ${p.audio.encoder}${lossy && p.audio.bitrate ? ` ${p.audio.bitrate}k` : ''}`;
-  return `${smart.name}: ${audio}, ${facts.video.height || '?'}p${facts.video.hdr ? ' HDR' : ''} – ${where} → ${result}`;
+  return `${p.video.encoder}${p.video.encoder !== 'copy' ? ` CRF ${p.video.quality}${p.video.tune !== 'none' ? ` tune ${p.video.tune}` : ''}` : ''} + ${p.audio.encoder}${lossy && p.audio.bitrate ? ` ${p.audio.bitrate}k` : ''}`;
 }

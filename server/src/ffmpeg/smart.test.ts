@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SmartProfile, SmartRule } from '../../../shared/types.js';
-import { BUILTIN_SMART_PROFILES } from '../../../shared/presets.js';
-import { conditionHolds, decide, describeAssignment, describeCondition, explainDecision, isPassThrough, ruleMatches } from '../../../shared/smart.js';
+import { BUILTIN_PROFILES, BUILTIN_SMART_PROFILES } from '../../../shared/presets.js';
+import { conditionHolds, decide, describeAssignment, describeCondition, describeResolved, explainDecision, isPassThrough, ruleMatches } from '../../../shared/smart.js';
 import { audioCodecName, isObjectAudio, sourceFacts } from './facts.js';
 import type { SourceFacts } from '../../../shared/types.js';
 
@@ -319,4 +319,14 @@ test('a condition with no cable to a branch decides nothing', () => {
   const idle = decide({ ...smart, rules: [{ ...smart.rules[0], when: [] }] }, facts);
   assert.deepEqual(idle.applied, []);
   assert.equal(idle.profile.audio.encoder, 'copy');
+});
+
+test('what a smart profile settled on, in a few words', () => {
+  const base = BUILTIN_PROFILES.find((p) => p.id === 'builtin-movie-1080p')!;
+  assert.equal(describeResolved({ ...base, video: { ...base.video, encoder: 'libx265', quality: 20, tune: 'none' }, audio: { ...base.audio, encoder: 'copy' } }), 'libx265 CRF 20 + copy');
+  // the tune is part of the answer when there is one, since it is usually why a branch fired
+  assert.equal(describeResolved({ ...base, video: { ...base.video, encoder: 'libx265', quality: 18, tune: 'animation' }, audio: { ...base.audio, encoder: 'copy' } }), 'libx265 CRF 18 tune animation + copy');
+  // a bitrate means nothing for a lossless encoder, so it is not quoted back as if it did
+  assert.equal(describeResolved({ ...base, video: { ...base.video, encoder: 'copy' }, audio: { ...base.audio, encoder: 'flac', bitrate: 640 } }), 'copy + flac');
+  assert.equal(describeResolved({ ...base, video: { ...base.video, encoder: 'copy' }, audio: { ...base.audio, encoder: 'eac3', bitrate: 640 } }), 'copy + eac3 640k');
 });

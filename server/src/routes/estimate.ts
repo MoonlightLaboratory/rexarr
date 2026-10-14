@@ -4,10 +4,12 @@
 import type { FastifyInstance } from 'fastify';
 import fs from 'node:fs';
 import { z } from 'zod';
-import type { SizeEstimate, SizeEstimateResult } from '../../../shared/types.js';
+import type { Profile, SizeEstimate, SizeEstimateResult, SmartProfile } from '../../../shared/types.js';
 import { store } from '../store.js';
 import { probe, type ProbeResult } from '../ffmpeg/probe.js';
 import { estimateSize } from '../ffmpeg/estimate.js';
+import { decide, describeResolved } from '../../../shared/smart.js';
+import { sourceFacts } from '../ffmpeg/facts.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 import { toLocalPath } from '../paths.js';
 
@@ -38,11 +40,17 @@ export default async function estimateRoutes(app: FastifyInstance) {
       .safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: 'items required' });
     const settings = store.settings;
-    const chosen = body.data.profileIds ? store.profiles.filter((p) => body.data.profileIds!.includes(p.id)) : store.profiles;
+    const ids = body.data.profileIds;
+    const chosen = ids ? store.profiles.filter((p) => ids.includes(p.id)) : store.profiles;
     // an audio-only job copies the video, and the estimate has to be of the job that will actually run
-    const profiles = body.data.audioOnly ? chosen.map((p) => ({ ...p, video: { ...p.video, encoder: 'copy' as const, maxHeight: 0 } })) : chosen;
+    const audioOnly = (p: Profile): Profile => ({ ...p, video: { ...p.video, encoder: 'copy' as const, maxHeight: 0 } });
+    const profiles = body.data.audioOnly ? chosen.map(audioOnly) : chosen;
+    const smartProfiles = (ids ? store.smartProfiles.filter((p) => ids.includes(p.id)) : store.smartProfiles);
     const caps = await ffmpegCapabilities(settings.ffmpegPath).catch(() => undefined);
     const errors: string[] = [];
+
+    // genre, kind and year are looked up only when a job runs, so a branch asking about them is flagged instead
+    const asksAboutTitle = new Set(smartProfiles.filter((sp) => sp.rules.some((r) => r.when.some((c) => c.field.startsWith('media.')))).map((sp) => sp.id));
 
     const files = body.data.items.map((i) => ({ ...i, path: i.localPath || (i.arrPath ? toLocalPath(i.arrPath, i.arr) : '') }));
     // probe a sample (largest first differ most); the rest are scaled from the sample by file size
@@ -62,10 +70,30 @@ export default async function estimateRoutes(app: FastifyInstance) {
     );
     if (!probed.size) return reply.code(502).send({ error: errors[0] ?? 'No file could be probed', errors });
 
-    const estimates: SizeEstimate[] = profiles.map((profile) => {
+    /**
+     * A smart profile has no settings of its own until there is a file in front of it, so it is resolved per
+     * probed file and the estimate is of what it actually settled on. Where it settles differently on different
+     * files - which is the whole point of one - the total is still right, because each file is estimated with
+     * its own answer and the dialog says what the answers were.
+     */
+    const resolve = (sp: SmartProfile, pr: ProbeResult, anime?: boolean): Profile => {
+      const facts = sourceFacts(pr, { kind: anime ? 'anime' : 'unknown', genres: [], year: 0 });
+      const profile = decide(sp, facts).profile;
+      return body.data.audioOnly ? audioOnly(profile) : profile;
+    };
+    /** Each thing the dialog offers: a plain profile, or a smart one that answers per file. */
+    const entries: { id: string; name: string; smart?: boolean; for: (i: number, pr: ProbeResult) => Profile }[] = [
+      ...profiles.map((p) => ({ id: p.id, name: p.name, for: () => p })),
+      ...smartProfiles.map((sp) => ({ id: sp.id, name: sp.name, smart: true, for: (i: number, pr: ProbeResult) => resolve(sp, pr, files[i].anime) })),
+    ];
+
+    const estimates: SizeEstimate[] = entries.map((entry) => {
       const per = new Map<number, Omit<SizeEstimate, 'profileId' | 'profileName'>>();
+      const settled = new Set<string>();
       for (const [i, pr] of probed) {
         try {
+          const profile = entry.for(i, pr);
+          if (entry.smart) settled.add(describeResolved(profile));
           per.set(i, estimateSize(profile, pr, { anime: files[i].anime, hardware: settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined }));
         } catch {
           /* e.g. a video profile on a music file */
@@ -99,7 +127,21 @@ export default async function estimateRoutes(app: FastifyInstance) {
       });
       if (!sample.length) notes.add('Not estimated for these files');
       if (files.length > probed.size) notes.add(`${probed.size} of ${files.length} files probed; the others are scaled by size`);
-      return { profileId: profile.id, profileName: profile.name, ...sum, bytes: Math.round(sum.bytes), low: Math.round(sum.low), high: Math.round(sum.high), videoKbps: videoKbps || undefined, notes: [...notes], exact };
+      // a branch that asks what the title is cannot be answered from the file, so say so rather than be wrong
+      if (entry.smart && asksAboutTitle.has(entry.id)) notes.add('A branch asks what the title is (kind, genre, year), which is only looked up when the encode runs – the real decision may differ');
+      return {
+        profileId: entry.id,
+        profileName: entry.name,
+        ...sum,
+        bytes: Math.round(sum.bytes),
+        low: Math.round(sum.low),
+        high: Math.round(sum.high),
+        videoKbps: videoKbps || undefined,
+        notes: [...notes],
+        exact,
+        smart: entry.smart,
+        resolved: settled.size ? [...settled].join(', ') : undefined,
+      };
     });
     const result: SizeEstimateResult = { estimates, probed: probed.size, files: files.length, errors };
     return result;
