@@ -195,6 +195,30 @@ export class DiscManager {
     bus.publish({ type: 'drives', drives: this.drives });
     return this.drives;
   }
+  /**
+   * Where disc N of a set probably starts.
+   *
+   * Nothing on the disc says it, and Sonarr cannot help once a season is complete — every episode has a file
+   * either way. What Rexarr does know is the discs of the same set it has ripped before, so the episode after
+   * the highest one of those is the best answer available. Failing that, it assumes every disc held as many as
+   * this one, which is right for a set of equal discs and wrong for the common case where the first two hold
+   * more. Either way the caller marks it as a guess, because it is one.
+   */
+  private guessEpisodeStart(rip: DiscRip, episodeCount: number): number {
+    const sameSet = this.list().filter(
+      (r) =>
+        r.id !== rip.id &&
+        r.media.kind === 'series' &&
+        r.media.arrId !== undefined &&
+        r.media.arrId === rip.media.arrId &&
+        (r.media.seasonNumber ?? 1) === (rip.media.seasonNumber ?? 1) &&
+        (r.media.discNumber ?? 1) < (rip.media.discNumber ?? 1),
+    );
+    const highest = Math.max(0, ...sameSet.flatMap((r) => Object.values(r.episodeMap ?? {})));
+    if (highest > 0) return highest + 1;
+    return ((rip.media.discNumber ?? 1) - 1) * episodeCount + 1;
+  }
+
   /** The agent whose drive this rip is in, when it is not one of ours. */
   private agentFor(rip: DiscRip): { id: string; name: string } | undefined {
     const d = this.drives.find((x) => x.index === rip.driveIndex);
@@ -795,8 +819,11 @@ export class DiscManager {
     if (rip.media.kind === 'series') {
       // Episodes: every full-length title except play-all compilations, in disc order.
       const episodes = rip.titles.filter((t) => !t.short && !rip.playAllTitleIds!.includes(t.id)).map((t) => t.id);
-      // Multi-disc sets: disc N most likely starts after (N-1) × episodes-per-disc.
-      if (rip.media.discNumber && rip.media.discNumber > 1 && (rip.media.episodeStart ?? 1) === 1) rip.media.episodeStart = (rip.media.discNumber - 1) * episodes.length + 1;
+      // Multi-disc sets: where this disc starts cannot be read off it, so it is worked out and flagged as a guess.
+      if (rip.media.discNumber && rip.media.discNumber > 1 && (rip.media.episodeStart ?? 1) === 1) {
+        rip.media.episodeStart = this.guessEpisodeStart(rip, episodes.length);
+        rip.media.episodeStartGuessed = true;
+      }
       rip.episodeMap = {};
       episodes.forEach((id, i) => (rip.episodeMap![id] = (rip.media.episodeStart ?? 1) + i));
       rip.selectedTitleIds = [...episodes, ...extraIds];

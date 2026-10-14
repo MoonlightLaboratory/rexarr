@@ -269,7 +269,8 @@ function IdentifyBox({ media, discType, onChange }: { media: RipMedia; discType:
             <label className="small dim">Season</label>
             <input type="number" min={0} style={{ width: 70 }} value={media.seasonNumber ?? 1} onChange={(e) => onChange({ seasonNumber: Number(e.target.value) })} />
             <label className="small dim">First ep.</label>
-            <input type="number" min={0} style={{ width: 70 }} value={media.episodeStart ?? 1} onChange={(e) => onChange({ episodeStart: Number(e.target.value) })} />
+            {/* typing a number is an answer, so the guess warning goes away with it */}
+            <input type="number" min={0} style={{ width: 70 }} value={media.episodeStart ?? 1} onChange={(e) => onChange({ episodeStart: Number(e.target.value), episodeStartGuessed: false })} />
             <label className="check small" title="Anime: name files 'Show - 005' instead of 'Show - S01E05'">
               <input type="checkbox" checked={Boolean(media.absoluteNumbering)} onChange={(e) => onChange({ absoluteNumbering: e.target.checked })} /> Absolute numbering
             </label>
@@ -787,11 +788,12 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
           {isSeries && (
             <div className="small dim mt">
               Titles are numbered in disc order from “First ep.”{media.discNumber ? ` (disc ${media.discNumber} of the set)` : ''}; adjust any episode above if the disc order differs.
-              {(media.discNumber ?? 1) > 1 && (media.episodeStart ?? 1) === 1 && (
+              {(media.discNumber ?? 1) > 1 && (media.episodeStartGuessed || (media.episodeStart ?? 1) === 1) && (
                 <strong>
                   {' '}
-                  This is disc {media.discNumber} of the set, so it almost certainly does not start at episode 1 — set
-                  “First ep.” to the first episode on this disc. Rexarr cannot tell how many were on the earlier ones.
+                  This is disc {media.discNumber} of the set and nothing on it says where it starts, so{' '}
+                  {media.episodeStartGuessed ? `episode ${media.episodeStart} is a guess` : 'episode 1 is only the default'} —
+                  check “First ep.” against the disc. Earlier discs of a set often hold more episodes than the later ones.
                 </strong>
               )}
               {sonarrEpisodes === null && media.arrId === undefined && ' Identify the series to pick episodes by name.'}

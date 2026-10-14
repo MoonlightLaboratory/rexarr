@@ -141,6 +141,12 @@ and the match says what it ignored; dropping words always loses to a match on th
 words have to survive, so *Anime Limited* on its own matches nothing. Rexarr cannot tell how many episodes were on the earlier discs of a set, so the page says so and asks you
 to set **First ep.** rather than quietly numbering from 1.
 
+Where disc 2 and later **start** cannot be read off the disc, and Sonarr cannot help once a season is complete —
+every episode has a file either way. Rexarr carries on from the earlier discs of the same set when it has ripped
+them; otherwise it assumes each disc held as many episodes as this one. Both are guesses and the page says so,
+with the number it guessed, until you set **First ep.** yourself. It matters: a set is often 7 + 7 + 5 + 5 rather
+than four equal discs.
+
 Whether episodes are numbered **S01E01** or absolutely (*Show - 033*) follows **Sonarr's own series type**, not
 whether AniDB knows the show: a series Sonarr files as *standard* is named `S02E08` even when it is anime, because
 that is what its library and its importer expect.

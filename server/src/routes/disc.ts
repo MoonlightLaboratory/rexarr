@@ -23,6 +23,7 @@ const mediaSchema = z.object({
   seriesType: z.enum(['standard', 'anime', 'daily']).optional(),
   seasonNumber: z.number().int().min(0).optional(),
   episodeStart: z.number().int().min(0).optional(),
+  episodeStartGuessed: z.boolean().optional(),
   absoluteNumbering: z.boolean().optional(),
   discNumber: z.number().int().min(0).optional(),
 });

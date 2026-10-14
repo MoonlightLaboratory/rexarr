@@ -1609,6 +1609,11 @@ export interface RipMedia {
   seasonNumber?: number;
   /** Episode number assigned to the first ripped title. */
   episodeStart?: number;
+  /**
+   * The first episode was worked out from the disc number, not read off the disc. Nothing on a disc says how
+   * many episodes were on the ones before it, so this is a starting point to check, not an answer.
+   */
+  episodeStartGuessed?: boolean;
   /** Anime: name files with absolute episode numbers (Show - 005) instead of S01E05. */
   absoluteNumbering?: boolean;
   /** Disc number parsed from the label (multi-disc sets). */
