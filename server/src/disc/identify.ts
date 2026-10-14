@@ -82,8 +82,35 @@ export interface LibraryMatch {
   via: string;
 }
 
+/**
+ * A disc label often opens with something that is not the title: the distributor pressed it ("Anime Limited
+ * Sword Art Online 2"), the studio, the shop. Every word of the label is expected to appear in the name, so one
+ * stray word at the front is enough to lose the match entirely.
+ *
+ * Rather than keep a list of distributors, the label is tried again with its leading words dropped, one at a
+ * time. Each drop costs a little, so a match on the whole label always beats a match on part of it, and at least
+ * two words have to survive - "Anime Limited X" must not match everything by way of "X".
+ */
+function leadingTrims(term: string): { term: string; penalty: number }[] {
+  const words = term.trim().split(/\s+/);
+  const out = [{ term, penalty: 0 }];
+  for (let drop = 1; drop <= 2 && words.length - drop >= 2; drop++) out.push({ term: words.slice(drop).join(' '), penalty: 0.06 * drop });
+  return out;
+}
+
 /** Best library entry for a disc title, or null when nothing matches well enough. */
 export function matchLibrary(term: string, items: LibraryCandidate[], opts: { preferSeries?: boolean } = {}): LibraryMatch | null {
+  let best: LibraryMatch | null = null;
+  for (const { term: t, penalty } of leadingTrims(term)) {
+    const hit = matchExact(t, items, opts);
+    if (!hit) continue;
+    const scored = { ...hit, score: hit.score - penalty, via: penalty ? `${hit.via} (ignoring "${term.slice(0, term.length - t.length).trim()}")` : hit.via };
+    if (!best || scored.score > best.score + 1e-9) best = scored;
+  }
+  return best && best.score >= 0.7 ? best : null;
+}
+
+function matchExact(term: string, items: LibraryCandidate[], opts: { preferSeries?: boolean } = {}): LibraryMatch | null {
   let best: LibraryMatch | null = null;
   const consider = (m: LibraryMatch) => {
     // ties go to the preferred kind, then to the shorter (closer) title
@@ -110,6 +137,5 @@ export function matchLibrary(term: string, items: LibraryCandidate[], opts: { pr
       }
     }
   }
-  const found = best as LibraryMatch | null;
-  return found && found.score >= 0.7 ? found : null;
+  return best as LibraryMatch | null;
 }

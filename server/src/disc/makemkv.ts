@@ -444,10 +444,10 @@ export function labelToTitle(label: string): { title: string; year?: number; sea
   let disc: number | undefined;
   const sm = s.match(/\b(?:S|SEASON|SERIES)\s?(\d{1,2})\b/i);
   if (sm) season = Number(sm[1]);
-  // an anime box set says "Part 2" where a film set says "Disc 2", and it means the same thing
-  const dm = s.match(/\b(?:D|DISC|DISK|PART|PT)\s?(\d{1,2})\b/i);
+  // an anime box set says "Part 2" where a film set says "Disc 2", and "P2" where it is short of room
+  const dm = s.match(/\b(?:D|P|PT|DISC|DISK|PART)\s?(\d{1,2})\b/i);
   if (dm) disc = Number(dm[1]);
-  s = s.replace(/\b(?:S|SEASON|SERIES)\s?\d{1,2}\b/gi, '').replace(/\b(?:D|DISC|DISK|PART|PT)\s?\d{1,2}\b/gi, '');
+  s = s.replace(/\b(?:S|SEASON|SERIES)\s?\d{1,2}\b/gi, '').replace(/\b(?:D|P|PT|DISC|DISK|PART)\s?\d{1,2}\b/gi, '');
   s = s.replace(/\b(BLU-?RAY|BD|UHD|4K|DVD|WS|FS|NTSC|PAL|REGION\s?\w|SPECIAL EDITION|EXTENDED|DIRECTORS? CUT|VOL(UME)?\s?\d+)\b/gi, '');
   let year: number | undefined;
   const ym = s.match(/\b(19|20)\d{2}\b/);

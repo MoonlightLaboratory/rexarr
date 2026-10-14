@@ -461,3 +461,25 @@ test('"Part 2" on a label is the disc number, like "Disc 2"', () => {
   assert.equal(labelToTitle('The Last Part').disc, undefined);
   assert.equal(labelToTitle('The Last Part').title, 'The Last Part');
 });
+
+test('a distributor on the front of the label does not lose the match', () => {
+  const library: LibraryCandidate[] = [
+    { kind: 'series', id: 185, title: 'Sword Art Online', year: 2012, seasons: [0, 1, 2, 3] },
+    { kind: 'series', id: 234, title: 'Naruto', seasons: [1, 2, 3] },
+    { kind: 'movie', id: 13, title: 'Limited' },
+  ];
+  // the disc: "Anime Limited Sword Art Online 2 P1" - the label pressed it, and every word has to be accounted for
+  const label = labelToTitle('Anime Limited Sword Art Online 2 P1');
+  assert.equal(label.disc, 1, 'P1 is the first disc of the set');
+  assert.equal(label.title, 'Anime Limited Sword Art Online 2');
+  const hit = matchLibrary(label.title, library, { preferSeries: true });
+  assert.equal(hit?.item.id, 185);
+  assert.equal(hit?.season, 2);
+  assert.match(hit?.via ?? '', /ignoring "Anime Limited"/, 'it says what it ignored, so a wrong trim is visible');
+
+  // a match on the whole label still wins over one that had to drop words
+  assert.equal(matchLibrary('Naruto', library, { preferSeries: true })?.item.id, 234);
+  // and dropping words cannot reduce a label to something that matches everything
+  assert.equal(matchLibrary('Anime Limited', library, { preferSeries: true }), null);
+  assert.equal(matchLibrary('Some Other Thing Entirely', library, { preferSeries: true }), null);
+});
