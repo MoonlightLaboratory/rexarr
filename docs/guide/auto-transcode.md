@@ -4,6 +4,13 @@ Enable **Settings → Automation → Auto transcode new remuxes** and every Blu-
 Sonarr is queued automatically, with the profile for its type (movie, TV, or anime via Sonarr's series type or
 [AniDB](anidb.md)). Per-type profiles can be overridden there; otherwise the default profiles are used.
 
+!!! tip "A smart profile is worth using here"
+    Auto transcode runs unattended on whatever turns up, and one fixed profile has to be right for all of it. A
+    [smart profile](profiles.md#smart-profiles) decides per file instead — keep the TrueHD when it is 7.1 and make
+    it FLAC when it is stereo, give animation the animation tune, leave 10-bit HDR alone. And when it decides
+    nothing needs changing, no job is queued at all, which is what you want from something running on its own.
+    They can be chosen for any of the three types, or set as the default profile for them.
+
 - **Existing library**: by default the first scan only records the remuxes already present (a baseline) and
   transcodes new ones from then on. Tick *Also transcode remuxes already in the library* to work through the
   backlog, at most *Max new jobs per scan* at a time. **Preview** lists exactly what would be queued.

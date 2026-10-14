@@ -1,6 +1,6 @@
 import { URL_BASE, withBase } from '../base';
 import { useEffect, useState } from 'react';
-import type { AgentSettings, ArrConnection, LocalMediaSettings, OmdbSettings, LocalScanStatus, NotificationEvent, NotificationKind, NotificationSettings, NotificationTarget, Settings, SlskdConnection, SystemInfo } from '@shared/types';
+import type { AgentSettings, ArrConnection, LocalMediaSettings, OmdbSettings, SmartProfile, LocalScanStatus, NotificationEvent, NotificationKind, NotificationSettings, NotificationTarget, Settings, SlskdConnection, SystemInfo } from '@shared/types';
 import { Modal } from '../components/Modal';
 import { api, fmtAge, type AgentRow } from '../api';
 import { useApp } from '../App';
@@ -160,25 +160,37 @@ function TranscodingCard({ t, onChange }: { t: TranscodingSettings; onChange: (t
   );
 }
 
-function AutoProfileSelect({ label, value, fallback, profiles, onChange }: { label: string; value: string; fallback: string; profiles: Profile[]; onChange: (v: string) => void }) {
-  const def = profiles.find((p) => p.id === fallback);
+function AutoProfileSelect({ label, value, fallback, profiles, smart, onChange }: { label: string; value: string; fallback: string; profiles: Profile[]; smart: SmartProfile[]; onChange: (v: string) => void }) {
+  // the default can itself be a smart profile, so the name beside it has to be looked for in both lists
+  const def = [...smart, ...profiles].find((p) => p.id === fallback);
   return (
     <div className="field stack">
       <label>{label}</label>
       <select value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">Default profile{def ? ` (${def.name})` : ''}</option>
-        {profiles.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
+        {smart.length > 0 && (
+          <optgroup label="Smart profiles (decided per file)">
+            {smart.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        <optgroup label="Profiles">
+          {profiles.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </optgroup>
       </select>
     </div>
   );
 }
 
 function AutoCard({ auto, savedEnabled, defaults, profiles, dirty, onChange }: { auto: AutoTranscodeSettings; savedEnabled: boolean; defaults: { movie: string; tv: string; anime: string }; profiles: Profile[]; dirty: boolean; onChange: (a: AutoTranscodeSettings) => void }) {
-  const { toast } = useApp();
+  const { smartProfiles, toast } = useApp();
   const [status, setStatus] = useState<AutoStatus | null>(null);
   const [preview, setPreview] = useState<AutoScanResult | null>(null);
   const [busy, setBusy] = useState<'' | 'preview' | 'scan' | 'reset'>('');
@@ -258,9 +270,16 @@ function AutoCard({ auto, savedEnabled, defaults, profiles, dirty, onChange }: {
           </div>
         </div>
         <div className="grid-3">
-          <AutoProfileSelect label="Profile · Movies" value={auto.profiles.movie} fallback={defaults.movie} profiles={profiles} onChange={(v) => set({ profiles: { ...auto.profiles, movie: v } })} />
-          <AutoProfileSelect label="Profile · TV" value={auto.profiles.tv} fallback={defaults.tv} profiles={profiles} onChange={(v) => set({ profiles: { ...auto.profiles, tv: v } })} />
-          <AutoProfileSelect label="Profile · Anime" value={auto.profiles.anime} fallback={defaults.anime} profiles={profiles} onChange={(v) => set({ profiles: { ...auto.profiles, anime: v } })} />
+          <AutoProfileSelect label="Profile · Movies" value={auto.profiles.movie} fallback={defaults.movie} profiles={profiles} smart={smartProfiles} onChange={(v) => set({ profiles: { ...auto.profiles, movie: v } })} />
+          <AutoProfileSelect label="Profile · TV" value={auto.profiles.tv} fallback={defaults.tv} profiles={profiles} smart={smartProfiles} onChange={(v) => set({ profiles: { ...auto.profiles, tv: v } })} />
+          <AutoProfileSelect label="Profile · Anime" value={auto.profiles.anime} fallback={defaults.anime} profiles={profiles} smart={smartProfiles} onChange={(v) => set({ profiles: { ...auto.profiles, anime: v } })} />
+        </div>
+        <div className="help" style={{ marginTop: -4, marginBottom: 14 }}>
+          <strong>A smart profile is worth using here.</strong> Auto transcode runs unattended on whatever turns up, and
+          one fixed profile has to be right for all of it. A <a href={withBase('/profiles')}>smart profile</a> decides per
+          file instead — keep the TrueHD when it is 7.1 and make it FLAC when it is stereo, give animation the animation
+          tune, leave a disc alone when nothing would be re-encoded. When it decides nothing needs changing, no job is
+          queued at all.
         </div>
         <div className="field stack">
           <label>Instant trigger (optional)</label>
