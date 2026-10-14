@@ -627,8 +627,12 @@ export class DiscManager {
           } else if (mp.tvdbId && sonarr.configured) {
             const r = (await sonarr.lookup(`tvdb:${mp.tvdbId}`))[0];
             if (r) {
-              rip.media = { ...rip.media, kind: 'series', title: r.title, year: r.year, externalId: r.externalId, arrId: r.arrId, poster: r.poster, seriesType: 'anime', seasonNumber: rip.media.seasonNumber ?? mp.defaultSeason ?? 1, episodeStart: rip.media.episodeStart ?? 1, absoluteNumbering: true };
-              this.log(rip, `Identified via AniDB (${hit.entry.main}, aid ${mp.aid}) as anime series: ${r.title} (${r.year})${mp.episodeOffset ? `, TVDB episode offset ${mp.episodeOffset}` : ''}`);
+              // AniDB knowing it as anime does not mean Sonarr files it that way: a series Sonarr calls
+              // "standard" is named S01E01 there, and naming the rip "Show - 033" would not match the library
+              // or import. Sonarr's own series type is what decides it.
+              const absolute = r.seriesType === 'anime';
+              rip.media = { ...rip.media, kind: 'series', title: r.title, year: r.year, externalId: r.externalId, arrId: r.arrId, poster: r.poster, seriesType: (r.seriesType as RipMedia['seriesType']) ?? 'anime', seasonNumber: rip.media.seasonNumber ?? mp.defaultSeason ?? 1, episodeStart: rip.media.episodeStart ?? 1, absoluteNumbering: absolute };
+              this.log(rip, `Identified via AniDB (${hit.entry.main}, aid ${mp.aid}) as anime series: ${r.title} (${r.year})${mp.episodeOffset ? `, TVDB episode offset ${mp.episodeOffset}` : ''} – Sonarr files it as ${r.seriesType ?? 'standard'}, so ${absolute ? 'absolute' : 'season'} numbering`);
               return;
             }
           }

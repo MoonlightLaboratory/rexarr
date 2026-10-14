@@ -21,6 +21,7 @@ interface SEpisode {
   seriesId: number;
   seasonNumber: number;
   episodeNumber: number;
+  absoluteEpisodeNumber?: number;
   title: string;
   airDate?: string;
   hasFile: boolean;
@@ -263,6 +264,7 @@ export class Sonarr {
         id: e.id,
         seasonNumber: e.seasonNumber,
         episodeNumber: e.episodeNumber,
+        absoluteEpisodeNumber: e.absoluteEpisodeNumber,
         title: e.title,
         airDate: e.airDate,
         hasFile: e.hasFile,

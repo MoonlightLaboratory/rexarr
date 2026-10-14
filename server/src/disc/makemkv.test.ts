@@ -449,3 +449,15 @@ test('a rip folder that can be made is made, and one that cannot is explained', 
   fs.writeFileSync(path.join(base, 'file'), '');
   assert.throws(() => ensureRipFolder(path.join(base, 'file', 'Album')), /Cannot create the rip folder/);
 });
+
+test('"Part 2" on a label is the disc number, like "Disc 2"', () => {
+  // anime box sets say Part where a film set says Disc, and it is the same thing: which one of the set this is
+  assert.equal(labelToTitle('Sword Art Online 2 Part 2').disc, 2);
+  assert.equal(labelToTitle('SWORD_ART_ONLINE_2_PART_2').disc, 2);
+  assert.equal(labelToTitle('Show Part 1').disc, 1);
+  // and it comes off the title, the way Disc does
+  assert.equal(labelToTitle('Peach Girl Part 3').title, 'Peach Girl');
+  // "Part" as a word in a title is not a disc number
+  assert.equal(labelToTitle('The Last Part').disc, undefined);
+  assert.equal(labelToTitle('The Last Part').title, 'The Last Part');
+});

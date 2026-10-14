@@ -1122,6 +1122,8 @@ export interface Episode {
   id: number;
   seasonNumber: number;
   episodeNumber: number;
+  /** Sonarr's absolute number, for a series it files that way. */
+  absoluteEpisodeNumber?: number;
   title: string;
   airDate?: string;
   hasFile: boolean;

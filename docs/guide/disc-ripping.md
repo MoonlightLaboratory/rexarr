@@ -134,6 +134,14 @@ Disc labels are terse (`SNAFU_2_DISC_1`, `NARUTO_S1_D2`, `MOVIE_DISC`). Rexarr:
    match is exact rather than another guess. Its answer is scored like any other, and if neither \*arr app knows
    the title, OMDb's own name and year still go on the rip — better than *could not identify*.
 
+A label saying **Part 2** is read as disc 2, the way *Disc 2* is — anime box sets use one word and film sets the
+other. Rexarr cannot tell how many episodes were on the earlier discs of a set, so the page says so and asks you
+to set **First ep.** rather than quietly numbering from 1.
+
+Whether episodes are numbered **S01E01** or absolutely (*Show - 033*) follows **Sonarr's own series type**, not
+whether AniDB knows the show: a series Sonarr files as *standard* is named `S02E08` even when it is anime, because
+that is what its library and its importer expect.
+
 **Match again** re-runs identification on a disc that was matched wrongly, and you can always pick the title
 yourself. For a series, set the **season** and the **first episode number**; absolute numbering is used for anime
 when AniDB says so.

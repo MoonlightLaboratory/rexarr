@@ -745,6 +745,7 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
                           specials={specials}
                           seasonNumber={media.seasonNumber ?? 1}
                           prefix={media.absoluteNumbering ? 'Ep.' : `S${String(media.seasonNumber ?? 1).padStart(2, '0')}E`}
+                          absolute={Boolean(media.absoluteNumbering)}
                           duplicate={(titleRoles[String(t.id)]?.kind ?? 'episode') === 'episode' && usedTwice(episodeMap[t.id])}
                           onEpisode={(n) => setEpisodeMap((m) => ({ ...m, [t.id]: n }))}
                           onRole={(r) => setRole(t.id, r)}
@@ -786,6 +787,13 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
           {isSeries && (
             <div className="small dim mt">
               Titles are numbered in disc order from “First ep.”{media.discNumber ? ` (disc ${media.discNumber} of the set)` : ''}; adjust any episode above if the disc order differs.
+              {(media.discNumber ?? 1) > 1 && (media.episodeStart ?? 1) === 1 && (
+                <strong>
+                  {' '}
+                  This is disc {media.discNumber} of the set, so it almost certainly does not start at episode 1 — set
+                  “First ep.” to the first episode on this disc. Rexarr cannot tell how many were on the earlier ones.
+                </strong>
+              )}
               {sonarrEpisodes === null && media.arrId === undefined && ' Identify the series to pick episodes by name.'}
               {media.seriesType === 'anime' && !media.absoluteNumbering && ' This is an anime series in Sonarr – turn on absolute numbering if it uses absolute episode numbers.'}
             </div>
@@ -871,6 +879,7 @@ function TitleRoleCell({
   specials,
   seasonNumber,
   prefix,
+  absolute,
   duplicate,
   onEpisode,
   onRole,
@@ -883,6 +892,8 @@ function TitleRoleCell({
   specials: Episode[];
   seasonNumber: number;
   prefix: string;
+  /** The series is filed by absolute number, so that is what the episode map holds. */
+  absolute: boolean;
   duplicate: boolean;
   onEpisode: (n: number) => void;
   onRole: (r: TitleRole) => void;
@@ -905,8 +916,10 @@ function TitleRoleCell({
             <optgroup label={`Season ${seasonNumber}`}>
               <option value="ep:">—</option>
               {episodes.map((e) => (
-                <option key={e.id} value={`ep:${e.episodeNumber}`}>
+                // the map holds absolute numbers for a series filed that way, which is what names and imports it
+                <option key={e.id} value={`ep:${(absolute && e.absoluteEpisodeNumber) || e.episodeNumber}`}>
                   E{String(e.episodeNumber).padStart(2, '0')} · {e.title}
+                  {absolute && e.absoluteEpisodeNumber ? ` (${e.absoluteEpisodeNumber})` : ''}
                   {e.hasFile ? ' ✓' : ''}
                 </option>
               ))}
