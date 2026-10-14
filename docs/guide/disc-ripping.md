@@ -29,7 +29,10 @@ carry MakeMKV.
    the **Discs** page.
 2. **Scan** — the title list is read. Titles shorter than *Minimum title length* are skipped unless
    [extras](#specials-and-extras) are included. Each title shows its length, size, audio tracks and subtitles, the
-   estimated rip size and — when *Transcode* is on — the estimated size after encoding.
+   estimated rip size and — when *Transcode* is on — the estimated size after encoding. A
+   [smart profile](profiles.md#smart-profiles) is sized too: it is decided per title against what MakeMKV found,
+   and the line says what it settled on (*"libx264 CRF 20 tune animation + aac"*), naming both where two titles
+   on the same disc settle differently.
 3. **Identify** — the disc label is matched against your library and, if needed, Radarr / Sonarr / AniDB lookups.
    You can correct the match, set season and first episode number, and choose which titles to rip.
 4. **Rip** — MakeMKV rips each selected title **into Rexarr's local cache**, named so the \*arr apps parse it

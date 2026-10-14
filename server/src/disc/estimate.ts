@@ -3,10 +3,12 @@
  * duration, the raw size and every stream, so the same model the Transcode dialog uses can run before anything
  * has been ripped (no files to probe yet).
  */
-import type { DiscRip, DiscTitle, Profile, SizeEstimate, TranscodingSettings, VideoEncoder } from '../../../shared/types.js';
+import type { DiscRip, DiscTitle, Profile, SizeEstimate, SmartProfile, TranscodingSettings, VideoEncoder } from '../../../shared/types.js';
 import type { ProbeResult, ProbeStream } from '../ffmpeg/probe.js';
 import { estimateSize } from '../ffmpeg/estimate.js';
 import { audioSelectionFor } from './audio.js';
+import { decide, describeResolved } from '../../../shared/smart.js';
+import { sourceFacts } from '../ffmpeg/facts.js';
 
 
 /** MakeMKV's stream description → the codec name ffprobe would report. */
@@ -88,9 +90,16 @@ export interface DiscEstimate {
   durationSeconds: number;
 }
 
+/** A smart profile has no settings until it has seen a title, so each title gets its own answer. */
+function profileForTitle(chosen: Profile | SmartProfile, probe: ProbeResult, media: DiscRip['media']): Profile {
+  if (!('rules' in chosen)) return chosen;
+  const kind = media.seriesType === 'anime' ? 'anime' : media.kind === 'series' ? 'series' : media.kind === 'movie' ? 'movie' : 'unknown';
+  return decide(chosen, sourceFacts(probe, { kind, genres: [], year: media.year ?? 0 })).profile;
+}
+
 export function estimateRip(
   rip: DiscRip,
-  profile: Profile | undefined,
+  profile: Profile | SmartProfile | undefined,
   audioMode: 'best' | 'all' | 'custom',
   opts: { anime?: boolean; hardware?: TranscodingSettings; availableEncoders?: VideoEncoder[] } = {},
 ): DiscEstimate {
@@ -117,8 +126,11 @@ export function estimateRip(
     let videoKbps = 0;
     let exact = true;
     const notes = new Set<string>();
+    const settled = new Set<string>();
     for (const p of probes) {
-      const e = estimateSize(profile, p, opts);
+      const resolved = profileForTitle(profile, p, rip.media);
+      if ('rules' in profile) settled.add(describeResolved(resolved));
+      const e = estimateSize(resolved, p, opts);
       bytes += e.bytes;
       low += e.low;
       high += e.high;
@@ -131,7 +143,23 @@ export function estimateRip(
       parts.other += e.parts.other;
       for (const n of e.notes) notes.add(n);
     }
-    out.transcode = { profileId: profile.id, profileName: profile.name, bytes, low, high, sourceBytes, parts, videoKbps, exact, notes: [...notes] };
+    if ('rules' in profile && profile.rules.some((r) => r.when.some((c) => c.field === 'media.genres'))) {
+      notes.add('A branch asks about genre, which is only looked up when the encode runs – the real decision may differ');
+    }
+    out.transcode = {
+      profileId: profile.id,
+      profileName: profile.name,
+      bytes,
+      low,
+      high,
+      sourceBytes,
+      parts,
+      videoKbps,
+      exact,
+      notes: [...notes],
+      smart: 'rules' in profile || undefined,
+      resolved: settled.size ? [...settled].join(', ') : undefined,
+    };
   }
   return out;
 }

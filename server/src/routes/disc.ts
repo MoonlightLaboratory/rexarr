@@ -159,7 +159,8 @@ export default async function discRoutes(app: FastifyInstance) {
       options: { ...saved.options, ...body.data.options },
       profileId: body.data.profileId ?? saved.profileId,
     };
-    const profile = rip.profileId ? store.getProfile(rip.profileId) : undefined;
+    // a smart profile is as good a choice here as any; it just decides per title rather than up front
+    const profile = rip.profileId ? store.getProfile(rip.profileId) ?? store.getSmartProfile(rip.profileId) : undefined;
     const caps = await ffmpegCapabilities(store.settings.ffmpegPath);
     return estimateRip(rip, profile, rip.audioMode ?? store.settings.disc.audioMode ?? 'best', {
       anime: rip.media.seriesType === 'anime' || rip.media.kind === 'series',

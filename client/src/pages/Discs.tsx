@@ -1081,6 +1081,8 @@ function RipEstimate({ titles, sourceBytes, estimate, transcode }: { titles: num
           <span className="small dim">
             {transcode ? 'after encoding' : 'ripped'}
             {estimate?.transcode?.low ? ` · ${fmtBytes(estimate.transcode.low)} – ${fmtBytes(estimate.transcode.high)}` : ''}
+            {/* a smart profile decides per title, so say what it settled on rather than leaving a bare number */}
+            {estimate?.transcode?.resolved ? ` · ${estimate.transcode.resolved}` : ''}
           </span>
           {transcode && parts && (
             <span className="ripEstimateBar" aria-hidden>
