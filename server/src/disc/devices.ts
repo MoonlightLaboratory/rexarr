@@ -70,6 +70,46 @@ export async function probePhysicalDrive(d: PhysicalDrive, index: number): Promi
   }
 }
 
+/**
+ * Drives the machine has that nothing else has accounted for.
+ *
+ * MakeMKV is the usual source of the drive list, but it does not always see one - a USB drive it calls
+ * "Unsupported", a drive passed into Docker without its /dev/sg node, or simply MakeMKV not being installed yet.
+ * The machine still has the drive, and saying "no optical drive" when there is one in it is the wrong answer, so
+ * the ones Rexarr can see for itself are added to the list, marked as found rather than listed.
+ *
+ * `taken` is the device paths already covered by a MakeMKV drive or one added by hand, which must not appear twice.
+ */
+export function newDrives(candidates: DriveCandidate[], taken: string[]): { candidate: DriveCandidate; device: string }[] {
+  const seen = new Set(taken.map((p) => (p ? canonicalDevice(p) : '')).filter(Boolean));
+  const out: { candidate: DriveCandidate; device: string }[] = [];
+  for (const c of candidates) {
+    // a /dev/sgN node is how MakeMKV reaches a Blu-ray drive, not a drive of its own
+    if (/\/dev\/sg\d+$/.test(c.path)) continue;
+    const device = c.path ? canonicalDevice(c.path) : '';
+    // the same drive under two names (/dev/cdrom and /dev/sr0) is one drive
+    if (device && seen.has(device)) continue;
+    if (device) seen.add(device);
+    out.push({ candidate: c, device });
+  }
+  return out;
+}
+
+export async function autoDetectedDrives(taken: string[], startIndex = 2000): Promise<DiscDrive[]> {
+  const out: DiscDrive[] = [];
+  for (const { candidate: c, device: dev } of newDrives(await listDriveCandidates().catch(() => []), taken)) {
+    const index = startIndex + out.length;
+    if (!dev) {
+      // macOS names the device only once a disc is in, and drutil has already said whether one is
+      out.push({ index, name: c.name, path: '', state: c.state ?? 'unknown', source: '', detected: false, auto: true, available: false });
+      continue;
+    }
+    const probed = await probePhysicalDrive({ id: `auto:${dev}`, path: dev, label: c.name, addedAt: '' }, index);
+    out.push({ ...probed, manualId: undefined, auto: true, name: c.name || probed.name });
+  }
+  return out;
+}
+
 /** Optical devices this machine has, to pick from in the Add drive dialog. */
 export async function listDriveCandidates(): Promise<DriveCandidate[]> {
   const out: DriveCandidate[] = [];
@@ -106,9 +146,16 @@ export async function listDriveCandidates(): Promise<DriveCandidate[]> {
     const status = await run('drutil', ['status'], { timeout: 10_000 }).then((r) => r.stdout).catch(() => '');
     const devices = [...status.matchAll(/Name:\s*(\/dev\/disk\d+)/g)].map((m) => m[1]);
     const drives = list.split('\n').slice(1).map((l) => l.trim()).filter((l) => /^\d+\s/.test(l));
+    // drutil only names the device once a disc is in; with none it says so, which is a state rather than a gap
+    const empty = /No Media Inserted/i.test(status);
     drives.forEach((line, i) => {
       const [, vendor, product] = line.match(/^\d+\s+(\S+)\s+(.+?)\s{2,}/) ?? [];
-      out.push({ path: devices[i] ?? '', name: [vendor, product].filter(Boolean).join(' ') || `Drive ${i + 1}`, note: devices[i] ? undefined : 'Insert a disc to see its /dev/diskN path' });
+      out.push({
+        path: devices[i] ?? '',
+        name: [vendor, product].filter(Boolean).join(' ') || `Drive ${i + 1}`,
+        state: devices[i] ? 'loaded' : empty ? 'empty' : 'unknown',
+        note: devices[i] ? undefined : 'Insert a disc to see its /dev/diskN path',
+      });
     });
   }
   return out;

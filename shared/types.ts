@@ -1514,6 +1514,8 @@ export interface DiscDrive {
   manualId?: string;
   /** false when MakeMKV did not list the drive and Rexarr probed the device itself. */
   detected?: boolean;
+  /** The machine has this drive but MakeMKV did not list it; Rexarr found it and added it unasked. */
+  auto?: boolean;
 }
 
 /** A real optical drive added by device path. */
@@ -1528,6 +1530,8 @@ export interface PhysicalDrive {
 export interface DriveCandidate {
   path: string;
   name: string;
+  /** What the OS says about it now, when it says anything: a drive with no disc in is still a drive. */
+  state?: DriveState;
   note?: string;
 }
 

@@ -189,13 +189,19 @@ function DriveRow({ d, onEject, onRemove, onReadCd, busy }: { d: DiscDrive; onEj
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 600 }}>{d.name || `Drive ${d.index}`}</div>
         <div className="small muted truncate" title={d.path}>
-          {d.path}
+          {d.path || (d.auto ? 'the device appears once a disc is in' : '')}
           {d.manualId && d.detected === false && d.available !== false && ' · checked by Rexarr (not listed by MakeMKV)'}
+          {d.auto && ' · found by Rexarr (not listed by MakeMKV)'}
         </div>
       </div>
       {d.virtual && <span className="badge purple">{linked ? 'virtual' : 'folder'}</span>}
       {d.manualId && <span className="badge blue" title="Added by device path">added</span>}
-      {d.available === false && <span className="badge red">{d.manualId ? 'device not found' : 'file missing'}</span>}
+      {d.auto && (
+        <span className="badge blue" title="This machine has the drive, but MakeMKV did not list it">
+          found
+        </span>
+      )}
+      {d.available === false && !d.auto && <span className="badge red">{d.manualId ? 'device not found' : 'file missing'}</span>}
       {d.discLabel && <span className="badge remux">{d.discLabel}</span>}
       <span className={`badge ${cls}`}>{d.state}</span>
       {onReadCd && !d.virtual && (

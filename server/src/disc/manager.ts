@@ -9,7 +9,7 @@ import { arr } from '../arr/index.js';
 import { queue } from '../jobs/queue.js';
 import { toArrPath } from '../paths.js';
 import { anidb } from '../anidb.js';
-import { canonicalDevice, probePhysicalDrive } from './devices.js';
+import { autoDetectedDrives, canonicalDevice, probePhysicalDrive } from './devices.js';
 import { execFile } from 'node:child_process';
 import { discId, downloadCover, getRelease, lookupDisc, readCdToc, tocString } from '../music/musicbrainz.js';
 import { freacInfo, ripCdTrack } from '../music/freac.js';
@@ -135,8 +135,9 @@ export class DiscManager {
     // Listing drives makes MakeMKV query every drive, which slows down (or upsets) a scan or rip that is using one.
     // While MakeMKV is busy with a disc, keep the drives we already know about.
     const busy = this.scans.size > 0 || [...this.running.keys()].some((id) => !this.get(id)?.virtual);
-    // MakeMKV drives have small indexes; linked virtual drives start at 3000 and probed manual drives at 4000
-    const known = this.drives.filter((d) => !d.virtual && d.index < 3000);
+    // MakeMKV drives have small indexes; auto-detected ones start at 2000, linked virtual drives at 3000,
+    // probed manual drives at 4000 and an agent's at 5000
+    const known = this.drives.filter((d) => !d.virtual && d.index < 2000);
     if (busy && known.length) real = known;
     else {
       try {
@@ -168,6 +169,18 @@ export class DiscManager {
         if (p.label) match.name = p.label;
       } else manual.push(await probePhysicalDrive(p, 4000 + i));
     }
+    // Drives the machine has that MakeMKV did not list - a USB drive it calls "Unsupported", one passed into
+    // Docker without its /dev/sg node, or MakeMKV simply not being installed yet. Saying "no optical drive"
+    // when there is one in the machine is the wrong answer, so they are added, marked as found rather than listed.
+    let auto: DiscDrive[] = [];
+    if (!busy) {
+      try {
+        auto = await autoDetectedDrives([...real.map((d) => d.path), ...manual.map((d) => d.path), ...(store.settings.disc.physicalDrives ?? []).map((p) => p.path)]);
+      } catch (err) {
+        this.lastDriveError = `drive detection: ${(err as Error).message}`;
+      }
+    } else auto = this.drives.filter((d) => d.auto);
+
     // Rip farm: the drives on the agents, as they last reported them. They keep their own source string -
     // the agent runs makemkvcon on its own machine, where disc:0 means that machine's first drive.
     const farm: DiscDrive[] = [];
@@ -178,7 +191,7 @@ export class DiscManager {
         }
       }
     }
-    this.drives = [...real, ...manual, ...virtual, ...linked, ...farm];
+    this.drives = [...real, ...auto, ...manual, ...virtual, ...linked, ...farm];
     bus.publish({ type: 'drives', drives: this.drives });
     return this.drives;
   }

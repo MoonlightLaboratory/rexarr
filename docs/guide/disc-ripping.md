@@ -50,8 +50,15 @@ With *Start ripping automatically once identified* (auto rip) on, steps 3–7 ru
 
 ## Drives
 
-Rexarr lists the drives MakeMKV reports. For drives it does not list — USB enclosures, a drive passed into Docker,
-one of several — use **Discs → Add drive** and enter the device path:
+Rexarr lists the drives MakeMKV reports, **and any others the machine has**. MakeMKV does not always see a drive —
+a USB enclosure it calls *Unsupported*, one passed into Docker without its `/dev/sg` node, or MakeMKV not being
+installed yet — and saying *no optical drive* when there is one in the machine is the wrong answer. Those are added
+to the list on their own, marked **found**, with the same tray state and label as any other. On macOS a drive with
+nothing in it has no device path until a disc is inserted, so it is listed as *empty* and the path appears with the
+disc.
+
+For a drive neither of those finds, or to pin one to a stable path or give it a name, use **Discs → Add drive** and
+enter the device path:
 
 | Platform | Device path |
 | --- | --- |
