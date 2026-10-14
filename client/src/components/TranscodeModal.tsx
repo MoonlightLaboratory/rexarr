@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Job, Profile, SizeEstimate, SizeEstimateResult } from '@shared/types';
 import { api, fmtBytes, type PreviewResult } from '../api';
 import { Icon } from './Icons';
-import { QualityLabel } from './Labels';
+import { PreviewBitrates, QualityLabel } from './Labels';
 import { Modal } from './Modal';
 import { ProfileSelect } from './ProfileSelect';
 import { useApp } from '../App';
@@ -210,6 +210,7 @@ export function TranscodeModal({ items, mediaType, onClose, onQueued, defaultAud
               <li key={i}>{s}</li>
             ))}
           </ul>
+          <PreviewBitrates est={preview.estimate} />
           <pre className="log" style={{ maxHeight: 160 }}>{preview.command}</pre>
         </div>
       )}

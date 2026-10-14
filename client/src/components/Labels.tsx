@@ -1,3 +1,4 @@
+import type { PreviewEstimate } from '@shared/types';
 import type { ReactNode } from 'react';
 
 /** Colour a quality name the way the *arr apps do: remux gold, Blu-ray blue, WEB teal, HDTV grey, missing red. */
@@ -51,6 +52,32 @@ export function LoadingIndicator({ children, size = 50 }: { children?: ReactNode
         <span />
       </div>
       {children && <div className="loadingText">{children}</div>}
+    </div>
+  );
+}
+
+/**
+ * Bitrates for a command preview: what it will produce, against what it is reading. A CRF is not a number
+ * anyone can read a bitrate off, and that is usually the question being asked when one is being chosen.
+ */
+export function PreviewBitrates({ est }: { est?: PreviewEstimate }) {
+  if (!est) return null;
+  const mbps = (kbps?: number) => (kbps ? `${(kbps / 1000).toFixed(kbps < 10000 ? 1 : 0)} Mbps` : null);
+  const out = mbps(est.videoKbps);
+  const srcVideo = mbps(est.sourceVideoKbps);
+  const srcAll = mbps(est.sourceKbps);
+  if (!out && !srcVideo && !srcAll) return null;
+  return (
+    <div className="small dim" style={{ margin: '0 0 8px' }}>
+      {out && (
+        <>
+          Video {est.exact ? '' : '≈ '}
+          <strong>{out}</strong>
+        </>
+      )}
+      {out && (srcVideo || srcAll) ? ' · ' : ''}
+      {srcVideo ? `source video ${srcVideo}` : srcAll ? `source ${srcAll} overall` : ''}
+      {srcVideo && srcAll ? ` (${srcAll} overall)` : ''}
     </div>
   );
 }

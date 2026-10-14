@@ -1,5 +1,5 @@
 import { withBase } from './base';
-import type { Agent, AgentTask } from '@shared/types';
+import type { Agent, AgentTask, PreviewEstimate } from '@shared/types';
 import type { DiscEstimate, TitleRole, AnidbInfo, AutoScanResult, AutoStatus, AppEvent, StoragePath, HwDevices, HwTestResult, TranscodingSettings, BackupInfo, DiscDrive, DiscRip, LogFileInfo, ScheduledTask, VirtualDrive, Episode, FfmpegCapabilities, HealthCheck, Job, LookupResult, MakemkvInfo, Movie, Profile, Release, RipMedia, RipOptions, Series, Settings, SystemInfo, SmartSearchResult, HostRuntime, DriveCandidate, PhysicalDrive, Artist, Album, Track, MqaInfo, MusicBrainzRelease, LocalItem, LocalFile, LocalScanStatus, LocalMeta, LocalMetaCandidate, SizeEstimateResult, SetupTools, UpdateStatus, NotificationTarget, ExpectedDisc, BarcodeLookup, WantedDisc, SmartProfile } from '@shared/types';
 
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
@@ -43,6 +43,7 @@ export interface PreviewResult {
   summary: string[];
   output: string;
   sample: boolean;
+  estimate?: PreviewEstimate;
   streams: { index: number; type: string; codec: string; language?: string; title?: string; channels?: number; width?: number; height?: number }[];
 }
 

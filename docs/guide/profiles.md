@@ -254,6 +254,12 @@ Both are read-only. Clone one to change it.
 The profile editor shows the exact ffmpeg command the profile produces, either against a sample UHD remux or against
 a real file on disk, together with the output file name it would write. Use it before you run a 4-hour encode.
 
+It also says what the video will come out at — **Video ≈ 9.6 Mbps · source 67 Mbps overall** — because a CRF is
+not a number anyone can read a bitrate off, and that is usually the question being asked while one is being
+chosen. The same line appears under *Preview command* in the transcode dialog, where it is measured against the
+file you are about to encode. The figure is an estimate for a quality-mode encode and exact where the profile
+sets a bitrate or copies the stream.
+
 ## Output names and metadata
 
 An encoded remux is not a remux any more, so by default (profile → Output → *Rename for the encode*) the release

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { PreviewBitrates } from '../components/Labels';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { FfmpegCapabilities, Profile, SmartProfile } from '@shared/types';
 import { AUDIO_ENCODER_INFO, CONTAINER_INFO, LANGUAGES, VIDEO_ENCODER_INFO } from '@shared/presets';
@@ -519,6 +520,7 @@ function ProfileEditor({ initial, caps, onClose, onSaved }: { initial: Profile; 
                 <li key={i}>{s}</li>
               ))}
             </ul>
+            <PreviewBitrates est={preview.estimate} />
             {preview.output && (
               <div className="field stack">
                 <label>Output file</label>

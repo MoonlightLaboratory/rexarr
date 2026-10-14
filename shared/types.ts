@@ -1199,6 +1199,20 @@ export interface SizeEstimate {
   resolved?: string;
 }
 
+/** What a command preview says about size and bitrate, when the file could be estimated. */
+export interface PreviewEstimate {
+  bytes: number;
+  low: number;
+  high: number;
+  sourceBytes: number;
+  /** Output video bitrate the encoder is expected to land on. */
+  videoKbps?: number;
+  /** The source's overall bitrate, and its video stream's where the container declares one. */
+  sourceKbps?: number;
+  sourceVideoKbps?: number;
+  exact: boolean;
+}
+
 export interface SizeEstimateResult {
   estimates: SizeEstimate[];
   /** Files probed; the rest were scaled from them by size. */

@@ -2,12 +2,13 @@ import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import { z } from 'zod';
-import type { Profile, SmartProfile } from '../../../shared/types.js';
+import type { PreviewEstimate, Profile, SmartProfile } from '../../../shared/types.js';
 import { store } from '../store.js';
 import { buildFfmpegArgs, outputPathFor, subtitlesToOcr, withoutOcr } from '../ffmpeg/args.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 import { probe, streamLanguage, type ProbeResult } from '../ffmpeg/probe.js';
 import { tesseractInfo } from '../ffmpeg/ocr.js';
+import { estimateSize } from '../ffmpeg/estimate.js';
 import { baseProfile, decide, explainDecision } from '../../../shared/smart.js';
 import { sourceFacts } from '../ffmpeg/facts.js';
 import { CONTAINER_INFO } from '../../../shared/presets.js';
@@ -310,11 +311,32 @@ export default async function profileRoutes(app: FastifyInstance) {
         if (tess.available) summary.push(`Subtitles: ${toRead.length} picture track(s) read into text first (${langs}), then added to the command above`);
         else warnings.push(`${toRead.length} picture subtitle track(s) cannot be read into text – ${tess.error}`);
       }
+      // Bitrates: what the command will produce, and what it is reading. The dialog beside this one has a full
+      // estimate, but the Profiles page has only the command - and a CRF is not a number anyone can read a
+      // bitrate off, which is the whole question when you are choosing one.
+      let estimate: PreviewEstimate | undefined;
+      try {
+        const e = estimateSize(profile, info, { hardware: store.settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined });
+        const srcSeconds = info.durationSeconds || 0;
+        estimate = {
+          bytes: e.bytes,
+          low: e.low,
+          high: e.high,
+          sourceBytes: e.sourceBytes,
+          videoKbps: e.videoKbps,
+          sourceKbps: srcSeconds ? Math.round((info.sizeBytes * 8) / srcSeconds / 1000) : undefined,
+          sourceVideoKbps: Number(info.video?.bit_rate) ? Math.round(Number(info.video!.bit_rate) / 1000) : undefined,
+          exact: e.exact,
+        };
+      } catch {
+        /* a music profile on a video file, or anything else estimateSize will not touch */
+      }
       return {
         command: [store.settings.ffmpegPath, ...built.args].map(quote).join(' '),
         args: built.args,
         warnings,
         summary: [...smartSummary, ...summary],
+        estimate,
         output,
         sample: !body.data.path,
         streams: info.streams.map((s) => ({ index: s.index, type: s.codec_type, codec: s.codec_name, language: s.tags?.language, title: s.tags?.title, channels: s.channels, width: s.width, height: s.height })),
