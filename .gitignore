@@ -14,6 +14,8 @@ overrides/
 site/
 data/
 node_modules/
+.idea/
+.vscode/
 test-media/
 release/
 dist/
