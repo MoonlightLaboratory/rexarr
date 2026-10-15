@@ -122,6 +122,14 @@ export const api = {
   freac: (refresh = false) => req<SystemInfo['freac']>('GET', `/api/music/freac${refresh ? '?refresh=1' : ''}`),
   testOmdb: (apiKey?: string) => req<{ ok: boolean; error?: string; sample?: string }>('POST', '/api/settings/test/omdb', { apiKey }),
 
+  discRexdb: (id: string, refresh = false) =>
+    req<{
+      fingerprint: string;
+      match: { how: 'fingerprint' | 'structure'; confident: boolean; entry: { disc_name: string; status: string; confirmations?: number; titles?: Record<string, string> } } | null;
+      contribution: { entry: Record<string, unknown>; url: string; alreadyKnown: boolean; disagrees: boolean } | null;
+      error?: string;
+    }>('GET', `/api/disc/rips/${id}/rexdb${refresh ? '?refresh=1' : ''}`),
+
   // ---- rip farm ----
   agents: () => req<AgentRow[]>('GET', '/api/agents'),
   agentTasks: () => req<AgentTask[]>('GET', '/api/agents/tasks'),

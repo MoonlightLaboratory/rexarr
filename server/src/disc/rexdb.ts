@@ -208,3 +208,75 @@ export function applyEntry(entry: RexDbEntry, titles: DiscTitle[]): AppliedMappi
     .join(', ');
   return { episodeMap, titleRoles, seasonNumber, episodeStart, skip, summary };
 }
+
+// ---- contributing a disc -------------------------------------------------------------------------
+
+/**
+ * This disc as a RexDB entry, ready to be contributed.
+ *
+ * Built from what is on screen: the mapping the person just corrected, and the structure read off the disc.
+ * Nothing is sent anywhere by building it - it is handed back for them to look at and decide on, which is the
+ * only honest way to treat something that will be published under their name.
+ */
+export function buildEntry(rip: DiscRip): Record<string, unknown> | null {
+  if (rip.media.kind !== 'series' || !rip.titles.length) return null;
+  const season = rip.media.seasonNumber ?? 1;
+  const titles: Record<string, string> = {};
+  for (const t of rip.titles) {
+    const role = rip.titleRoles?.[String(t.id)];
+    const key = titleKey(t);
+    if (rip.playAllTitleIds?.includes(t.id)) {
+      titles[key] = 'playall';
+      continue;
+    }
+    if (role?.kind === 'special') {
+      titles[key] = `S00E${String(role.episode).padStart(2, '0')}`;
+      continue;
+    }
+    if (role?.kind === 'extra') {
+      titles[key] = role.type === 'op' || role.type === 'ed' ? `extra:${role.type}` : 'extra';
+      continue;
+    }
+    const episode = rip.episodeMap?.[t.id];
+    if (episode !== undefined) titles[key] = `S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`;
+  }
+  if (!Object.keys(titles).length) return null;
+
+  const structure = discStructure(rip.titles);
+  const series: Record<string, unknown> = { title: rip.media.title, year: rip.media.year };
+  if (rip.media.externalId) series.tvdb = rip.media.externalId;
+  return {
+    schema: 1,
+    status: 'unverified',
+    fingerprint: fingerprint(rip.volumeName || rip.label, structure),
+    disc_name: rip.volumeName || rip.label,
+    series,
+    ...(rip.media.discNumber ? { disc: rip.media.discNumber } : {}),
+    structure: { titleCount: structure.length, titles: structure },
+    titles,
+    confirmations: 1,
+    verifiedOn: new Date().toISOString().slice(0, 10),
+  };
+}
+
+/**
+ * A GitHub issue, pre-filled, that somebody can read before they send it.
+ *
+ * No key, no account of Rexarr's, no server in the middle: the link opens GitHub with the entry already written
+ * out, and nothing leaves this machine until the person decides to press the button there. A Worker that opened
+ * a pull request on their behalf would be smoother and would take the decision away from them.
+ */
+export function contributionUrl(entry: Record<string, unknown>, repo = 'MoonlightLaboratory/rexarr'): string {
+  const e = entry as { disc_name: string; fingerprint: string };
+  const body = [
+    `Read off the disc in my drive.`,
+    '',
+    '```json',
+    JSON.stringify(entry, null, 2),
+    '```',
+    '',
+    `Goes in \`discs/${e.fingerprint.slice(0, 2)}/${e.fingerprint}.json\` on the RexDB branch.`,
+  ].join('\n');
+  const params = new URLSearchParams({ title: `RexDB: ${e.disc_name}`, body, labels: 'rexdb' });
+  return `https://github.com/${repo}/issues/new?${params.toString()}`;
+}

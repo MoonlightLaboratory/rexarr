@@ -1293,6 +1293,11 @@ table.metaTags td.mono { word-break: break-word; }
 /* ---- smart profile canvas: the whole content area, sidebar aside ---- */
 .graphPage { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .graphBar { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 9px 14px; border-bottom: 1px solid var(--borderColor); background: var(--cardBackgroundColor); }
+/* Contributing a disc to RexDB: offered, never automatic. */
+.rexdbPanel { margin-top: 14px; padding: 11px 13px; border: 1px solid var(--borderColor); border-left: 3px solid var(--successColor, #4caf50); border-radius: 5px; background: var(--cardBackgroundColor); }
+.rexdbPanel.disagrees { border-left-color: var(--warningColor, #e8a331); }
+.rexdbPanel .spacer { flex: 1; }
+
 /* Where a disc's episode numbers came from: read by somebody, rather than worked out here. */
 .fromRexdb { color: var(--successColor, #4caf50); }
 

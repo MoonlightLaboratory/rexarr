@@ -2,7 +2,7 @@ import { listDriveCandidates } from '../disc/devices.js';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { discs } from '../disc/manager.js';
-import { discStructure, fingerprintOf, lookupDisc as lookupInRexDb, rexdbIndex } from '../disc/rexdb.js';
+import { buildEntry, contributionUrl, discStructure, fingerprintOf, lookupDisc as lookupInRexDb, rexdbIndex } from '../disc/rexdb.js';
 import { makemkvInfo } from '../disc/makemkv.js';
 import fs from 'node:fs';
 import { store } from '../store.js';
@@ -48,6 +48,28 @@ const patchSchema = z.object({
   selectedAudio: z.record(z.string(), z.array(z.number().int().min(0))).optional(),
 });
 
+/**
+ * What this disc would contribute to RexDB, and whether it is worth contributing.
+ *
+ * Nothing is sent: the entry and a pre-filled link come back for the person to read. It is only offered when
+ * RexDB would actually learn something - a disc it has never seen, or one where what is on screen disagrees
+ * with what it holds.
+ */
+function contributionFor(rip: Parameters<typeof buildEntry>[0], match: Awaited<ReturnType<typeof lookupInRexDb>>) {
+  const entry = buildEntry(rip);
+  if (!entry) return null;
+  const known = match?.how === 'fingerprint' ? match.entry : null;
+  const agrees = known ? JSON.stringify(known.titles ?? {}) === JSON.stringify((entry as { titles: unknown }).titles) : false;
+  return {
+    entry,
+    url: contributionUrl(entry),
+    /** RexDB has this disc and says the same thing, so there is nothing to add. */
+    alreadyKnown: agrees,
+    /** RexDB has this disc and says something else - worth sending, and worth a second look first. */
+    disagrees: Boolean(known) && !agrees,
+  };
+}
+
 export default async function discRoutes(app: FastifyInstance) {
   app.get<{ Querystring: { refresh?: string } }>('/api/disc/status', async (req) => {
     const makemkv = await makemkvInfo(store.settings.disc.makemkvPath, req.query.refresh === '1');
@@ -69,9 +91,9 @@ export default async function discRoutes(app: FastifyInstance) {
       // the index is cached for a day; asking about one disc on purpose is a good moment to go and look again
       if (req.query.refresh === '1') await rexdbIndex(true);
       const match = await lookupInRexDb(rip);
-      return { fingerprint, match, structure: discStructure(rip.titles) };
+      return { fingerprint, match, structure: discStructure(rip.titles), contribution: contributionFor(rip, match) };
     } catch (err) {
-      return { fingerprint, match: null, structure: discStructure(rip.titles), error: (err as Error).message };
+      return { fingerprint, match: null, structure: discStructure(rip.titles), contribution: contributionFor(rip, null), error: (err as Error).message };
     }
   });
 

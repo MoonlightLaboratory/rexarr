@@ -911,6 +911,11 @@ export class DiscManager {
         }
       }
     }
+    // Editing the episodes by hand is the correction RexDB exists to collect, so it is worth knowing it happened.
+    if (patch.episodeMap || patch.titleRoles || patch.media?.episodeStart !== undefined) {
+      rip.media.episodeSource = 'manual';
+      rip.media.episodeStartGuessed = false;
+    }
     if (patch.selectedTitleIds) rip.selectedTitleIds = patch.selectedTitleIds.filter((t) => rip.titles.some((x) => x.id === t));
     if (patch.episodeMap) rip.episodeMap = Object.fromEntries(Object.entries(patch.episodeMap).map(([k, v]) => [Number(k), Number(v)]));
     else if (rip.media.kind === 'series' && (patch.media?.episodeStart !== undefined || patch.selectedTitleIds || patch.media?.kind)) {

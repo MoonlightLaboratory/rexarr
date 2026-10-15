@@ -816,6 +816,7 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
               {media.seriesType === 'anime' && !media.absoluteNumbering && ' This is an anime series in Sonarr – turn on absolute numbering if it uses absolute episode numbers.'}
             </div>
           )}
+          <RexDbPanel rip={rip} />
           <div className="inline mt" style={{ gap: 14 }}>
             <div style={{ width: 280 }}>
               <ProfileSelect profiles={profiles} smart={smartProfiles} value={profileId} onChange={setProfileId} mediaType={mediaType} />
@@ -1095,6 +1096,70 @@ function bestAudioTracks(tracks: DiscAudioTrack[]): number[] {
 }
 
 /** Compact version of the Transcode dialog's size panel. */
+/**
+ * Contributing this disc to RexDB.
+ *
+ * Offered only when RexDB would learn something: a disc it has never seen, or one where what is on screen
+ * disagrees with what it holds. Nothing is sent from here - the entry is shown, and the button opens GitHub
+ * with it already written out, so the decision and the name on it are the person's.
+ */
+function RexDbPanel({ rip }: { rip: DiscRip }) {
+  const [state, setState] = useState<Awaited<ReturnType<typeof api.discRexdb>> | null>(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const load = async (refresh = false) => {
+    setBusy(true);
+    try {
+      setState(await api.discRexdb(rip.id, refresh));
+    } catch {
+      setState(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+  useEffect(() => {
+    if (rip.media.kind === 'series' && rip.titles.length) void load();
+    // re-asked when the mapping changes, since that is what decides whether there is anything to send
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rip.id, JSON.stringify(rip.episodeMap), JSON.stringify(rip.titleRoles)]);
+
+  const c = state?.contribution;
+  if (!c || c.alreadyKnown) return null;
+  const entry = JSON.stringify(c.entry, null, 2);
+  return (
+    <div className={`rexdbPanel${c.disagrees ? ' disagrees' : ''}`}>
+      <div className="inline" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <strong>
+          {c.disagrees
+            ? 'RexDB has this disc, and says something different.'
+            : 'RexDB has never seen this disc.'}
+        </strong>
+        <span className="small dim">
+          {c.disagrees
+            ? `It says “${state?.match?.entry.disc_name}”. Check which of you is right before sending yours.`
+            : 'If these episode numbers are right, sending them means nobody else has to work them out.'}
+        </span>
+        <span className="spacer" />
+        <button className="btn sm" onClick={() => setOpen((o) => !o)} disabled={busy}>
+          {open ? 'Hide' : 'Show what would be sent'}
+        </button>
+        <a className="btn sm primary" href={c.url} target="_blank" rel="noreferrer">
+          Contribute to RexDB
+        </a>
+      </div>
+      {open && (
+        <>
+          <p className="small dim mt">
+            Nothing has left this machine. The button opens GitHub with this already filled in; you decide whether to
+            post it. Only what is below is sent — no paths, no library, nothing about you.
+          </p>
+          <pre className="log" style={{ maxHeight: 260 }}>{entry}</pre>
+        </>
+      )}
+    </div>
+  );
+}
+
 function RipEstimate({ titles, sourceBytes, estimate, transcode }: { titles: number; sourceBytes: number; estimate: DiscEstimate | null; transcode: boolean }) {
   const out = transcode ? estimate?.transcode?.bytes : estimate?.ripBytes;
   const saved = out && sourceBytes ? Math.round((1 - out / sourceBytes) * 100) : 0;
