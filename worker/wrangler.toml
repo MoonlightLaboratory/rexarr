@@ -1,0 +1,8 @@
+name = "rexdb-submit"
+main = "index.js"
+compatibility_date = "2025-01-01"
+
+# The token is a secret, never a variable:
+#   wrangler secret put GITHUB_TOKEN
+# Fine-grained, this repository only, Contents: read and write plus Pull requests: read and write. Nothing else -
+# it exists to open pull requests against one branch and should not be able to do anything more than that.
