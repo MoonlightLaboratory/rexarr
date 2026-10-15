@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "status": "unverified",
+  "fingerprint": "305e83c0d41b124f",
+  "disc_name": "Sword Art Online 2 Part 2",
+  "series": { "title": "Sword Art Online", "year": 2012, "tvdb": 259640 },
+  "disc": 2,
+  "release": { "name": "Sword Art Online II Part 2", "publisher": "Anime Limited", "region": "B", "format": "dvd" },
+  "structure": {
+    "titleCount": 8,
+    "titles": [
+      { "key": "0", "seconds": 1417 },
+      { "key": "1", "seconds": 1416 },
+      { "key": "2", "seconds": 1416 },
+      { "key": "3", "seconds": 1416 },
+      { "key": "4", "seconds": 1416 },
+      { "key": "5", "seconds": 1417 },
+      { "key": "6", "seconds": 1418 },
+      { "key": "7", "seconds": 1417 }
+    ]
+  },
+  "titles": {
+    "0": "S02E08",
+    "1": "S02E09",
+    "2": "S02E10",
+    "3": "S02E11",
+    "4": "S02E12",
+    "5": "S02E13",
+    "6": "S02E14",
+    "7": "S00E12"
+  },
+  "confirmations": 1,
+  "source": "Read off the disc in a drive. Title 7 is episode 14.5, \"Debriefing\", which TVDB files as S00E12.",
+  "verifiedOn": "2026-10-15"
+}
