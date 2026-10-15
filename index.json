@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "entries": 3,
+  "discs": [
+    {
+      "path": "discs/tv/sword-art-online-259640/s02d01.json",
+      "kind": "series",
+      "title": "Sword Art Online",
+      "year": 2012,
+      "ids": {
+        "title": "Sword Art Online",
+        "year": 2012,
+        "tvdbId": 259640
+      },
+      "season": 2,
+      "disc": 1,
+      "barcodes": [],
+      "labels": [
+        "Anime Limited Sword Art Online 2 P1"
+      ]
+    },
+    {
+      "path": "discs/tv/sword-art-online-259640/s02d02.json",
+      "kind": "series",
+      "title": "Sword Art Online",
+      "year": 2012,
+      "ids": {
+        "title": "Sword Art Online",
+        "year": 2012,
+        "tvdbId": 259640
+      },
+      "season": 2,
+      "disc": 2,
+      "barcodes": [],
+      "labels": [
+        "Sword Art Online 2 Part 2"
+      ]
+    },
+    {
+      "path": "discs/tv/sword-art-online-259640/s02d04.json",
+      "kind": "series",
+      "title": "Sword Art Online",
+      "year": 2012,
+      "ids": {
+        "title": "Sword Art Online",
+        "year": 2012,
+        "tvdbId": 259640
+      },
+      "season": 2,
+      "disc": 4,
+      "barcodes": [],
+      "labels": [
+        "Sword Art Online S2 P4"
+      ]
+    }
+  ]
+}

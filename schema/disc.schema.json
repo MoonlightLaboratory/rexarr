@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/schema/disc.schema.json",
+  "title": "RexDB disc entry",
+  "description": "What is on one physical disc: which title on it is which episode.",
+  "type": "object",
+  "required": ["schema", "kind", "titles"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "enum": ["series", "movie"] },
+    "series": {
+      "type": "object",
+      "description": "The show, for a series disc. At least one id, so the entry survives a rename.",
+      "required": ["title"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "year": { "type": "integer", "minimum": 1900, "maximum": 2100 },
+        "tvdbId": { "type": "integer", "minimum": 1 },
+        "tmdbId": { "type": "integer", "minimum": 1 },
+        "imdbId": { "type": "string", "pattern": "^tt\\d{7,10}$" },
+        "anidbId": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "movie": {
+      "type": "object",
+      "required": ["title"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "year": { "type": "integer", "minimum": 1900, "maximum": 2100 },
+        "tmdbId": { "type": "integer", "minimum": 1 },
+        "imdbId": { "type": "string", "pattern": "^tt\\d{7,10}$" }
+      }
+    },
+    "season": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "disc": { "type": "integer", "minimum": 1, "maximum": 100, "description": "Which disc of the set, counting the way the packaging does." },
+    "release": {
+      "type": "object",
+      "description": "Which edition this is, so two pressings of the same season do not fight.",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "maxLength": 200 },
+        "publisher": { "type": "string", "maxLength": 100 },
+        "region": { "enum": ["A", "B", "C", "1", "2", "3", "4", "5", "6", "free"] },
+        "format": { "enum": ["bluray", "dvd", "uhd"] }
+      }
+    },
+    "barcodes": {
+      "type": "array",
+      "description": "The number on the case. The strongest match there is.",
+      "items": { "type": "string", "pattern": "^\\d{8,14}$" },
+      "maxItems": 10
+    },
+    "labels": {
+      "type": "array",
+      "description": "Volume labels the drive reports. Several, where pressings differ.",
+      "items": { "type": "string", "minLength": 2, "maxLength": 100 },
+      "maxItems": 20
+    },
+    "fingerprint": {
+      "type": "object",
+      "description": "Read off the disc, never guessed: a wrong one is worse than none.",
+      "required": ["titleCount", "durationsSeconds"],
+      "additionalProperties": false,
+      "properties": {
+        "titleCount": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "durationsSeconds": {
+          "type": "array",
+          "description": "Every title's length in whole seconds, in disc order, including extras.",
+          "items": { "type": "integer", "minimum": 1 },
+          "minItems": 1,
+          "maxItems": 100
+        }
+      }
+    },
+    "titles": {
+      "type": "array",
+      "description": "What each title on the disc is. Only the ones that are something need listing.",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "required": ["index"],
+        "additionalProperties": false,
+        "properties": {
+          "index": { "type": "integer", "minimum": 0, "description": "The title number the disc itself uses, counting from 0." },
+          "episode": { "type": "integer", "minimum": 0, "description": "Episode number within `season`." },
+          "episodes": {
+            "type": "array",
+            "description": "For a title holding more than one episode, or a feature-length pair.",
+            "items": { "type": "integer", "minimum": 0 },
+            "minItems": 1,
+            "maxItems": 20
+          },
+          "special": { "type": "integer", "minimum": 0, "description": "Season 0 episode number, for a recap or an OVA the catalogues file as a special." },
+          "extra": { "enum": ["op", "ed", "trailer", "interview", "featurette", "other"], "description": "Kept beside the show rather than imported as an episode." },
+          "playAll": { "const": true, "description": "A compilation of the other titles. Never ripped." },
+          "note": { "type": "string", "maxLength": 300 }
+        }
+      }
+    },
+    "source": { "type": "string", "maxLength": 300, "description": "Where this came from, when it was not the disc in your hand." },
+    "verifiedOn": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "series" } } },
+      "then": { "required": ["series", "season"] }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "movie" } } },
+      "then": { "required": ["movie"] }
+    }
+  ]
+}

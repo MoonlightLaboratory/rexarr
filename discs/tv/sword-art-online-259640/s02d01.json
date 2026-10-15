@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "kind": "series",
+  "series": { "title": "Sword Art Online", "year": 2012, "tvdbId": 259640 },
+  "season": 2,
+  "disc": 1,
+  "release": { "name": "Sword Art Online II Part 1", "publisher": "Anime Limited", "region": "B", "format": "dvd" },
+  "labels": ["Anime Limited Sword Art Online 2 P1"],
+  "titles": [
+    { "index": 0, "episode": 1 },
+    { "index": 1, "episode": 2 },
+    { "index": 2, "episode": 3 },
+    { "index": 3, "episode": 4 },
+    { "index": 4, "episode": 5 },
+    { "index": 5, "episode": 6 },
+    { "index": 6, "episode": 7 }
+  ],
+  "verifiedOn": "2026-10-15"
+}

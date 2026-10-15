@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "kind": "series",
+  "series": { "title": "Sword Art Online", "year": 2012, "tvdbId": 259640 },
+  "season": 2,
+  "disc": 2,
+  "release": { "name": "Sword Art Online II Part 2", "publisher": "Anime Limited", "region": "B", "format": "dvd" },
+  "labels": ["Sword Art Online 2 Part 2"],
+  "titles": [
+    { "index": 0, "episode": 8 },
+    { "index": 1, "episode": 9 },
+    { "index": 2, "episode": 10 },
+    { "index": 3, "episode": 11 },
+    { "index": 4, "episode": 12 },
+    { "index": 5, "episode": 13 },
+    { "index": 6, "episode": 14 },
+    { "index": 7, "special": 12, "note": "Episode 14.5, \"Debriefing\" - a recap, filed as a season 0 special" }
+  ],
+  "verifiedOn": "2026-10-15"
+}
