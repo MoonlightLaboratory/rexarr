@@ -2,6 +2,7 @@ import { listDriveCandidates } from '../disc/devices.js';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { discs } from '../disc/manager.js';
+import { discStructure, fingerprintOf, lookupDisc as lookupInRexDb, rexdbIndex } from '../disc/rexdb.js';
 import { makemkvInfo } from '../disc/makemkv.js';
 import fs from 'node:fs';
 import { store } from '../store.js';
@@ -55,6 +56,24 @@ export default async function discRoutes(app: FastifyInstance) {
   });
 
   app.get('/api/disc/rips', async () => discs.list());
+
+  /**
+   * What RexDB says about this disc, and the fingerprint it would be contributed under. Looking up sends
+   * nothing anywhere; this is the same read the scan does, on demand.
+   */
+  app.get<{ Params: { id: string }; Querystring: { refresh?: string } }>('/api/disc/rips/:id/rexdb', async (req, reply) => {
+    const rip = discs.get(req.params.id);
+    if (!rip) return reply.code(404).send({ error: 'rip not found' });
+    const fingerprint = fingerprintOf(rip);
+    try {
+      // the index is cached for a day; asking about one disc on purpose is a good moment to go and look again
+      if (req.query.refresh === '1') await rexdbIndex(true);
+      const match = await lookupInRexDb(rip);
+      return { fingerprint, match, structure: discStructure(rip.titles) };
+    } catch (err) {
+      return { fingerprint, match: null, structure: discStructure(rip.titles), error: (err as Error).message };
+    }
+  });
 
   app.post('/api/disc/detect', async () => ({ created: await discs.detectNow() }));
 

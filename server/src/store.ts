@@ -67,6 +67,7 @@ settingsP.value = {
   musicbrainz: { ...DEFAULT_SETTINGS.musicbrainz, ...(settingsP.value.musicbrainz ?? {}) },
   thediscdb: { ...DEFAULT_SETTINGS.thediscdb, ...(settingsP.value.thediscdb ?? {}) },
   omdb: { ...DEFAULT_SETTINGS.omdb, ...(settingsP.value.omdb ?? {}) },
+  rexdb: { ...DEFAULT_SETTINGS.rexdb, ...(settingsP.value.rexdb ?? {}) },
   cddb: { ...DEFAULT_SETTINGS.cddb, ...(settingsP.value.cddb ?? {}) },
   ocr: { ...DEFAULT_SETTINGS.ocr, ...(settingsP.value.ocr ?? {}) },
   agents: { ...DEFAULT_SETTINGS.agents, ...(settingsP.value.agents ?? {}) },

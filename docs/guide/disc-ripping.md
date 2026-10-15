@@ -141,6 +141,23 @@ and the match says what it ignored; dropping words always loses to a match on th
 words have to survive, so *Anime Limited* on its own matches nothing. Rexarr cannot tell how many episodes were on the earlier discs of a set, so the page says so and asks you
 to set **First ep.** rather than quietly numbering from 1.
 
+### RexDB
+
+Before any of that, Rexarr asks [RexDB](https://moonlightlaboratory.github.io/rexarr/) — a shared, public
+database of which episode is on which part of which disc. A disc is recognised by its **fingerprint**: the volume
+label and the lengths of its titles, which are known the moment a scan ends, so nothing has to be scanned or
+typed. An exact match is applied and the page says the numbers came from RexDB rather than from a guess.
+
+Anything less than exact is offered rather than applied. A drive that reads a duration a second out, or reports
+the label differently, produces a different fingerprint for the same disc; where the structure still lines up
+Rexarr says so and leaves the numbers to you. A disputed entry is never applied either. Whatever you set by hand
+always wins.
+
+Looking a disc up **sends nothing anywhere**: one JSON file is downloaded and cached for a day. It can be
+switched off, or pointed at your own copy, under **Settings → Connections → RexDB**.
+
+Where RexDB has never seen the disc, Rexarr falls back to what it can work out:
+
 Where disc 2 and later **start** cannot be read off the disc, and Sonarr cannot help once a season is complete —
 every episode has a file either way. Rexarr carries on from the earlier discs of the same set when it has ripped
 them; otherwise it assumes each disc held as many episodes as this one. Both are guesses and the page says so,

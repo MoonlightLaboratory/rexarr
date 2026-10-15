@@ -1,6 +1,6 @@
 import { URL_BASE, withBase } from '../base';
 import { useEffect, useState } from 'react';
-import type { AgentSettings, ArrConnection, LocalMediaSettings, OmdbSettings, SmartProfile, LocalScanStatus, NotificationEvent, NotificationKind, NotificationSettings, NotificationTarget, Settings, SlskdConnection, SystemInfo } from '@shared/types';
+import type { AgentSettings, ArrConnection, LocalMediaSettings, OmdbSettings, RexDbSettings, SmartProfile, LocalScanStatus, NotificationEvent, NotificationKind, NotificationSettings, NotificationTarget, Settings, SlskdConnection, SystemInfo } from '@shared/types';
 import { Modal } from '../components/Modal';
 import { api, fmtAge, type AgentRow } from '../api';
 import { useApp } from '../App';
@@ -818,6 +818,44 @@ function OmdbCard({ value, onChange }: { value: OmdbSettings; onChange: (v: Omdb
   );
 }
 
+/**
+ * Settings → Metadata → RexDB. The shared answer to a question a disc does not answer: which episode is on
+ * which part of it. Reading it sends nothing anywhere.
+ */
+function RexDbCard({ value, onChange }: { value: RexDbSettings; onChange: (v: RexDbSettings) => void }) {
+  const on = value?.enabled !== false;
+  return (
+    <div className="card mb">
+      <div className="card-h">
+        <label className="check">
+          <input type="checkbox" checked={on} onChange={(e) => onChange({ ...value, enabled: e.target.checked })} /> RexDB
+        </label>
+        <span className="spacer" />
+        <span className="small dim">no account needed</span>
+      </div>
+      <div className="card-b">
+        <div className="small dim mb">
+          A disc does not say which episodes are on it, so Rexarr has to work it out — and the obvious arithmetic is
+          wrong as soon as a set is 7 + 7 + 5 + 5 rather than four equal discs.{' '}
+          <a href="https://moonlightlaboratory.github.io/rexarr/" target="_blank" rel="noreferrer">RexDB</a> is the shared
+          answer: somebody reads a disc once and everybody else stops having to. A disc is recognised by its volume label
+          and the lengths of its titles, so nothing has to be scanned or typed.
+          <br />
+          <br />
+          Looking a disc up <strong>sends nothing anywhere</strong> — one JSON file is downloaded and cached for a day.
+          An exact match is applied and the Discs page says it came from RexDB; anything less certain is offered rather
+          than applied, and whatever you set by hand always wins.
+        </div>
+        <div className="field stack">
+          <label>Index</label>
+          <input type="text" className="mono" value={value?.url ?? ''} disabled={!on} onChange={(e) => onChange({ ...value, url: e.target.value })} />
+          <div className="help">Point this at your own copy to use a private database instead.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RipFarmCard({ value, onChange }: { value: AgentSettings; onChange: (v: AgentSettings) => void }) {
   const { toast } = useApp();
   const [agents, setAgents] = useState<AgentRow[] | null>(null);
@@ -1292,6 +1330,8 @@ export function SettingsPage() {
       </div>
 
       <OmdbCard value={s.omdb} onChange={(omdb) => setS({ ...s, omdb })} />
+
+      <RexDbCard value={s.rexdb} onChange={(rexdb) => setS({ ...s, rexdb })} />
 
       <div className="card mb">
         <div className="card-h">

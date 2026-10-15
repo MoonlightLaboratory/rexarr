@@ -788,7 +788,23 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
           {isSeries && (
             <div className="small dim mt">
               Titles are numbered in disc order from “First ep.”{media.discNumber ? ` (disc ${media.discNumber} of the set)` : ''}; adjust any episode above if the disc order differs.
-              {(media.discNumber ?? 1) > 1 && (media.episodeStartGuessed || (media.episodeStart ?? 1) === 1) && (
+              {media.episodeSource === 'rexdb' && media.rexdb && (
+                <strong className="fromRexdb">
+                  {' '}
+                  These episode numbers came from <a href="https://moonlightlaboratory.github.io/rexarr/" target="_blank" rel="noreferrer">RexDB</a>, where
+                  somebody read this disc{media.rexdb.confirmations && media.rexdb.confirmations > 1 ? ` and ${media.rexdb.confirmations - 1} other${media.rexdb.confirmations > 2 ? 's' : ''} agreed` : ''} —
+                  not from a guess. Change anything that is wrong; what you set wins.
+                </strong>
+              )}
+              {media.episodeSource === 'rexdb-suggested' && media.rexdb && (
+                <strong>
+                  {' '}
+                  RexDB has a disc that looks like this one (“{media.rexdb.disc_name}”), but not close enough to apply on
+                  its own — check it at <a href="https://moonlightlaboratory.github.io/rexarr/" target="_blank" rel="noreferrer">RexDB</a> and
+                  set the episodes yourself.
+                </strong>
+              )}
+              {media.episodeSource !== 'rexdb' && (media.discNumber ?? 1) > 1 && (media.episodeStartGuessed || (media.episodeStart ?? 1) === 1) && (
                 <strong>
                   {' '}
                   This is disc {media.discNumber} of the set and nothing on it says where it starts, so{' '}

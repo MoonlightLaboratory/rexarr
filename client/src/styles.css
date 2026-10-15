@@ -1293,6 +1293,9 @@ table.metaTags td.mono { word-break: break-word; }
 /* ---- smart profile canvas: the whole content area, sidebar aside ---- */
 .graphPage { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .graphBar { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 9px 14px; border-bottom: 1px solid var(--borderColor); background: var(--cardBackgroundColor); }
+/* Where a disc's episode numbers came from: read by somebody, rather than worked out here. */
+.fromRexdb { color: var(--successColor, #4caf50); }
+
 .graphBar .spacer { flex: 1; }
 /* The cable hint doubles as the way to put the cable down, so it takes a pointer and a hover. */
 .graphBar button.badge { cursor: pointer; font-family: inherit; }

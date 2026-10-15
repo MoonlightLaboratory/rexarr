@@ -21,6 +21,7 @@ import { appEvents } from '../system.js';
 import { ejectDrive, emptyScanNote, labelToTitle, listDrives, listVirtualDrives, readDisc, readScanOutput, resolveMakemkv, ripArgs, ripTitle, scanArgs, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
 import { isOnline, listAgents } from '../agents/registry.js';
 import { readOnAgent, runOnAgent } from '../agents/remote.js';
+import { applyEntry, fingerprintOf, lookupDisc as lookupInRexDb } from './rexdb.js';
 import { byTitle, omdbConfigured } from '../omdb.js';
 import { audioSelectionFor, describeTracks } from './audio.js';
 import { ensureRipFolder } from './ripFolder.js';
@@ -355,6 +356,7 @@ export class DiscManager {
       }
       await this.identify(rip);
       this.applyDefaultSelection(rip);
+      await this.applyRexDb(rip);
       rip.status = 'ready';
     } catch (err) {
       if ((rip.status as RipStatus) === 'cancelled') return;
@@ -776,7 +778,10 @@ export class DiscManager {
     rip.media = { kind: g.season ? 'series' : rip.media.kind === 'series' ? 'series' : 'unknown', title: g.title, year: g.year, seasonNumber: g.season, episodeStart: 1, discNumber: g.disc ?? rip.media.discNumber };
     this.log(rip, `Matching "${g.title}" again`);
     await this.identify(rip);
-    if (rip.titles.length) this.applyDefaultSelection(rip);
+    if (rip.titles.length) {
+      this.applyDefaultSelection(rip);
+      await this.applyRexDb(rip);
+    }
     store.saveRips();
     this.emit(rip);
     return rip;
@@ -838,6 +843,55 @@ export class DiscManager {
       rip.profileId = p.id;
       rip.profileName = p.name;
     }
+  }
+
+  /**
+   * What RexDB already knows about this disc, which beats anything Rexarr can work out on its own.
+   *
+   * An exact fingerprint is the disc, and is applied. A structure that is only very close - a drive reporting a
+   * duration a second out, or the label differently - is recorded as a suggestion and left for the person to
+   * accept, because "very probably the same disc" is not the same as the disc. A disputed entry is never
+   * applied however it matched: the point of disagreement is that somebody has to look.
+   *
+   * Nothing is sent anywhere by this. It reads one cached JSON file.
+   */
+  private async applyRexDb(rip: DiscRip) {
+    if (rip.media.kind !== 'series' || !rip.titles.length) return;
+    let match;
+    try {
+      match = await lookupInRexDb(rip);
+    } catch (err) {
+      this.log(rip, `RexDB could not be read: ${(err as Error).message}`);
+      return;
+    }
+    if (!match) return;
+
+    const { entry, how, confident } = match;
+    const where = `${entry.disc_name}${entry.disc ? `, disc ${entry.disc}` : ''}`;
+    const mapping = applyEntry(entry, rip.titles);
+    if (!Object.keys(mapping.episodeMap).length && !Object.keys(mapping.titleRoles).length) return;
+
+    if (how !== 'fingerprint' || entry.status === 'disputed') {
+      rip.media.episodeSource = 'rexdb-suggested';
+      rip.media.rexdb = { fingerprint: match.fingerprint, status: entry.status, confirmations: entry.confirmations, disc_name: entry.disc_name };
+      this.log(
+        rip,
+        how === 'structure'
+          ? `RexDB has a disc with the same titles and lengths ("${where}"): ${mapping.summary}. The label differs, so it is offered rather than applied.`
+          : `RexDB's entry for "${where}" is disputed, so it is offered rather than applied: ${mapping.summary}.`,
+      );
+      return;
+    }
+
+    rip.episodeMap = { ...rip.episodeMap, ...mapping.episodeMap };
+    rip.titleRoles = { ...rip.titleRoles, ...mapping.titleRoles };
+    if (mapping.skip.length) rip.selectedTitleIds = rip.selectedTitleIds.filter((id) => !mapping.skip.includes(id));
+    if (mapping.seasonNumber !== undefined) rip.media.seasonNumber = mapping.seasonNumber;
+    if (mapping.episodeStart !== undefined) rip.media.episodeStart = mapping.episodeStart;
+    rip.media.episodeStartGuessed = false;
+    rip.media.episodeSource = 'rexdb';
+    rip.media.rexdb = { fingerprint: match.fingerprint, status: entry.status, confirmations: entry.confirmations, disc_name: entry.disc_name };
+    this.log(rip, `RexDB knows this disc ("${where}", ${entry.status}${entry.confirmations ? `, ${entry.confirmations} confirmations` : ''}): ${mapping.summary}`);
   }
 
   /** User overrides from the UI. */

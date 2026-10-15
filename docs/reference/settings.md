@@ -45,6 +45,7 @@ Everything on these pages is also available as JSON: `GET /api/settings`, `PUT /
 | MusicBrainz | on / off | CD and album lookups, Cover Art Archive |
 | TheDiscDB | on / off | barcodes and disc contents for physical releases |
 | OMDb | on / off, API key | `omdb.*`; genre, year and kind for titles the \*arr apps do not have |
+| RexDB | on / off, index URL | `rexdb.*`; which episode is on which disc, from the shared database |
 | CDDB / freedb | on / off, server | audio CD track titles when MusicBrainz has none |
 | Notifications | any number of targets | see below |
 

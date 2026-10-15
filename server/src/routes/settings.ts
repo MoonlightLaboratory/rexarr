@@ -131,6 +131,12 @@ export const settingsSchema = z.object({
   musicbrainz: z.object({ enabled: z.boolean() }).default({ enabled: true }),
   thediscdb: z.object({ enabled: z.boolean() }).default({ enabled: true }),
   omdb: z.object({ enabled: z.boolean().default(false), apiKey: z.string().max(80).default('') }).default({ enabled: false, apiKey: '' }),
+  rexdb: z
+    .object({
+      enabled: z.boolean().default(true),
+      url: z.string().url().max(500).default('https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/index.json'),
+    })
+    .default({ enabled: true, url: 'https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/index.json' }),
   cddb: z.object({ enabled: z.boolean(), server: z.string() }).default(DEFAULT_SETTINGS.cddb),
   notifications: z
     .object({

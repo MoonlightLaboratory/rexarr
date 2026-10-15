@@ -680,6 +680,44 @@ export interface OmdbSettings {
   apiKey: string;
 }
 
+/** RexDB: the shared database of which episode is on which disc. Reading it sends nothing anywhere. */
+export interface RexDbSettings {
+  enabled: boolean;
+  /** The index to read. The default is the RexDB branch of the Rexarr repository. */
+  url: string;
+}
+
+/** One disc in the RexDB index. The shape is RexDB's, not Rexarr's: see its schema/disc.schema.json. */
+export interface RexDbEntry {
+  path: string;
+  status: 'pending' | 'unverified' | 'verified' | 'disputed';
+  fingerprint?: string;
+  disc_name: string;
+  also_known_as?: string[];
+  barcodes?: string[];
+  series?: { title?: string; year?: number; tvdb?: number; tmdb?: number; anidb?: number; imdb?: string };
+  disc?: number;
+  release?: { name?: string; publisher?: string; region?: string; format?: string };
+  structure?: { titleCount: number; titles: { key: string; seconds: number }[] };
+  titles?: Record<string, string>;
+  confirmations?: number;
+}
+
+export interface RexDbIndex {
+  schema: number;
+  entries: number;
+  discs: RexDbEntry[];
+}
+
+export interface RexDbMatch {
+  entry: RexDbEntry;
+  /** `fingerprint` is the disc; `structure` is very probably the disc, and is offered rather than applied. */
+  how: 'fingerprint' | 'structure';
+  /** This disc's fingerprint, whether or not it matched - it is what a contribution would be keyed by. */
+  fingerprint: string;
+  confident: boolean;
+}
+
 export interface CddbSettings {
   enabled: boolean;
   /** A freedb-protocol CGI endpoint, e.g. https://freedbtest.dyndns.org/~cddb/cddb.cgi */
@@ -868,6 +906,8 @@ export interface Settings {
   thediscdb: { enabled: boolean };
   /** OMDb: what a film or series is, when Radarr and Sonarr do not know it. */
   omdb: OmdbSettings;
+  /** RexDB: which episode is on which disc, from the shared database. */
+  rexdb: RexDbSettings;
   /** CDDB / freedb: track titles for audio CDs MusicBrainz does not have. */
   cddb: CddbSettings;
   /** Discord, Slack, ntfy and friends: told when an encode or a rip finishes or fails. */
@@ -1614,6 +1654,10 @@ export interface RipMedia {
    * many episodes were on the ones before it, so this is a starting point to check, not an answer.
    */
   episodeStartGuessed?: boolean;
+  /** Where the episode numbers came from, so the page can say rather than imply. */
+  episodeSource?: 'rexdb' | 'rexdb-suggested' | 'guess' | 'manual';
+  /** The RexDB entry behind them, when that is where they came from. */
+  rexdb?: { fingerprint: string; status: string; confirmations?: number; disc_name: string };
   /** Anime: name files with absolute episode numbers (Show - 005) instead of S01E05. */
   absoluteNumbering?: boolean;
   /** Disc number parsed from the label (multi-disc sets). */
