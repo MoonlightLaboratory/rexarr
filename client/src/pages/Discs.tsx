@@ -1109,7 +1109,10 @@ function RexDbPanel({ rip }: { rip: DiscRip }) {
   const [busy, setBusy] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState<{ ok: boolean; url?: string; error?: string } | null>(null);
-  const { toast } = useApp();
+  const { settings, toast } = useApp();
+  // With no submission service there is nowhere to post from here, and a button that can only fail is worse
+  // than no button: GitHub is the way to send it, so it becomes the thing offered.
+  const canSend = Boolean(settings?.rexdb?.submitUrl?.trim());
   const load = async (refresh = false) => {
     setBusy(true);
     try {
@@ -1170,6 +1173,10 @@ function RexDbPanel({ rip }: { rip: DiscRip }) {
               </a>
             )}
           </span>
+        ) : !canSend ? (
+          <a className="btn sm primary" href={c.url} target="_blank" rel="noreferrer">
+            Post it on GitHub
+          </a>
         ) : (
           <button className="btn sm primary" onClick={send} disabled={sending}>
             {sending ? <span className="spinner" /> : null} Send to RexDB
