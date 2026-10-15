@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "status": "unverified",
+  "fingerprint": "195b057e41397300",
+  "disc_name": "Sword Art Online S2 P4",
+  "series": { "title": "Sword Art Online", "year": 2012, "tvdb": 259640 },
+  "disc": 4,
+  "release": { "name": "Sword Art Online II Part 4", "publisher": "Anime Limited", "region": "B", "format": "dvd" },
+  "structure": {
+    "titleCount": 5,
+    "titles": [
+      { "key": "0", "seconds": 1417 },
+      { "key": "1", "seconds": 1417 },
+      { "key": "2", "seconds": 1416 },
+      { "key": "3", "seconds": 1419 },
+      { "key": "4", "seconds": 1418 }
+    ]
+  },
+  "titles": {
+    "0": "S02E20",
+    "1": "S02E21",
+    "2": "S02E22",
+    "3": "S02E23",
+    "4": "S02E24"
+  },
+  "confirmations": 1,
+  "source": "Read off the disc in a drive. The set runs 7 + 7 + 5 + 5, so the arithmetic guess of episode 16 for disc 4 is four out.",
+  "verifiedOn": "2026-10-15"
+}

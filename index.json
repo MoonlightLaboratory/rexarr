@@ -3,6 +3,59 @@
   "entries": 3,
   "discs": [
     {
+      "path": "discs/19/195b057e41397300.json",
+      "status": "unverified",
+      "fingerprint": "195b057e41397300",
+      "disc_name": "Sword Art Online S2 P4",
+      "also_known_as": [],
+      "barcodes": [],
+      "series": {
+        "title": "Sword Art Online",
+        "year": 2012,
+        "tvdb": 259640
+      },
+      "disc": 4,
+      "release": {
+        "name": "Sword Art Online II Part 4",
+        "publisher": "Anime Limited",
+        "region": "B",
+        "format": "dvd"
+      },
+      "structure": {
+        "titleCount": 5,
+        "titles": [
+          {
+            "key": "0",
+            "seconds": 1417
+          },
+          {
+            "key": "1",
+            "seconds": 1417
+          },
+          {
+            "key": "2",
+            "seconds": 1416
+          },
+          {
+            "key": "3",
+            "seconds": 1419
+          },
+          {
+            "key": "4",
+            "seconds": 1418
+          }
+        ]
+      },
+      "titles": {
+        "0": "S02E20",
+        "1": "S02E21",
+        "2": "S02E22",
+        "3": "S02E23",
+        "4": "S02E24"
+      },
+      "confirmations": 1
+    },
+    {
       "path": "pending/sword-art-online-259640-s02d01.json",
       "status": "pending",
       "disc_name": "Anime Limited Sword Art Online 2 P1",
@@ -57,32 +110,6 @@
         "5": "S02E13",
         "6": "S02E14",
         "7": "S00E12"
-      }
-    },
-    {
-      "path": "pending/sword-art-online-259640-s02d04.json",
-      "status": "pending",
-      "disc_name": "Sword Art Online S2 P4",
-      "also_known_as": [],
-      "barcodes": [],
-      "series": {
-        "title": "Sword Art Online",
-        "year": 2012,
-        "tvdb": 259640
-      },
-      "disc": 4,
-      "release": {
-        "name": "Sword Art Online II Part 4",
-        "publisher": "Anime Limited",
-        "region": "B",
-        "format": "dvd"
-      },
-      "titles": {
-        "0": "S02E20",
-        "1": "S02E21",
-        "2": "S02E22",
-        "3": "S02E23",
-        "4": "S02E24"
       }
     }
   ]
