@@ -851,6 +851,27 @@ function RexDbCard({ value, onChange }: { value: RexDbSettings; onChange: (v: Re
           <input type="text" className="mono" value={value?.url ?? ''} disabled={!on} onChange={(e) => onChange({ ...value, url: e.target.value })} />
           <div className="help">Point this at your own copy to use a private database instead.</div>
         </div>
+        <div className="field">
+          <label>When you correct a disc RexDB does not know</label>
+          <select value={value?.contribute ?? 'ask'} disabled={!on} onChange={(e) => onChange({ ...value, contribute: e.target.value as RexDbSettings['contribute'] })}>
+            <option value="ask">Offer to send it — I press the button</option>
+            <option value="auto">Send it when the rip starts</option>
+            <option value="off">Never send anything</option>
+          </select>
+          <span className="hint">
+            A disc you have corrected is the thing RexDB is for. What goes is the disc and what is on it — its
+            fingerprint, label, series id and episode mapping — and nothing else: no paths, no library, nothing about
+            you or this machine. Every submission becomes a pull request somebody reads, so it is public and it is not
+            applied to anyone until it is agreed.
+          </span>
+        </div>
+        {value?.contribute === 'auto' && (
+          <div className="field stack">
+            <label>Where contributions go</label>
+            <input type="text" className="mono" value={value?.submitUrl ?? ''} disabled={!on} onChange={(e) => onChange({ ...value, submitUrl: e.target.value })} />
+            <div className="help">The service that opens the pull request. Point it at your own to keep submissions private.</div>
+          </div>
+        )}
       </div>
     </div>
   );

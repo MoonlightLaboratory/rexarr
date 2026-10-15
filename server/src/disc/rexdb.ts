@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { DiscRip, DiscTitle, RexDbEntry, RexDbIndex, RexDbMatch, TitleRole } from '../../../shared/types.js';
 import { httpFetch } from '../net.js';
+import { APP_VERSION } from '../../../shared/version.js';
 import { PATHS } from '../config.js';
 import { store } from '../store.js';
 
@@ -279,4 +280,38 @@ export function contributionUrl(entry: Record<string, unknown>, repo = 'Moonligh
   ].join('\n');
   const params = new URLSearchParams({ title: `RexDB: ${e.disc_name}`, body, labels: 'rexdb' });
   return `https://github.com/${repo}/issues/new?${params.toString()}`;
+}
+
+/**
+ * Send an entry to RexDB.
+ *
+ * Posts to a submission service - the Worker in the RexDB branch - which checks it and opens a pull request.
+ * Rexarr holds no GitHub token: the service has one, so a contribution needs nothing of the contributor's.
+ *
+ * Only ever called when `contribute` says to. What goes is the entry and nothing else: the disc, its structure
+ * and what is on it. No paths, no library, no identifier for the machine or the person.
+ */
+export async function submitEntry(entry: Record<string, unknown>): Promise<{ ok: boolean; url?: string; error?: string }> {
+  const s = rexdbSettings();
+  const url = s.submitUrl?.trim();
+  if (!url) return { ok: false, error: 'no submission URL set' };
+  try {
+    const res = await httpFetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ client: `rexarr/${APP_VERSION}`, entry }),
+    });
+    const text = await res.text();
+    const body = (() => {
+      try {
+        return JSON.parse(text) as { url?: string; error?: string };
+      } catch {
+        return {};
+      }
+    })();
+    if (!res.ok) return { ok: false, error: body.error ?? `${res.status} ${res.statusText}` };
+    return { ok: true, url: body.url };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
 }

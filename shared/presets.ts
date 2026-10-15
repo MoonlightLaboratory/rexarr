@@ -392,7 +392,12 @@ export const DEFAULT_SETTINGS = {
   musicbrainz: { enabled: true },
   thediscdb: { enabled: true },
   omdb: { enabled: false, apiKey: '' },
-  rexdb: { enabled: true, url: 'https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/index.json' },
+  rexdb: {
+    enabled: true,
+    url: 'https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/index.json',
+    contribute: 'ask' as const,
+    submitUrl: 'https://rexdb.moonlightlab.co.uk/submit',
+  },
   // gnudb.org is the maintained freedb successor but only answers applications registered with it; this mirror
   // answers anyone, and is only asked when MusicBrainz has nothing for the disc.
   cddb: { enabled: true, server: 'https://freedbtest.dyndns.org/~cddb/cddb.cgi' },

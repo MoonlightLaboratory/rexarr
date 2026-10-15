@@ -685,6 +685,15 @@ export interface RexDbSettings {
   enabled: boolean;
   /** The index to read. The default is the RexDB branch of the Rexarr repository. */
   url: string;
+  /**
+   * What to do with a disc you have corrected that RexDB does not know.
+   * - `off`: nothing. Reading stays one-way.
+   * - `ask`: the Discs page offers it and you press the button. Nothing leaves until you do.
+   * - `auto`: sent when the rip starts, without asking again.
+   */
+  contribute: 'off' | 'ask' | 'auto';
+  /** Where an automatic contribution is posted. Empty = the public one. */
+  submitUrl: string;
 }
 
 /** One disc in the RexDB index. The shape is RexDB's, not Rexarr's: see its schema/disc.schema.json. */

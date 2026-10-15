@@ -153,8 +153,29 @@ the label differently, produces a different fingerprint for the same disc; where
 Rexarr says so and leaves the numbers to you. A disputed entry is never applied either. Whatever you set by hand
 always wins.
 
-Looking a disc up **sends nothing anywhere**: one JSON file is downloaded and cached for a day. It can be
-switched off, or pointed at your own copy, under **Settings → Connections → RexDB**.
+Looking a disc up **sends nothing anywhere** — and not only in the sense that nothing is uploaded. The whole
+index is downloaded and matched on your machine, so the fingerprint never leaves it: nobody can see which discs
+you own, or that you looked. It is one JSON file, cached for a day. It can be switched off, or pointed at your
+own copy, under **Settings → Connections → RexDB**.
+
+### Contributing a disc
+
+Correcting a disc's episodes is the work RexDB exists to collect, so Rexarr offers to send it back. What goes is
+the disc and what is on it — its fingerprint, label, series id and episode mapping — and nothing else: no paths,
+no library, nothing about you or the machine.
+
+**Settings → Connections → RexDB** decides when:
+
+| | |
+| --- | --- |
+| **Offer to send it** | the default. The Discs page shows exactly what would go and you press the button |
+| **Send it when the rip starts** | sent without asking again, once the mapping is settled |
+| **Never send anything** | reading stays one-way |
+
+Either way a submission becomes a **pull request** that somebody reads, so nothing you send is applied to anyone
+else until it is agreed, and the checker runs on it first. Automatic submissions go through a small service that
+holds the GitHub token, so Rexarr never carries a credential that could write to the database — point it at your
+own if you would rather keep contributions private.
 
 Where RexDB has never seen the disc, Rexarr falls back to what it can work out:
 

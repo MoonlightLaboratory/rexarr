@@ -21,7 +21,7 @@ import { appEvents } from '../system.js';
 import { ejectDrive, emptyScanNote, labelToTitle, listDrives, listVirtualDrives, readDisc, readScanOutput, resolveMakemkv, ripArgs, ripTitle, scanArgs, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
 import { isOnline, listAgents } from '../agents/registry.js';
 import { readOnAgent, runOnAgent } from '../agents/remote.js';
-import { applyEntry, fingerprintOf, lookupDisc as lookupInRexDb } from './rexdb.js';
+import { applyEntry, buildEntry, fingerprintOf, lookupDisc as lookupInRexDb, rexdbSettings, submitEntry } from './rexdb.js';
 import { byTitle, omdbConfigured } from '../omdb.js';
 import { audioSelectionFor, describeTracks } from './audio.js';
 import { ensureRipFolder } from './ripFolder.js';
@@ -894,6 +894,29 @@ export class DiscManager {
     this.log(rip, `RexDB knows this disc ("${where}", ${entry.status}${entry.confirmations ? `, ${entry.confirmations} confirmations` : ''}): ${mapping.summary}`);
   }
 
+  /**
+   * Send this disc to RexDB, when it has been set to do that and there is something to send.
+   *
+   * Only a disc RexDB does not already agree about, and only when `contribute` is `auto` - on `ask` the Discs
+   * page offers the same entry behind a button instead. Failing is not worth interrupting a rip over, so it is
+   * logged and left.
+   */
+  private async contributeToRexDb(rip: DiscRip) {
+    if (rexdbSettings().contribute !== 'auto') return;
+    const entry = buildEntry(rip);
+    if (!entry) return;
+    try {
+      const known = await lookupInRexDb(rip);
+      if (known?.how === 'fingerprint' && JSON.stringify(known.entry.titles ?? {}) === JSON.stringify((entry as { titles: unknown }).titles)) return;
+      const sent = await submitEntry(entry);
+      if (sent.ok) this.log(rip, `Sent this disc to RexDB${sent.url ? `: ${sent.url}` : ''}`);
+      else this.log(rip, `Could not send this disc to RexDB: ${sent.error}`);
+    } catch (err) {
+      this.log(rip, `Could not send this disc to RexDB: ${(err as Error).message}`);
+    }
+    this.emit(rip);
+  }
+
   /** User overrides from the UI. */
   update(id: string, patch: { media?: Partial<RipMedia>; selectedTitleIds?: number[]; episodeMap?: Record<number, number>; profileId?: string; options?: Partial<RipOptions>; audioMode?: 'best' | 'all' | 'custom'; selectedAudio?: Record<string, number[]>; titleRoles?: Record<string, TitleRole> }) {
     const rip = this.get(id);
@@ -952,6 +975,8 @@ export class DiscManager {
     if (!['ready', 'failed', 'cancelled'].includes(rip.status)) throw new Error(`Cannot start a rip in state ${rip.status}`);
     rip = this.update(id, patch);
     if (!rip.selectedTitleIds.length) throw new Error('No titles selected');
+    // Starting a rip is the moment the mapping is settled, so it is when a correction is worth sharing.
+    void this.contributeToRexDb(rip);
     if (rip.discType === 'cd') return this.startCdRip(rip);
     if (rip.options.transcode && !rip.profileId) throw new Error('Pick an encoding profile or disable transcoding');
     // Not in Sonarr / Radarr yet: add it now, so it is there (with its episode list) by the time the rip is imported
