@@ -173,9 +173,13 @@ no library, nothing about you or the machine.
 | **Never send anything** | reading stays one-way |
 
 Either way a submission becomes a **pull request** that somebody reads, so nothing you send is applied to anyone
-else until it is agreed, and the checker runs on it first. Automatic submissions go through a small service that
-holds the GitHub token, so Rexarr never carries a credential that could write to the database — point it at your
-own if you would rather keep contributions private.
+else until it is agreed, and the checker runs on it first.
+
+Out of the box there is **no submission service set**, and nothing is posted from your machine: the Discs page
+hands you the entry and a GitHub link, and you post it. That needs nothing deployed by anyone. Setting
+**Submission service** to a [Worker](https://github.com/MoonlightLaboratory/rexarr/tree/RexDB/worker) — the
+public one, or your own — is what makes a corrected disc go on its own. The Worker holds the GitHub token so
+Rexarr never carries a credential that could write to the database.
 
 Where RexDB has never seen the disc, Rexarr falls back to what it can work out:
 

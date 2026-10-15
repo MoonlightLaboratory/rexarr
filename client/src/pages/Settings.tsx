@@ -865,11 +865,16 @@ function RexDbCard({ value, onChange }: { value: RexDbSettings; onChange: (v: Re
             applied to anyone until it is agreed.
           </span>
         </div>
-        {(value?.contribute ?? 'auto') === 'auto' && (
+        {(value?.contribute ?? 'auto') !== 'off' && (
           <div className="field stack">
-            <label>Where contributions go</label>
-            <input type="text" className="mono" value={value?.submitUrl ?? ''} disabled={!on} onChange={(e) => onChange({ ...value, submitUrl: e.target.value })} />
-            <div className="help">The service that opens the pull request. Point it at your own to keep submissions private.</div>
+            <label>Submission service (optional)</label>
+            <input type="text" className="mono" value={value?.submitUrl ?? ''} disabled={!on} placeholder="Empty — contributions are handed to GitHub for you to post" onChange={(e) => onChange({ ...value, submitUrl: e.target.value })} />
+            <div className="help">
+              Leave it empty and nothing is posted from here: the Discs page hands you the entry and a GitHub link to
+              post it yourself, which needs nothing deployed. Fill it in with a{' '}
+              <a href="https://github.com/MoonlightLaboratory/rexarr/tree/RexDB/worker" target="_blank" rel="noreferrer">submission service</a>{' '}
+              — the public one, or your own — and a corrected disc is sent without you doing anything.
+            </div>
           </div>
         )}
       </div>

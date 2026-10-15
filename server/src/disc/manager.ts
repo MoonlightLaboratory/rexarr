@@ -902,7 +902,11 @@ export class DiscManager {
    * logged and left.
    */
   private async contributeToRexDb(rip: DiscRip) {
-    if (rexdbSettings().contribute !== 'auto') return;
+    const settings = rexdbSettings();
+    if (settings.contribute !== 'auto') return;
+    // No submission service configured, so there is nowhere to post it. The Discs page offers the same disc
+    // with a link to post it by hand, which is the whole answer - saying so again in the log every rip is not.
+    if (!settings.submitUrl?.trim()) return;
     // Only a mapping somebody put right by hand. Rexarr's own arithmetic is what RexDB exists to replace, and
     // a database filling up with it would be worse than an empty one - CONTRIBUTING says as much to people.
     if (rip.media.episodeSource !== 'manual') return;

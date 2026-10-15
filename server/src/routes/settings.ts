@@ -136,13 +136,13 @@ export const settingsSchema = z.object({
       enabled: z.boolean().default(true),
       url: z.string().url().max(500).default('https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/index.json'),
       contribute: z.enum(['off', 'ask', 'auto']).default('auto'),
-      submitUrl: z.string().max(500).default('https://rexdb.moonlightlab.co.uk/submit'),
+      submitUrl: z.string().max(500).default(''),
     })
     .default({
       enabled: true,
       url: 'https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/index.json',
       contribute: 'auto',
-      submitUrl: 'https://rexdb.moonlightlab.co.uk/submit',
+      submitUrl: '',
     }),
   cddb: z.object({ enabled: z.boolean(), server: z.string() }).default(DEFAULT_SETTINGS.cddb),
   notifications: z

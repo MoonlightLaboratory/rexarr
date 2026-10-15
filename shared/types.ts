@@ -692,7 +692,10 @@ export interface RexDbSettings {
    * - `auto`: sent when the rip starts, without asking again.
    */
   contribute: 'off' | 'ask' | 'auto';
-  /** Where an automatic contribution is posted. Empty = the public one. */
+  /**
+   * A submission service to post to - the Worker in the RexDB branch, or one of your own. Empty means there is
+   * none, and a contribution is handed to GitHub for you to post, which needs nothing deployed anywhere.
+   */
   submitUrl: string;
 }
 

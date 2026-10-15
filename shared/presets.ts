@@ -396,7 +396,7 @@ export const DEFAULT_SETTINGS = {
     enabled: true,
     url: 'https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/index.json',
     contribute: 'auto' as const,
-    submitUrl: 'https://rexdb.moonlightlab.co.uk/submit',
+    submitUrl: '',
   },
   // gnudb.org is the maintained freedb successor but only answers applications registered with it; this mirror
   // answers anyone, and is only asked when MusicBrainz has nothing for the disc.
