@@ -2,116 +2,221 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/schema/disc.schema.json",
   "title": "RexDB disc entry",
-  "description": "What is on one physical disc: which title on it is which episode.",
+  "description": "Which title on one physical disc is which episode, keyed by a fingerprint of the disc.",
   "type": "object",
-  "required": ["schema", "kind", "titles"],
+  "required": [
+    "schema",
+    "disc_name",
+    "series",
+    "titles",
+    "status"
+  ],
   "additionalProperties": false,
   "properties": {
-    "schema": { "const": 1 },
-    "kind": { "enum": ["series", "movie"] },
-    "series": {
-      "type": "object",
-      "description": "The show, for a series disc. At least one id, so the entry survives a rename.",
-      "required": ["title"],
-      "additionalProperties": false,
-      "properties": {
-        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "year": { "type": "integer", "minimum": 1900, "maximum": 2100 },
-        "tvdbId": { "type": "integer", "minimum": 1 },
-        "tmdbId": { "type": "integer", "minimum": 1 },
-        "imdbId": { "type": "string", "pattern": "^tt\\d{7,10}$" },
-        "anidbId": { "type": "integer", "minimum": 1 }
-      }
+    "schema": {
+      "const": 1
     },
-    "movie": {
-      "type": "object",
-      "required": ["title"],
-      "additionalProperties": false,
-      "properties": {
-        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "year": { "type": "integer", "minimum": 1900, "maximum": 2100 },
-        "tmdbId": { "type": "integer", "minimum": 1 },
-        "imdbId": { "type": "string", "pattern": "^tt\\d{7,10}$" }
-      }
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$",
+      "description": "See FINGERPRINT.md. The key: volume label plus the playlist structure, hashed."
     },
-    "season": { "type": "integer", "minimum": 0, "maximum": 100 },
-    "disc": { "type": "integer", "minimum": 1, "maximum": 100, "description": "Which disc of the set, counting the way the packaging does." },
-    "release": {
-      "type": "object",
-      "description": "Which edition this is, so two pressings of the same season do not fight.",
-      "additionalProperties": false,
-      "properties": {
-        "name": { "type": "string", "maxLength": 200 },
-        "publisher": { "type": "string", "maxLength": 100 },
-        "region": { "enum": ["A", "B", "C", "1", "2", "3", "4", "5", "6", "free"] },
-        "format": { "enum": ["bluray", "dvd", "uhd"] }
-      }
+    "disc_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "The volume label as the drive reported it, kept readable so it can be searched for."
+    },
+    "also_known_as": {
+      "type": "array",
+      "description": "Other labels the same pressing reports. Each has its own fingerprint and its own entry; this is for people searching.",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "maxItems": 20
     },
     "barcodes": {
       "type": "array",
-      "description": "The number on the case. The strongest match there is.",
-      "items": { "type": "string", "pattern": "^\\d{8,14}$" },
+      "description": "The number on the case. Not the key, but the strongest confirmation there is.",
+      "items": {
+        "type": "string",
+        "pattern": "^\\d{8,14}$"
+      },
       "maxItems": 10
     },
-    "labels": {
-      "type": "array",
-      "description": "Volume labels the drive reports. Several, where pressings differ.",
-      "items": { "type": "string", "minLength": 2, "maxLength": 100 },
-      "maxItems": 20
-    },
-    "fingerprint": {
+    "structure": {
       "type": "object",
-      "description": "Read off the disc, never guessed: a wrong one is worse than none.",
-      "required": ["titleCount", "durationsSeconds"],
+      "description": "What went into the fingerprint, in the open, so a near miss can still be recognised.",
+      "required": [
+        "titleCount",
+        "titles"
+      ],
       "additionalProperties": false,
       "properties": {
-        "titleCount": { "type": "integer", "minimum": 1, "maximum": 100 },
-        "durationsSeconds": {
+        "titleCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "titles": {
           "type": "array",
-          "description": "Every title's length in whole seconds, in disc order, including extras.",
-          "items": { "type": "integer", "minimum": 1 },
           "minItems": 1,
-          "maxItems": 100
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "required": [
+              "key",
+              "seconds"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60,
+                "description": "Playlist file name, or the title index where the disc gives none."
+              },
+              "seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100000
+              }
+            }
+          }
+        }
+      }
+    },
+    "series": {
+      "type": "object",
+      "description": "Which show, by id. One id at least - titles get renamed, ids do not.",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "year": {
+          "type": "integer",
+          "minimum": 1900,
+          "maximum": 2100
+        },
+        "tvdb": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "tmdb": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "anidb": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "imdb": {
+          "type": "string",
+          "pattern": "^tt\\d{7,10}$"
+        }
+      }
+    },
+    "disc": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "description": "Which disc of the set, counting the way the packaging does."
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "publisher": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "region": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "free"
+          ]
+        },
+        "format": {
+          "enum": [
+            "bluray",
+            "dvd",
+            "uhd"
+          ]
         }
       }
     },
     "titles": {
-      "type": "array",
-      "description": "What each title on the disc is. Only the ones that are something need listing.",
-      "minItems": 1,
-      "maxItems": 100,
-      "items": {
-        "type": "object",
-        "required": ["index"],
-        "additionalProperties": false,
-        "properties": {
-          "index": { "type": "integer", "minimum": 0, "description": "The title number the disc itself uses, counting from 0." },
-          "episode": { "type": "integer", "minimum": 0, "description": "Episode number within `season`." },
-          "episodes": {
-            "type": "array",
-            "description": "For a title holding more than one episode, or a feature-length pair.",
-            "items": { "type": "integer", "minimum": 0 },
-            "minItems": 1,
-            "maxItems": 20
-          },
-          "special": { "type": "integer", "minimum": 0, "description": "Season 0 episode number, for a recap or an OVA the catalogues file as a special." },
-          "extra": { "enum": ["op", "ed", "trailer", "interview", "featurette", "other"], "description": "Kept beside the show rather than imported as an episode." },
-          "playAll": { "const": true, "description": "A compilation of the other titles. Never ripped." },
-          "note": { "type": "string", "maxLength": 300 }
-        }
+      "type": "object",
+      "description": "Title key to what it is. Keys match structure.titles[].key.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(S\\d{1,3}E\\d{1,4}(-E\\d{1,4})?|extra(:(op|ed|trailer|interview|featurette|other))?|playall|skip)$",
+        "description": "S01E04, a range S01E04-E05, S00E12 for a special, extra[:kind], playall, or skip."
       }
     },
-    "source": { "type": "string", "maxLength": 300, "description": "Where this came from, when it was not the disc in your hand." },
-    "verifiedOn": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+    "confirmations": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100000,
+      "description": "How many people have submitted this same mapping for this fingerprint."
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "unverified",
+        "verified",
+        "disputed"
+      ],
+      "description": "pending: the mapping is known but nobody has fingerprinted the disc, so it is never applied automatically. unverified: fingerprinted, one submission. verified: enough submissions agree. disputed: they do not, and nothing is applied."
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 300
+    },
+    "verifiedOn": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
   },
   "allOf": [
     {
-      "if": { "properties": { "kind": { "const": "series" } } },
-      "then": { "required": ["series", "season"] }
-    },
-    {
-      "if": { "properties": { "kind": { "const": "movie" } } },
-      "then": { "required": ["movie"] }
+      "if": {
+        "properties": {
+          "status": {
+            "not": {
+              "const": "pending"
+            }
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "fingerprint",
+          "structure"
+        ],
+        "description": "anything that can be matched needs the key it is matched by"
+      }
     }
   ]
 }

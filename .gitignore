@@ -1,0 +1,22 @@
+# RexDB is an orphan branch: it holds the database and nothing else.
+#
+# A working tree that also has Rexarr checked out leaves the whole application sitting here untracked when the
+# branch is switched, and one `git add -A` would commit the app - and data/, which holds settings.json and an
+# API key - into the database. These keep that from happening.
+client/
+server/
+shared/
+distribution/
+docker/
+docs/
+logo/
+overrides/
+site/
+data/
+node_modules/
+test-media/
+release/
+dist/
+*.log
+.DS_Store
+.env

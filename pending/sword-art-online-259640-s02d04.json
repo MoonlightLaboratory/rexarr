@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "status": "pending",
+  "disc_name": "Sword Art Online S2 P4",
+  "series": { "title": "Sword Art Online", "year": 2012, "tvdb": 259640 },
+  "disc": 4,
+  "release": { "name": "Sword Art Online II Part 4", "publisher": "Anime Limited", "region": "B", "format": "dvd" },
+  "titles": {
+    "0": "S02E20",
+    "1": "S02E21",
+    "2": "S02E22",
+    "3": "S02E23",
+    "4": "S02E24"
+  },
+  "source": "Read off the disc by its owner; no fingerprint yet. Note that the obvious guess, (disc-1) x 5 + 1, gives 16 here and is four episodes out, because discs 1 and 2 hold seven each."
+}

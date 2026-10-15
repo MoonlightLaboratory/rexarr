@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "status": "pending",
+  "disc_name": "Anime Limited Sword Art Online 2 P1",
+  "series": { "title": "Sword Art Online", "year": 2012, "tvdb": 259640 },
+  "disc": 1,
+  "release": { "name": "Sword Art Online II Part 1", "publisher": "Anime Limited", "region": "B", "format": "dvd" },
+  "titles": {
+    "0": "S02E01",
+    "1": "S02E02",
+    "2": "S02E03",
+    "3": "S02E04",
+    "4": "S02E05",
+    "5": "S02E06",
+    "6": "S02E07"
+  },
+  "source": "Read off the disc by its owner; the disc was not in a drive when the entry was written, so it has no fingerprint yet."
+}

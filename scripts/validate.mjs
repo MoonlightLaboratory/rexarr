@@ -11,14 +11,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fingerprint } from './fingerprint.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const checkOnly = process.argv.includes('--check');
 const problems = [];
 const fail = (file, message) => problems.push(`${path.relative(ROOT, file)}: ${message}`);
 
-/** Every .json under discs/, in a stable order so the index does not churn. */
-function entryFiles(dir = path.join(ROOT, 'discs')) {
+/** Every .json under discs/ and pending/, in a stable order so the index does not churn. */
+function entryFiles(dir) {
+  if (dir === undefined) return [...entryFiles(path.join(ROOT, 'discs')), ...entryFiles(path.join(ROOT, 'pending'))];
   if (!fs.existsSync(dir)) return [];
   return fs
     .readdirSync(dir, { withFileTypes: true })
@@ -68,37 +70,50 @@ function check(value, schema, file, at = '') {
   }
 }
 
-/** The rules a schema cannot state: what makes an entry findable, and self-consistent. */
+/** The rules a schema cannot state: that the key is really the key, and the mapping is self-consistent. */
 function sanity(entry, file) {
-  const findable = (entry.barcodes?.length ?? 0) + (entry.labels?.length ?? 0) + (entry.fingerprint ? 1 : 0);
-  if (!findable) fail(file, 'nothing to recognise the disc by - give it a barcode, a label or a fingerprint');
+  const pending = entry.status === 'pending';
 
-  if (entry.kind === 'series' && !entry.series?.tvdbId && !entry.series?.tmdbId && !entry.series?.imdbId && !entry.series?.anidbId) {
-    fail(file, 'series needs at least one id (tvdbId, tmdbId, imdbId or anidbId) - titles get renamed, ids do not');
+  if (!entry.series?.tvdb && !entry.series?.tmdb && !entry.series?.anidb && !entry.series?.imdb) {
+    fail(file, 'series needs at least one id (tvdb, tmdb, anidb or imdb) - titles get renamed, ids do not');
   }
 
-  const seen = new Set();
-  for (const t of entry.titles ?? []) {
-    if (seen.has(t.index)) fail(file, `title ${t.index} is listed twice`);
-    seen.add(t.index);
-    const says = ['episode', 'episodes', 'special', 'extra', 'playAll'].filter((k) => t[k] !== undefined);
-    if (says.length === 0) fail(file, `title ${t.index} says nothing about what it is`);
-    if (says.length > 1) fail(file, `title ${t.index} is ${says.join(' and ')} at once; it can only be one`);
+  if (!pending) {
+    // The fingerprint is the key, so it is recomputed rather than believed. A typo here is a disc that is never
+    // found, or worse, one that is found and is not the disc you have.
+    const computed = fingerprint(entry.disc_name, entry.structure.titles);
+    if (computed !== entry.fingerprint) fail(file, `fingerprint is ${entry.fingerprint} but this disc_name and structure hash to ${computed}`);
+
+    if (entry.structure.titles.length !== entry.structure.titleCount) {
+      fail(file, `structure says ${entry.structure.titleCount} titles but lists ${entry.structure.titles.length}`);
+    }
+    const keys = entry.structure.titles.map((t) => t.key);
+    if (new Set(keys).size !== keys.length) fail(file, 'two titles in structure share a key');
+    for (const key of Object.keys(entry.titles)) {
+      if (!keys.includes(key)) fail(file, `titles has "${key}", which is not a title in structure`);
+    }
+    const base = path.basename(file, '.json');
+    if (base !== entry.fingerprint) fail(file, `file should be named ${entry.fingerprint}.json, after the fingerprint it is keyed by`);
+  } else {
+    if (entry.fingerprint || entry.structure) fail(file, 'a pending entry has no fingerprint yet - that is what makes it pending');
+    if (path.basename(path.dirname(file)) !== 'pending') fail(file, 'pending entries live in pending/');
   }
 
-  const fp = entry.fingerprint;
-  if (fp && fp.durationsSeconds.length !== fp.titleCount) {
-    fail(file, `fingerprint says ${fp.titleCount} titles but lists ${fp.durationsSeconds.length} durations`);
-  }
-  if (fp) {
-    const highest = Math.max(-1, ...(entry.titles ?? []).map((t) => t.index));
-    if (highest >= fp.titleCount) fail(file, `title ${highest} is listed, but the fingerprint only has ${fp.titleCount} titles`);
+  if (!pending && path.basename(path.dirname(file)) !== entry.fingerprint.slice(0, 2)) {
+    fail(file, `should be in discs/${entry.fingerprint.slice(0, 2)}/, the first two characters of its fingerprint`);
   }
 
-  // an episode on two titles of the same disc is nearly always a mistake, and a play-all title mislabelled
-  const episodes = (entry.titles ?? []).flatMap((t) => (t.episode !== undefined ? [t.episode] : (t.episodes ?? [])));
-  const twice = episodes.filter((e, i) => episodes.indexOf(e) !== i);
-  if (twice.length) fail(file, `episode ${[...new Set(twice)].join(', ')} is on two titles - is one of them a play-all?`);
+  // an episode on two titles of one disc is nearly always a play-all that was not marked as one
+  const seen = new Map();
+  for (const [key, what] of Object.entries(entry.titles)) {
+    if (!/^S\d{1,3}E/.test(what)) continue;
+    if (seen.has(what)) fail(file, `${what} is on both "${seen.get(what)}" and "${key}" - is one of them a play-all?`);
+    seen.set(what, key);
+  }
+
+  if (entry.status === 'verified' && (entry.confirmations ?? 1) < 2) {
+    fail(file, 'verified needs at least two submissions that agree; one is unverified');
+  }
 }
 
 const files = entryFiles();
@@ -117,15 +132,16 @@ for (const file of files) {
   if (problems.length !== before) continue;
   index.push({
     path: path.relative(ROOT, file),
-    kind: entry.kind,
-    title: entry.kind === 'series' ? entry.series.title : entry.movie.title,
-    year: (entry.kind === 'series' ? entry.series.year : entry.movie.year) ?? undefined,
-    ids: entry.kind === 'series' ? entry.series : entry.movie,
-    season: entry.season,
-    disc: entry.disc,
-    barcodes: entry.barcodes ?? [],
-    labels: entry.labels ?? [],
+    status: entry.status,
     fingerprint: entry.fingerprint,
+    disc_name: entry.disc_name,
+    also_known_as: entry.also_known_as ?? [],
+    barcodes: entry.barcodes ?? [],
+    series: entry.series,
+    disc: entry.disc,
+    release: entry.release,
+    structure: entry.structure,
+    confirmations: entry.confirmations,
   });
 }
 

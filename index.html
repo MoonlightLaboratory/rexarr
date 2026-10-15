@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RexDB — what is on which disc</title>
+    <meta name="description" content="A crowdsourced map of which episode is on which part of which disc." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='7' fill='none' stroke='%23e8b931' stroke-width='1.5'/><circle cx='8' cy='8' r='2' fill='%23e8b931'/></svg>" />
+    <style>
+      :root {
+        --bg: #202020; --card: #2a2a2a; --line: #3a3a3a; --text: #e8e8e8;
+        --dim: #9a9a9a; --accent: #e8b931; --green: #4caf50; --amber: #e8a331; --red: #d9534f;
+      }
+      @media (prefers-color-scheme: light) {
+        :root { --bg: #f4f4f4; --card: #fff; --line: #ddd; --text: #222; --dim: #666; }
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      main { max-width: 900px; margin: 0 auto; padding: 24px 16px 60px; }
+      h1 { font-size: 24px; margin: 0 0 4px; }
+      h1 span { color: var(--accent); }
+      .lede { color: var(--dim); margin: 0 0 20px; }
+      input[type="search"] { width: 100%; padding: 11px 13px; font-size: 16px; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 6px; }
+      input[type="search"]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+      .counts { color: var(--dim); font-size: 13px; margin: 12px 2px; }
+      .disc { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 13px 15px; margin-bottom: 10px; }
+      .disc h2 { font-size: 16px; margin: 0 0 3px; }
+      .meta { color: var(--dim); font-size: 13px; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+      .badge { display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 11px; font-weight: 600; vertical-align: 2px; }
+      .verified { background: var(--green); color: #fff; }
+      .unverified { background: var(--amber); color: #1c1c1c; }
+      .disputed { background: var(--red); color: #fff; }
+      .pending { background: var(--line); color: var(--dim); }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+      td { padding: 3px 8px 3px 0; border-top: 1px solid var(--line); }
+      td:first-child { color: var(--dim); width: 140px; font-family: ui-monospace, monospace; }
+      a { color: var(--accent); }
+      footer { color: var(--dim); font-size: 13px; margin-top: 32px; border-top: 1px solid var(--line); padding-top: 16px; }
+      .empty { color: var(--dim); padding: 30px 0; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Rex<span>DB</span></h1>
+      <p class="lede">Which episode is on which part of which disc. A disc never says, so somebody works it out once and everybody else stops having to.</p>
+      <input type="search" id="q" placeholder="Search a disc label, a series, a fingerprint…" autocomplete="off" spellcheck="false" />
+      <p class="counts" id="counts">Loading…</p>
+      <div id="list"></div>
+      <footer>
+        <p>
+          <a href="https://github.com/MoonlightLaboratory/rexarr/tree/RexDB">The data</a> ·
+          <a href="https://github.com/MoonlightLaboratory/rexarr/blob/RexDB/CONTRIBUTING.md">Add a disc</a> ·
+          <a href="https://github.com/MoonlightLaboratory/rexarr/blob/RexDB/FINGERPRINT.md">How a disc is recognised</a>
+        </p>
+        <p>Public domain (CC0). Built for <a href="https://github.com/MoonlightLaboratory/rexarr">Rexarr</a>, useful to anything.</p>
+      </footer>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
