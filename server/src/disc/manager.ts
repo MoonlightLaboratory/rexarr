@@ -903,6 +903,9 @@ export class DiscManager {
    */
   private async contributeToRexDb(rip: DiscRip) {
     if (rexdbSettings().contribute !== 'auto') return;
+    // Only a mapping somebody put right by hand. Rexarr's own arithmetic is what RexDB exists to replace, and
+    // a database filling up with it would be worse than an empty one - CONTRIBUTING says as much to people.
+    if (rip.media.episodeSource !== 'manual') return;
     const entry = buildEntry(rip);
     if (!entry) return;
     try {

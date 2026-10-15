@@ -2,7 +2,7 @@ import { listDriveCandidates } from '../disc/devices.js';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { discs } from '../disc/manager.js';
-import { buildEntry, contributionUrl, discStructure, fingerprintOf, lookupDisc as lookupInRexDb, rexdbIndex } from '../disc/rexdb.js';
+import { buildEntry, contributionUrl, discStructure, fingerprintOf, lookupDisc as lookupInRexDb, rexdbIndex, submitEntry } from '../disc/rexdb.js';
 import { makemkvInfo } from '../disc/makemkv.js';
 import fs from 'node:fs';
 import { store } from '../store.js';
@@ -56,6 +56,9 @@ const patchSchema = z.object({
  * with what it holds.
  */
 function contributionFor(rip: Parameters<typeof buildEntry>[0], match: Awaited<ReturnType<typeof lookupInRexDb>>) {
+  // Only what somebody read off the disc. Offering to send a guess would be inviting people to fill the
+  // database with the arithmetic it exists to replace.
+  if (rip.media.episodeSource !== 'manual') return null;
   const entry = buildEntry(rip);
   if (!entry) return null;
   const known = match?.how === 'fingerprint' ? match.entry : null;
@@ -83,6 +86,23 @@ export default async function discRoutes(app: FastifyInstance) {
    * What RexDB says about this disc, and the fingerprint it would be contributed under. Looking up sends
    * nothing anywhere; this is the same read the scan does, on demand.
    */
+  /**
+   * Send this disc to RexDB now. The same thing the automatic setting does, asked for on purpose, so the button
+   * does not have to throw the person out of Rexarr to a browser tab to finish what they started here.
+   */
+  app.post<{ Params: { id: string } }>('/api/disc/rips/:id/rexdb/submit', async (req, reply) => {
+    const rip = discs.get(req.params.id);
+    if (!rip) return reply.code(404).send({ error: 'rip not found' });
+    const entry = buildEntry(rip);
+    if (!entry) return reply.code(400).send({ error: 'nothing to send: this disc has no episode mapping yet' });
+    if (rip.media.episodeSource !== 'manual') {
+      return reply.code(400).send({ error: 'these episode numbers are Rexarr\'s guess, not a reading of the disc. Set them yourself first - a guess is what RexDB is for replacing.' });
+    }
+    const sent = await submitEntry(entry);
+    if (!sent.ok) return reply.code(502).send({ error: sent.error ?? 'the submission service did not accept it' });
+    return { ok: true, url: sent.url };
+  });
+
   app.get<{ Params: { id: string }; Querystring: { refresh?: string } }>('/api/disc/rips/:id/rexdb', async (req, reply) => {
     const rip = discs.get(req.params.id);
     if (!rip) return reply.code(404).send({ error: 'rip not found' });

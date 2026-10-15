@@ -130,6 +130,8 @@ export const api = {
       error?: string;
     }>('GET', `/api/disc/rips/${id}/rexdb${refresh ? '?refresh=1' : ''}`),
 
+  submitDiscToRexdb: (id: string) => req<{ ok: true; url?: string }>('POST', `/api/disc/rips/${id}/rexdb/submit`),
+
   // ---- rip farm ----
   agents: () => req<AgentRow[]>('GET', '/api/agents'),
   agentTasks: () => req<AgentTask[]>('GET', '/api/agents/tasks'),

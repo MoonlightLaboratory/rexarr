@@ -1107,6 +1107,9 @@ function RexDbPanel({ rip }: { rip: DiscRip }) {
   const [state, setState] = useState<Awaited<ReturnType<typeof api.discRexdb>> | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState<{ ok: boolean; url?: string; error?: string } | null>(null);
+  const { toast } = useApp();
   const load = async (refresh = false) => {
     setBusy(true);
     try {
@@ -1126,6 +1129,21 @@ function RexDbPanel({ rip }: { rip: DiscRip }) {
   const c = state?.contribution;
   if (!c || c.alreadyKnown) return null;
   const entry = JSON.stringify(c.entry, null, 2);
+  const send = async () => {
+    setSending(true);
+    setSent(null);
+    try {
+      const r = await api.submitDiscToRexdb(rip.id);
+      setSent({ ok: true, url: r.url });
+      toast('info', 'Sent to RexDB');
+      void load(true);
+    } catch (e) {
+      // the service may be unreachable, or not deployed yet; GitHub is still there to finish it by hand
+      setSent({ ok: false, error: (e as Error).message });
+    } finally {
+      setSending(false);
+    }
+  };
   return (
     <div className={`rexdbPanel${c.disagrees ? ' disagrees' : ''}`}>
       <div className="inline" style={{ gap: 8, flexWrap: 'wrap' }}>
@@ -1143,10 +1161,30 @@ function RexDbPanel({ rip }: { rip: DiscRip }) {
         <button className="btn sm" onClick={() => setOpen((o) => !o)} disabled={busy}>
           {open ? 'Hide' : 'Show what would be sent'}
         </button>
-        <a className="btn sm primary" href={c.url} target="_blank" rel="noreferrer">
-          Contribute to RexDB
-        </a>
+        {sent?.ok ? (
+          <span className="badge green">
+            Sent{sent.url ? ' – ' : ''}
+            {sent.url && (
+              <a href={sent.url} target="_blank" rel="noreferrer">
+                see it
+              </a>
+            )}
+          </span>
+        ) : (
+          <button className="btn sm primary" onClick={send} disabled={sending}>
+            {sending ? <span className="spinner" /> : null} Send to RexDB
+          </button>
+        )}
       </div>
+      {sent && !sent.ok && (
+        <p className="warn small mt">
+          Could not send it from here: {sent.error}. The rip is unaffected —{' '}
+          <a href={c.url} target="_blank" rel="noreferrer">
+            open it on GitHub
+          </a>{' '}
+          to post it by hand instead.
+        </p>
+      )}
       {open && (
         <>
           <p className="small dim mt">
