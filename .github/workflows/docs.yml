@@ -32,6 +32,17 @@ jobs:
       # this is a Node repository with none.
       - run: pip install 'mkdocs-material==9.*'
       - run: mkdocs build --strict
+
+      # RexDB's page, published under /rexdb/. There is one Pages site per repository and this is it, so the
+      # database branch deploys nothing of its own; it only lends the three files its page is made of. The page
+      # reads the branch directly, so nothing here has to rebuild when somebody contributes a disc.
+      - name: Add the RexDB page
+        run: |
+          git fetch --depth 1 origin RexDB
+          mkdir -p site/rexdb
+          git archive FETCH_HEAD index.html app.js style.css | tar -x -C site/rexdb
+          test -s site/rexdb/index.html
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

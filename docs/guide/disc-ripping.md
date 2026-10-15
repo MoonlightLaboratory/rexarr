@@ -143,7 +143,7 @@ to set **First ep.** rather than quietly numbering from 1.
 
 ### RexDB
 
-Before any of that, Rexarr asks [RexDB](https://moonlightlaboratory.github.io/rexarr/) — a shared, public
+Before any of that, Rexarr asks [RexDB](https://moonlightlaboratory.github.io/rexarr/rexdb/) — a shared, public
 database of which episode is on which part of which disc. A disc is recognised by its **fingerprint**: the volume
 label and the lengths of its titles, which are known the moment a scan ends, so nothing has to be scanned or
 typed. An exact match is applied and the page says the numbers came from RexDB rather than from a guess.

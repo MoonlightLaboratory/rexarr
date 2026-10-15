@@ -837,7 +837,7 @@ function RexDbCard({ value, onChange }: { value: RexDbSettings; onChange: (v: Re
         <div className="small dim mb">
           A disc does not say which episodes are on it, so Rexarr has to work it out — and the obvious arithmetic is
           wrong as soon as a set is 7 + 7 + 5 + 5 rather than four equal discs.{' '}
-          <a href="https://moonlightlaboratory.github.io/rexarr/" target="_blank" rel="noreferrer">RexDB</a> is the shared
+          <a href="https://moonlightlaboratory.github.io/rexarr/rexdb/" target="_blank" rel="noreferrer">RexDB</a> is the shared
           answer: somebody reads a disc once and everybody else stops having to. A disc is recognised by its volume label
           and the lengths of its titles, so nothing has to be scanned or typed.
           <br />
