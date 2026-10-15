@@ -194,23 +194,31 @@ addEventListener('keydown', (e) => {
   }
 });
 
+const BRANCH_INDEX = 'https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/index.json';
+
 /**
- * Where the database is read from.
+ * The database, from beside the page when it is there and from the branch when it is not.
  *
- * The published page lives under the documentation site, which is built from another branch, so a copy of
- * index.json next to it would be a snapshot that goes stale the moment somebody contributes. It reads the
- * branch itself instead - raw.githubusercontent serves it with CORS open - and is therefore always current
- * without anything having to rebuild. Served locally, it reads the file next to it, so the branch can be
- * opened with any static server and checked as it stands.
+ * Both happen. Serving this branch with any static server puts index.json next to the page, which is how a
+ * change is checked before it goes anywhere. The published copy lives under Rexarr's documentation, built from
+ * another branch, with no index.json beside it - so it reads the branch itself, which raw.githubusercontent
+ * serves with CORS open. That is the better of the two anyway: a contributed disc appears without anything
+ * rebuilding, and the page can never show a snapshot that has gone stale.
  */
-const LOCAL = ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname);
-const INDEX_URL = LOCAL ? './index.json' : 'https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/index.json';
+async function loadIndex() {
+  try {
+    const res = await fetch('./index.json', { cache: 'no-cache' });
+    if (res.ok) return await res.json();
+  } catch {
+    /* not served beside the page; the branch is the answer */
+  }
+  const res = await fetch(BRANCH_INDEX, { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
 
 try {
-  const index = await fetch(INDEX_URL, { cache: 'no-cache' }).then((r) => {
-    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-    return r.json();
-  });
+  const index = await loadIndex();
   discs = index.discs.map((d) => ({ ...d, haystack: haystack(d) }));
 
   const params = new URLSearchParams(location.search);
