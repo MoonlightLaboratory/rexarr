@@ -853,9 +853,9 @@ function RexDbCard({ value, onChange }: { value: RexDbSettings; onChange: (v: Re
         </div>
         <div className="field">
           <label>When you correct a disc RexDB does not know</label>
-          <select value={value?.contribute ?? 'ask'} disabled={!on} onChange={(e) => onChange({ ...value, contribute: e.target.value as RexDbSettings['contribute'] })}>
-            <option value="ask">Offer to send it — I press the button</option>
+          <select value={value?.contribute ?? 'auto'} disabled={!on} onChange={(e) => onChange({ ...value, contribute: e.target.value as RexDbSettings['contribute'] })}>
             <option value="auto">Send it when the rip starts</option>
+            <option value="ask">Offer to send it — I press the button</option>
             <option value="off">Never send anything</option>
           </select>
           <span className="hint">
@@ -865,7 +865,7 @@ function RexDbCard({ value, onChange }: { value: RexDbSettings; onChange: (v: Re
             applied to anyone until it is agreed.
           </span>
         </div>
-        {value?.contribute === 'auto' && (
+        {(value?.contribute ?? 'auto') === 'auto' && (
           <div className="field stack">
             <label>Where contributions go</label>
             <input type="text" className="mono" value={value?.submitUrl ?? ''} disabled={!on} onChange={(e) => onChange({ ...value, submitUrl: e.target.value })} />

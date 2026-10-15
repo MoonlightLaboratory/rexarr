@@ -909,8 +909,9 @@ export class DiscManager {
       const known = await lookupInRexDb(rip);
       if (known?.how === 'fingerprint' && JSON.stringify(known.entry.titles ?? {}) === JSON.stringify((entry as { titles: unknown }).titles)) return;
       const sent = await submitEntry(entry);
+      // The rip is unaffected either way, so a failure says so rather than reading like something broke.
       if (sent.ok) this.log(rip, `Sent this disc to RexDB${sent.url ? `: ${sent.url}` : ''}`);
-      else this.log(rip, `Could not send this disc to RexDB: ${sent.error}`);
+      else this.log(rip, `This disc was not sent to RexDB (${sent.error}). The rip is unaffected; turn it off under Settings → Connections → RexDB if it is not wanted.`);
     } catch (err) {
       this.log(rip, `Could not send this disc to RexDB: ${(err as Error).message}`);
     }

@@ -168,8 +168,8 @@ no library, nothing about you or the machine.
 
 | | |
 | --- | --- |
-| **Offer to send it** | the default. The Discs page shows exactly what would go and you press the button |
-| **Send it when the rip starts** | sent without asking again, once the mapping is settled |
+| **Send it when the rip starts** | the default. Sent once the mapping is settled, without asking again |
+| **Offer to send it** | the Discs page shows exactly what would go and you press the button |
 | **Never send anything** | reading stays one-way |
 
 Either way a submission becomes a **pull request** that somebody reads, so nothing you send is applied to anyone

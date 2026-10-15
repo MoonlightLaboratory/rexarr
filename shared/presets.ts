@@ -395,7 +395,7 @@ export const DEFAULT_SETTINGS = {
   rexdb: {
     enabled: true,
     url: 'https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/index.json',
-    contribute: 'ask' as const,
+    contribute: 'auto' as const,
     submitUrl: 'https://rexdb.moonlightlab.co.uk/submit',
   },
   // gnudb.org is the maintained freedb successor but only answers applications registered with it; this mirror
