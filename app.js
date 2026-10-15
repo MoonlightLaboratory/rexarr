@@ -194,8 +194,20 @@ addEventListener('keydown', (e) => {
   }
 });
 
+/**
+ * Where the database is read from.
+ *
+ * The published page lives under the documentation site, which is built from another branch, so a copy of
+ * index.json next to it would be a snapshot that goes stale the moment somebody contributes. It reads the
+ * branch itself instead - raw.githubusercontent serves it with CORS open - and is therefore always current
+ * without anything having to rebuild. Served locally, it reads the file next to it, so the branch can be
+ * opened with any static server and checked as it stands.
+ */
+const LOCAL = ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname);
+const INDEX_URL = LOCAL ? './index.json' : 'https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/index.json';
+
 try {
-  const index = await fetch('./index.json', { cache: 'no-cache' }).then((r) => {
+  const index = await fetch(INDEX_URL, { cache: 'no-cache' }).then((r) => {
     if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
     return r.json();
   });

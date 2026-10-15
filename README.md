@@ -83,12 +83,20 @@ Git history is the audit trail. Every change has an author, a date and a diff, f
 Opt-in, with a prompt every time. What is sent is the fingerprint, the disc name, the series id and the mapping.
 What is not sent is anything else: no paths, no library contents, no identifier for the machine or the person.
 
+## Where it is published
+
+The site is served as part of Rexarr's documentation, at
+**<https://moonlightlaboratory.github.io/rexarr/rexdb/>**. There is one GitHub Pages site per repository, and the
+documentation is already it, so this branch does not deploy anything of its own — the documentation workflow
+copies the three files that make up the page into the published site. The page then reads this branch directly,
+so contributing a disc shows up without anything rebuilding.
+
 ## Using the data
 
 Plain files, no API, no account:
 
 ```
-https://moonlightlaboratory.github.io/rexarr/          the searchable site
+https://moonlightlaboratory.github.io/rexarr/rexdb/    the searchable site
 https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/index.json
 https://raw.githubusercontent.com/MoonlightLaboratory/rexarr/RexDB/discs/63/63f07bfa4a431fd1.json
 ```
