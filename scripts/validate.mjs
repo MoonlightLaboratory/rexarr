@@ -141,6 +141,7 @@ for (const file of files) {
     disc: entry.disc,
     release: entry.release,
     structure: entry.structure,
+    titles: entry.titles,
     confirmations: entry.confirmations,
   });
 }

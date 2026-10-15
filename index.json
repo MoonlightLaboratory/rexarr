@@ -19,6 +19,15 @@
         "publisher": "Anime Limited",
         "region": "B",
         "format": "dvd"
+      },
+      "titles": {
+        "0": "S02E01",
+        "1": "S02E02",
+        "2": "S02E03",
+        "3": "S02E04",
+        "4": "S02E05",
+        "5": "S02E06",
+        "6": "S02E07"
       }
     },
     {
@@ -38,6 +47,16 @@
         "publisher": "Anime Limited",
         "region": "B",
         "format": "dvd"
+      },
+      "titles": {
+        "0": "S02E08",
+        "1": "S02E09",
+        "2": "S02E10",
+        "3": "S02E11",
+        "4": "S02E12",
+        "5": "S02E13",
+        "6": "S02E14",
+        "7": "S00E12"
       }
     },
     {
@@ -57,6 +76,13 @@
         "publisher": "Anime Limited",
         "region": "B",
         "format": "dvd"
+      },
+      "titles": {
+        "0": "S02E20",
+        "1": "S02E21",
+        "2": "S02E22",
+        "3": "S02E23",
+        "4": "S02E24"
       }
     }
   ]

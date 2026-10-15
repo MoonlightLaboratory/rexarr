@@ -1,0 +1,177 @@
+/*
+ * RexDB. Dark by default, light when the reader's system asks for it, and no build step: the database is plain
+ * files and the page over it should be too.
+ */
+:root {
+  --bg: #1b1b1b;
+  --bg-raised: #242424;
+  --card: #2a2a2a;
+  --card-hover: #303030;
+  --line: #383838;
+  --line-soft: #2f2f2f;
+  --text: #e9e9e9;
+  --dim: #9b9b9b;
+  --dimmer: #6f6f6f;
+  --accent: #e8b931;
+  --accent-ink: #1c1c1c;
+  --green: #4f9d58;
+  --amber: #d79a2b;
+  --red: #c9524d;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f6f6f7;
+    --bg-raised: #fff;
+    --card: #fff;
+    --card-hover: #fafafa;
+    --line: #e0e0e2;
+    --line-soft: #ededef;
+    --text: #1c1c1e;
+    --dim: #5f5f66;
+    --dimmer: #8a8a92;
+    --accent: #b5860a;
+    --accent-ink: #fff;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
+}
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+
+/* ---- header ---- */
+.top { background: var(--bg-raised); border-bottom: 1px solid var(--line); padding: 32px 0 24px; }
+.brand { display: flex; align-items: center; gap: 11px; }
+.disc-mark { width: 30px; height: 30px; color: var(--accent); flex: none; }
+h1 { font-size: 27px; letter-spacing: -0.015em; margin: 0; font-weight: 700; }
+h1 span { color: var(--accent); }
+.lede { color: var(--dim); margin: 9px 0 0; max-width: 62ch; }
+
+.stats { display: flex; flex-wrap: wrap; gap: 8px 10px; margin: 18px 0 0; }
+.stats > div {
+  background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px 13px; min-width: 92px;
+}
+.stats dt { color: var(--dim); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
+.stats dd { margin: 1px 0 0; font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.stats dd.good { color: var(--green); }
+.stats dd.waiting { color: var(--amber); }
+
+/* ---- search bar ---- */
+.bar { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.barInner { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding-top: 11px; padding-bottom: 11px; }
+.searchWrap { position: relative; flex: 1 1 300px; display: flex; align-items: center; }
+.searchIcon {
+  position: absolute; left: 12px; width: 16px; height: 16px; pointer-events: none;
+  fill: none; stroke: var(--dimmer); stroke-width: 2; stroke-linecap: round;
+}
+#q {
+  width: 100%; padding: 10px 40px 10px 36px; font-size: 15px; font-family: inherit;
+  color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+}
+#q::placeholder { color: var(--dimmer); }
+#q:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+#q:focus + .slash { opacity: 0; }
+.slash {
+  position: absolute; right: 11px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px;
+  color: var(--dimmer); font: 600 11px/1.5 ui-monospace, monospace; pointer-events: none; transition: opacity .12s;
+}
+.filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.filters button {
+  padding: 7px 12px; font: inherit; font-size: 13px; color: var(--dim); cursor: pointer;
+  background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+}
+.filters button:hover { color: var(--text); background: var(--card-hover); }
+.filters button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+/* ---- results ---- */
+main { padding-top: 22px; padding-bottom: 48px; }
+.series { margin-bottom: 26px; }
+.seriesHead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.seriesHead h2 { font-size: 18px; margin: 0; letter-spacing: -0.01em; }
+.seriesHead .ids { color: var(--dimmer); font-size: 12.5px; }
+
+.discs { display: grid; gap: 9px; }
+.disc {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden; transition: border-color .12s, background .12s;
+}
+.disc:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.discHead::-webkit-details-marker, .discHead::marker { display: none; content: ''; }
+.discHead {
+  display: flex; list-style: none; align-items: center; gap: 12px; width: 100%; padding: 12px 14px;
+  background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.discHead:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.discNo {
+  flex: none; width: 38px; height: 38px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--bg-raised); border: 1px solid var(--line); line-height: 1;
+}
+.discNo b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.discNo small { display: block; font-size: 8.5px; color: var(--dimmer); text-transform: uppercase; letter-spacing: .06em; }
+.discMain { min-width: 0; flex: 1; }
+.discMain > span { display: block; }
+.discRange { font-weight: 600; font-variant-numeric: tabular-nums; }
+.discRange .extra { color: var(--dim); font-weight: 400; }
+.discLabel {
+  color: var(--dim); font-size: 12.5px; margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.chev { flex: none; width: 15px; height: 15px; stroke: var(--dimmer); fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
+.disc[open] .chev { transform: rotate(90deg); }
+
+.badge {
+  flex: none; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 650;
+  letter-spacing: .02em; white-space: nowrap;
+}
+.badge.verified { background: color-mix(in srgb, var(--green) 20%, transparent); color: var(--green); }
+.badge.unverified { background: color-mix(in srgb, var(--amber) 20%, transparent); color: var(--amber); }
+.badge.disputed { background: color-mix(in srgb, var(--red) 20%, transparent); color: var(--red); }
+.badge.pending { background: var(--line-soft); color: var(--dim); }
+
+.discBody { padding: 0 14px 14px; border-top: 1px solid var(--line-soft); }
+.facts { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 11px 0 0; color: var(--dim); font-size: 12.5px; }
+.facts b { color: var(--text); font-weight: 600; }
+.warnNote {
+  margin: 11px 0 0; padding: 9px 11px; border-radius: 7px; font-size: 13px;
+  background: color-mix(in srgb, var(--amber) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--amber) 32%, transparent);
+}
+.map { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 5px; margin-top: 12px; }
+.map div {
+  display: flex; justify-content: space-between; gap: 8px; align-items: baseline;
+  padding: 5px 9px; background: var(--bg-raised); border: 1px solid var(--line-soft); border-radius: 6px;
+  font-size: 12.5px;
+}
+.map .k { color: var(--dimmer); font-family: ui-monospace, monospace; font-size: 11.5px; }
+.map .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+.map .v.special { color: var(--accent); }
+.map .v.other { color: var(--dim); font-weight: 400; }
+
+.gap {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+  border: 1px dashed var(--line); border-radius: var(--radius); color: var(--dim); font-size: 13.5px;
+}
+.gap .discNo { background: none; border-style: dashed; color: var(--dimmer); }
+
+.empty { text-align: center; color: var(--dim); padding: 52px 16px; }
+.empty strong { display: block; color: var(--text); font-size: 17px; margin-bottom: 6px; }
+
+footer { padding: 22px 16px 44px; border-top: 1px solid var(--line); color: var(--dim); font-size: 13px; }
+footer nav { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 8px; }
+
+@media (max-width: 560px) {
+  .stats > div { flex: 1 1 calc(50% - 5px); min-width: 0; }
+  .discHead { gap: 10px; padding: 11px 12px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
