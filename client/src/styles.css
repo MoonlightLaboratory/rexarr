@@ -1448,9 +1448,10 @@ table.metaTags td.mono { word-break: break-word; }
    on one disc made its name column wider than its neighbours' and knocked the whole row out of step. Fixed widths
    are what makes the columns line up down the list, which is the entire point of the grid. The spacer takes the
    slack, so the disc and its episodes read as one group on the left and the state and actions sit on the right. */
-.batch-row { display: grid; grid-template-columns: 16px 132px 118px 86px minmax(12px, 1fr) 92px 86px; align-items: center; gap: 10px; padding: 9px 12px; border-top: 1px solid var(--borderColor); }
+.batch-row { display: grid; grid-template-columns: 16px 132px 118px 86px minmax(12px, 1fr) 168px 86px; align-items: center; gap: 10px; padding: 9px 12px; border-top: 1px solid var(--borderColor); }
 .batch-row > * { min-width: 0; }
 .batch-row > :not(.name) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.batch-row > :nth-child(6) { display: flex; align-items: center; gap: 6px; overflow: visible; }
 .batch-row .badge { white-space: nowrap; }
 .batch-row.clickable { cursor: pointer; }
 .batch-row.clickable:hover { background: var(--rowHoverColor, rgba(127, 127, 127, 0.06)); }
@@ -1474,7 +1475,7 @@ table.metaTags td.mono { word-break: break-word; }
 /* Only once the columns genuinely cannot fit: the episode count goes first, then the range, rather than
    clipping a badge down to "Wait". The hidden cells leave the grid, so the column count follows them down. */
 @media (max-width: 680px) {
-  .batch-row { grid-template-columns: 16px 118px 112px minmax(8px, 1fr) 92px 86px; }
+  .batch-row { grid-template-columns: 16px 118px 112px minmax(8px, 1fr) 150px 86px; }
   .batch-row > :nth-child(4) { display: none; }
 }
 @media (max-width: 470px) {

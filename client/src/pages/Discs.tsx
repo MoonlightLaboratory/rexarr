@@ -521,6 +521,8 @@ function CdBody({ rip, busy, act }: { rip: DiscRip; busy: boolean; act: (fn: () 
 
 function RipCard({ rip, onLog, nested }: { rip: DiscRip; onLog: (r: DiscRip) => void; nested?: boolean }) {
   const { profiles, smartProfiles, settings, toast } = useApp();
+  // a live figure: Date.now() at render only moved when a progress event arrived
+  const elapsedNow = elapsedSince(rip.startedAt ?? rip.progress?.startedAt, useNow(['ripping', 'transcoding', 'delivering'].includes(rip.status)));
   const [media, setMedia] = useState<RipMedia>(rip.media);
   const [selected, setSelected] = useState<number[]>(rip.selectedTitleIds);
   const [profileId, setProfileId] = useState(rip.profileId ?? '');
@@ -706,7 +708,7 @@ function RipCard({ rip, onLog, nested }: { rip: DiscRip; onLog: (r: DiscRip) => 
             {rip.status === 'ripping' && (
               <>
                 {rip.discType === 'cd' ? 'Track' : 'Title'} {rip.progress.titleIndex}/{rip.progress.titleCount} · {rip.progress.percent.toFixed(1)}% {rip.progress.step && `· ${rip.progress.step}`}
-                {rip.progress.startedAt && ` · ${fmtDuration(Math.round((Date.now() - new Date(rip.progress.startedAt).getTime()) / 1000))} elapsed`}
+                {elapsedNow && ` · ${elapsedNow} elapsed`}
                 {rip.progress.etaSeconds ? ` · ${fmtDuration(rip.progress.etaSeconds)} left` : ''}
               </>
             )}
@@ -1334,6 +1336,31 @@ function RexDbPanel({ rip }: { rip: DiscRip }) {
 }
 
 
+/**
+ * A clock, so an elapsed time on screen actually elapses.
+ *
+ * Reading Date.now() at render only moves the number when something else re-renders the component - between
+ * progress events a rip would sit on the same figure for seconds at a time. The interval runs only while there is
+ * something to count.
+ */
+function useNow(active: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [active]);
+  return now;
+}
+
+/** How long a rip has been going, as a live figure. */
+function elapsedSince(startedAt: string | undefined, now: number): string | null {
+  if (!startedAt) return null;
+  const secs = Math.round((now - new Date(startedAt).getTime()) / 1000);
+  return secs >= 0 ? fmtDuration(secs) : null;
+}
+
 /** The phases a box set reports, as a word and a colour. */
 const PHASE: Record<string, { label: string; cls: string }> = {
   waiting: { label: 'Waiting', cls: '' },
@@ -1356,6 +1383,8 @@ function BatchDiscRow({ rip, episodes, open, onToggle, onChanged, onLog }: { rip
   const nameOf = (n: number) => episodes?.find((e) => e.episodeNumber === n || e.absoluteEpisodeNumber === n)?.title;
   const disc = rip.media.discNumber;
   const phaseKey = discPhase(rip.status);
+  const running = phaseKey === 'ripping' || phaseKey === 'remuxing';
+  const elapsed = elapsedSince(rip.startedAt ?? rip.progress?.startedAt, useNow(running));
   return (
     <div>
       {/* the row draws its own divider; a second one here made the line above a disc twice that above a slot */}
@@ -1375,7 +1404,13 @@ function BatchDiscRow({ rip, episodes, open, onToggle, onChanged, onLog }: { rip
         <span />
         <span>
           <span className={`badge sm ${phase.cls}`}>{phase.label}</span>
-          {(phaseKey === 'ripping' || phaseKey === 'remuxing') && <span className="small dim"> {Math.round(ripOverallPercent(rip.progress))}%</span>}
+          {(phaseKey === 'ripping' || phaseKey === 'remuxing') && <span className="small dim">{Math.round(ripOverallPercent(rip.progress))}%</span>}
+          {running && elapsed && (
+            <span className="small dim" title="How long this disc has been going">
+              {elapsed}
+            </span>
+          )}
+          {phaseKey === 'done' && rip.ripSeconds ? <span className="small dim" title="How long the rip itself took">{fmtDuration(rip.ripSeconds)}</span> : null}
         </span>
         <button
           className="btn sm"
@@ -1430,19 +1465,27 @@ function BatchCard({ rips, onLog, onChanged, waitingFor = [] }: { rips: DiscRip[
   const prog = batchProgress(discs);
   const [open, setOpen] = useState<string | null>(null);
   const [episodes, setEpisodes] = useState<Episode[] | null>(null);
+  // until the season is known there is nothing to divide, and guessing from the discs in hand would have the set
+  // announce itself complete ("4 of 4 discs") for the second before the answer arrives
+  const [seasonKnown, setSeasonKnown] = useState(false);
   const known = discs.find((d) => d.media.arrId !== undefined);
   const arrId = known?.media.arrId;
   const season = known?.media.seasonNumber ?? 1;
   useEffect(() => {
     if (arrId === undefined) return;
     let live = true;
-    api.episodes(arrId, season).then((e) => live && setEpisodes(e)).catch(() => live && setEpisodes(null));
-    return () => { live = false; };
+    api
+      .episodes(arrId, season)
+      .then((e) => live && (setEpisodes(e), setSeasonKnown(true)))
+      .catch(() => live && (setEpisodes(null), setSeasonKnown(true)));
+    return () => {
+      live = false;
+    };
   }, [arrId, season]);
 
   const ripping = discs.filter((d) => ['ripping', 'remuxing'].includes(discPhase(d.status)));
   // how many discs the set holds: arithmetic on the season's episodes and what a disc of this set actually has
-  const expected = expectedDiscCount(discs, episodes?.length ?? 0);
+  const expected = seasonKnown ? expectedDiscCount(discs, episodes?.length ?? 0) : undefined;
   const incoming = missingDiscs(discs, expected);
   return (
     <div className="card mb">
@@ -1687,6 +1730,8 @@ export function DiscsPage() {
     return m;
   }, [drives, rips]);
   const swappable = drives.filter((d) => !d.virtual && ripInDrive.get(d.index) && discFreed(ripInDrive.get(d.index)!));
+  // a disc that has been read and is only waiting for someone to press start
+  const readyToRip = useMemo(() => rips.filter((r) => r.status === 'ready' && r.selectedTitleIds.length > 0), [rips]);
   const waitingByBatch = useMemo(() => {
     const m = new Map<string, number[]>();
     for (const d of drives) if (d.awaiting) m.set(d.awaiting.batchId, [...(m.get(d.awaiting.batchId) ?? []), d.awaiting.discNumber]);
@@ -1702,8 +1747,24 @@ export function DiscsPage() {
           <ToolbarButton icon={<Icon.DriveAdd />} label="Add drive" wide onClick={() => setAddDrive(true)} title="Add a real optical drive by device path (/dev/sr0)" />
           <ToolbarButton icon={<Icon.Plus />} label="Virtual drive" wide disabled={!makemkv?.available} onClick={() => setOpenImage(true)} title="Link an .iso / .img or a BDMV / VIDEO_TS folder as a virtual drive" />
           <ToolbarButton
+            icon={<Icon.Play />}
+            label="Rip all"
+            wide
+            disabled={busy || readyToRip.length === 0}
+            title={readyToRip.length ? `Start all ${readyToRip.length} disc(s) that are read and waiting, with the titles and episodes already chosen for each` : 'No disc is read and waiting to be ripped'}
+            onClick={() => {
+              const list = readyToRip;
+              // each disc keeps the titles, episodes and profile already settled on it - this only presses start
+              Promise.allSettled(list.map((r) => api.startRip(r.id, {}))).then((rs) => {
+                const failed = rs.filter((x) => x.status === 'rejected').length;
+                toast(failed ? 'error' : 'info', failed ? `Started ${rs.length - failed} of ${rs.length}; ${failed} could not start` : `Started ${rs.length} disc(s)`);
+                refresh(false);
+              });
+            }}
+          />
+          <ToolbarButton
             icon={<Icon.Eject />}
-            label="Swap all finished"
+            label="Swap All"
             wide
             disabled={busy || swappable.length === 0}
             title={swappable.length ? `Eject ${swappable.length} drive(s) whose disc has been copied, and wait for the next disc of each set` : 'No drive has finished copying its disc yet'}
