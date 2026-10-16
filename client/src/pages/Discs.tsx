@@ -1763,6 +1763,7 @@ export function DiscsPage() {
           <ToolbarButton icon={<Icon.Disc />} label="Detect disc" wide disabled={busy || !makemkv?.available} onClick={() => api.detectDiscs().then((r) => toast('info', r.created.length ? `Found ${r.created.length} disc(s)` : 'No new disc in any drive')).catch((e) => toast('error', e.message))} />
           <ToolbarButton icon={<Icon.DriveAdd />} label="Add drive" wide onClick={() => setAddDrive(true)} title="Add a real optical drive by device path (/dev/sr0)" />
           <ToolbarButton icon={<Icon.Plus />} label="Virtual drive" wide disabled={!makemkv?.available} onClick={() => setOpenImage(true)} title="Link an .iso / .img or a BDMV / VIDEO_TS folder as a virtual drive" />
+          <span className="toolbarDivider" aria-hidden="true" />
           <ToolbarButton
             icon={<Icon.Play />}
             label="Rip all"
@@ -1796,6 +1797,7 @@ export function DiscsPage() {
                 .catch((e) => toast('error', e.message))
             }
           />
+          <span className="toolbarDivider" aria-hidden="true" />
           <ToolbarButton icon={<Icon.Refresh />} label="Refresh" busy={busy} onClick={() => refresh(true)} title="Re-detect drives" />
         </>
       }
