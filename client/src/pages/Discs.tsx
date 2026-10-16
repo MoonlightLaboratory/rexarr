@@ -1644,9 +1644,37 @@ export function DiscsPage() {
   };
   useEffect(() => refresh(false), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const active = useMemo(() => rips.filter((r) => ACTIVE.includes(r.status)), [rips]);
-  const history = useMemo(() => rips.filter((r) => !ACTIVE.includes(r.status)), [rips]);
-  const list = tab === 'active' ? active : history;
+  /**
+   * A box set is one item wherever its discs are. Grouping the visible tab's rips instead of all of them split a
+   * set in two: a disc that finished moved to History, vanished from the set in Current, and came back there as an
+   * "incoming" slot - the set claiming a disc it had already ripped had not been inserted.
+   */
+  const groups = useMemo(() => {
+    const out: { key: string; batch: boolean; rips: DiscRip[] }[] = [];
+    const byBatch = new Map<string, { key: string; batch: boolean; rips: DiscRip[] }>();
+    for (const r of rips) {
+      if (!r.batch) {
+        out.push({ key: r.id, batch: false, rips: [r] });
+        continue;
+      }
+      const existing = byBatch.get(r.batch.id);
+      if (existing) {
+        existing.rips.push(r);
+        continue;
+      }
+      const g = { key: r.batch.id, batch: true, rips: [r] };
+      byBatch.set(r.batch.id, g);
+      out.push(g);
+    }
+    return out;
+  }, [rips]);
+  // A set is still going while any of its discs is, so it sits in Current until the last one is finished with.
+  const activeGroups = useMemo(() => groups.filter((g) => g.rips.some((r) => ACTIVE.includes(r.status))), [groups]);
+  const historyGroups = useMemo(() => groups.filter((g) => !g.rips.some((r) => ACTIVE.includes(r.status))), [groups]);
+  const shown = tab === 'active' ? activeGroups : historyGroups;
+  const count = (gs: typeof groups) => gs.reduce((n, g) => n + g.rips.length, 0);
+  const active = { length: count(activeGroups) };
+  const history = { length: count(historyGroups) };
   // which rip is in which drive, so a drive knows whether its disc has been copied yet
   const ripInDrive = useMemo(() => {
     const canon = (p: string) => p.replace(/^\/dev\/rdisk/, '/dev/disk');
@@ -1664,26 +1692,6 @@ export function DiscsPage() {
     for (const d of drives) if (d.awaiting) m.set(d.awaiting.batchId, [...(m.get(d.awaiting.batchId) ?? []), d.awaiting.discNumber]);
     return m;
   }, [drives]);
-  // A box set shows up once, where its first disc would have, with the rest of its discs inside it.
-  const groups = useMemo(() => {
-    const out: { key: string; batch: boolean; rips: DiscRip[] }[] = [];
-    const byBatch = new Map<string, { key: string; batch: boolean; rips: DiscRip[] }>();
-    for (const r of list) {
-      if (!r.batch) {
-        out.push({ key: r.id, batch: false, rips: [r] });
-        continue;
-      }
-      const existing = byBatch.get(r.batch.id);
-      if (existing) {
-        existing.rips.push(r);
-        continue;
-      }
-      const g = { key: r.batch.id, batch: true, rips: [r] };
-      byBatch.set(r.batch.id, g);
-      out.push(g);
-    }
-    return out;
-  }, [list]);
 
   return (
     <Page
@@ -1787,7 +1795,7 @@ export function DiscsPage() {
           History ({history.length})
         </button>
       </div>
-      {list.length === 0 && (
+      {shown.length === 0 && (
         <div className="card">
           <div className="empty">
             <h3>{tab === 'active' ? 'No disc in progress' : 'No rips yet'}</h3>
@@ -1795,7 +1803,7 @@ export function DiscsPage() {
           </div>
         </div>
       )}
-      {groups.map((g) =>
+      {shown.map((g) =>
         g.batch ? (
           <BatchCard key={g.key} rips={g.rips} onLog={setLogRip} onChanged={() => refresh(false)} waitingFor={waitingByBatch.get(g.key) ?? []} />
         ) : (
