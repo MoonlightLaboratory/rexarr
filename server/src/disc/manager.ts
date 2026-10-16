@@ -9,7 +9,7 @@ import { arr } from '../arr/index.js';
 import { queue } from '../jobs/queue.js';
 import { toArrPath } from '../paths.js';
 import { anidb } from '../anidb.js';
-import { autoDetectedDrives, canonicalDevice, driveSources, probePhysicalDrive } from './devices.js';
+import { autoDetectedDrives, canonicalDevice, driveSources, listDriveCandidates, probePhysicalDrive } from './devices.js';
 import { execFile } from 'node:child_process';
 import { discId, downloadCover, getRelease, lookupDisc, readCdToc, tocString } from '../music/musicbrainz.js';
 import { freacInfo, ripCdTrack } from '../music/freac.js';
@@ -22,7 +22,7 @@ import { ejectDrive, emptyScanNote, isOpenFailure, labelToTitle, listDrives, lis
 import { isOnline, listAgents } from '../agents/registry.js';
 import { readOnAgent, runOnAgent } from '../agents/remote.js';
 import { applyEntry, buildEntry, fingerprintOf, lookupDisc as lookupInRexDb, rexdbSettings, submitEntry } from './rexdb.js';
-import { boxSetName, discFreed, driveBusy, expectedDiscCount, nextWantedDisc, sameSet, sortDiscs } from '../../../shared/boxset.js';
+import { boxSetName, discFreed, driveBusy, driveKey, expectedDiscCount, nextWantedDisc, sameSet, sortDiscs } from '../../../shared/boxset.js';
 import { byTitle, omdbConfigured } from '../omdb.js';
 import { audioSelectionFor, describeTracks } from './audio.js';
 import { ensureRipFolder } from './ripFolder.js';
@@ -82,6 +82,8 @@ export class DiscManager {
    * someone standing in front of it, and an expectation outliving a restart would be stale by the time it mattered.
    */
   private awaiting = new Map<string, { batchId: string; batchName: string; discNumber: number }>();
+
+
   drives: DiscDrive[] = [];
   private lastDriveError = '';
 
@@ -147,7 +149,7 @@ export class DiscManager {
     // MakeMKV drives have small indexes; auto-detected ones start at 2000, linked virtual drives at 3000,
     // probed manual drives at 4000 and an agent's at 5000
     const known = this.drives.filter((d) => !d.virtual && d.index < 2000);
-    if (busy && known.length) real = known;
+    if (busy && known.length) real = await this.noticeAwaitedDiscs(known);
     else {
       try {
         real = await listDrives(this.makemkv());
@@ -207,7 +209,7 @@ export class DiscManager {
     }
     this.drives = [...real, ...auto, ...manual, ...virtual, ...linked, ...farm];
     // what each drive is waiting for, so the page can say which disc to put in it
-    for (const d of this.drives) d.awaiting = d.path ? this.awaiting.get(canonicalDevice(d.path)) : undefined;
+    for (const d of this.drives) d.awaiting = this.awaiting.get(driveKey(d));
     bus.publish({ type: 'drives', drives: this.drives });
     return this.drives;
   }
@@ -256,6 +258,47 @@ export class DiscManager {
     rip.batchSuggestion = { id: match.batch?.id, name: match.batch?.name ?? boxSetName(rip.media), ripId: match.id, why };
   }
 
+  /**
+   * A drive emptied for the next disc of a set has to notice that disc arriving even while another drive is
+   * ripping - that is the whole point of swapping, and waiting for every rip to finish first would undo it.
+   *
+   * MakeMKV is not asked: listing its drives makes it query every one of them, which is exactly what disturbs the
+   * rip in flight. The machine can say what is in a tray on its own, and that is all that is needed here. The
+   * device node is read fresh too, because a tray that has been opened may come back as a different one.
+   */
+  private async noticeAwaitedDiscs(known: DiscDrive[]): Promise<DiscDrive[]> {
+    if (!known.some((d) => this.awaiting.has(driveKey(d)))) return known;
+    const candidates = await listDriveCandidates().catch(() => []);
+    if (!candidates.length) return known;
+    const model = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const out: DiscDrive[] = [];
+    for (const d of known) {
+      if (!this.awaiting.has(driveKey(d))) {
+        out.push(d);
+        continue;
+      }
+      const mine = model(d.name);
+      // the two sources decorate a model differently, so one name contains the other rather than equalling it
+      const c = candidates.find((x) => {
+        const theirs = model(x.name);
+        return Boolean(theirs) && Boolean(mine) && (mine.includes(theirs) || theirs.includes(mine));
+      });
+      if (!c?.path) {
+        out.push(d);
+        continue;
+      }
+      // the candidate has the device; what is in it takes a probe, which reads the volume rather than the drive
+      const probed = await probePhysicalDrive({ id: `await:${c.path}`, path: c.path, label: '', addedAt: '' }, d.index).catch(() => null);
+      if (!probed || probed.state !== 'loaded' || !probed.discLabel || probed.discLabel === d.discLabel) {
+        out.push(d);
+        continue;
+      }
+      out.push({ ...d, path: c.path, state: 'loaded', discLabel: probed.discLabel });
+    }
+    return out;
+  }
+
+
   /** The rip whose disc is in this drive now, if any. */
   private ripInDrive(d: DiscDrive): DiscRip | undefined {
     if (!d.path) return undefined;
@@ -291,8 +334,8 @@ export class DiscManager {
       const members = this.list().filter((r) => r.batch?.id === batch.id);
       const taken = [...claimed, ...[...this.awaiting.values()].filter((a) => a.batchId === batch.id).map((a) => a.discNumber)];
       const next = nextWantedDisc(members, this.expectedFor(batch.id), taken);
-      if (next !== undefined && d.path) {
-        this.awaiting.set(canonicalDevice(d.path), { batchId: batch.id, batchName: batch.name, discNumber: next });
+      if (next !== undefined) {
+        this.awaiting.set(driveKey(d), { batchId: batch.id, batchName: batch.name, discNumber: next });
         d.awaiting = { batchId: batch.id, batchName: batch.name, discNumber: next };
       }
       await this.eject(index);
@@ -609,8 +652,9 @@ export class DiscManager {
       this.applyDefaultSelection(rip);
       await this.applyRexDb(rip);
       // now the series, season and episodes are known, which is what a set is matched on
-      const want = rip.drivePath ? this.awaiting.get(canonicalDevice(rip.drivePath)) : undefined;
-      if (want && this.placeInAwaitedSlot(rip, want)) this.awaiting.delete(canonicalDevice(rip.drivePath));
+      const key = driveKey({ name: rip.driveName, path: rip.drivePath });
+      const want = this.awaiting.get(key);
+      if (want && this.placeInAwaitedSlot(rip, want)) this.awaiting.delete(key);
       else this.offerBatch(rip);
       // the handle that actually opened the disc, so the rip that follows does not have to find it again
       rip.source = source;

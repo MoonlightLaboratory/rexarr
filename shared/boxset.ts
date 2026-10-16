@@ -164,3 +164,16 @@ export function nextWantedDisc(rips: DiscRip[], expected: number | undefined, cl
   const highest = Math.max(0, ...rips.map((r) => r.media.discNumber ?? 0), ...claimed);
   return highest > 0 ? highest + 1 : undefined;
 }
+
+/**
+ * A drive as something that survives its tray opening.
+ *
+ * The device node does not: eject a disc, put another in, and the machine may hand the drive a different
+ * /dev/diskN. A drive waiting for disc 3 keyed by its old node would never be recognised as the drive that disc
+ * then arrived in, so the model is the key and the node is only the fallback for a drive that has no name.
+ */
+export function driveKey(d: { name?: string; path?: string }): string {
+  const model = (d.name ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  if (model) return model;
+  return (d.path ?? '').trim().replace(/^\/dev\/rdisk/, '/dev/disk');
+}

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { batchProgress, boxSetName, discFreed, discPhase, driveBusy, episodeNumbers, episodeRange, expectedDiscCount, missingDiscs, nextWantedDisc, sameSet, sortDiscs } from '../../../shared/boxset.js';
+import { batchProgress, boxSetName, discFreed, discPhase, driveBusy, driveKey, episodeNumbers, episodeRange, expectedDiscCount, missingDiscs, nextWantedDisc, sameSet, sortDiscs } from '../../../shared/boxset.js';
 import type { DiscRip, RipMedia } from '../../../shared/types.js';
 
 const media = (m: Partial<RipMedia> = {}): RipMedia => ({ kind: 'series', title: 'Naruto', seasonNumber: 1, ...m });
@@ -152,4 +152,19 @@ test("a set's progress follows the titles a disc writes, not its per-title perce
   // a single-title disc has nothing to weigh, so its own percent stands
   const single = rip({ id: 's', status: 'ripping', progress: { percent: 40, step: '', titleIndex: 1, titleCount: 1 } });
   assert.equal(batchProgress([single]).percent, 40);
+});
+
+test('a drive is remembered by what it is, not by the node it had', () => {
+  // the whole point of a swap: the tray opens, a disc goes in, and macOS may hand the drive a different node.
+  // Keyed by that node, the drive waiting for disc 3 would not be the drive disc 3 turned up in.
+  const before = { name: 'DVD+R-DL HL-DT-ST DVDRAM GT50N LT20 M1BC6B45752', path: '/dev/rdisk7' };
+  const after = { name: 'DVD+R-DL HL-DT-ST DVDRAM GT50N LT20 M1BC6B45752', path: '/dev/rdisk4' };
+  assert.equal(driveKey(before), driveKey(after), 'same drive, different node');
+
+  // two different drives are still two drives
+  assert.notEqual(driveKey(after), driveKey({ name: 'DVD+R-DL TSSTcorp DVD+-RW TS-L633J D400', path: '/dev/rdisk4' }));
+
+  // a drive with no name falls back to its node, with the raw and buffered forms treated as one
+  assert.equal(driveKey({ path: '/dev/rdisk5' }), driveKey({ path: '/dev/disk5' }));
+  assert.equal(driveKey({}), '');
 });
