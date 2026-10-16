@@ -80,8 +80,9 @@ export async function probePhysicalDrive(d: PhysicalDrive, index: number): Promi
  *
  * `taken` is the device paths already covered by a MakeMKV drive or one added by hand, which must not appear twice.
  */
-export function newDrives(candidates: DriveCandidate[], taken: string[]): { candidate: DriveCandidate; device: string }[] {
+export function newDrives(candidates: DriveCandidate[], taken: string[], takenNames: string[] = []): { candidate: DriveCandidate; device: string }[] {
   const seen = new Set(taken.map((p) => (p ? canonicalDevice(p) : '')).filter(Boolean));
+  const names = takenNames.map(normaliseModel).filter(Boolean);
   const out: { candidate: DriveCandidate; device: string }[] = [];
   for (const c of candidates) {
     // a /dev/sgN node is how MakeMKV reaches a Blu-ray drive, not a drive of its own
@@ -89,15 +90,25 @@ export function newDrives(candidates: DriveCandidate[], taken: string[]): { cand
     const device = c.path ? canonicalDevice(c.path) : '';
     // the same drive under two names (/dev/cdrom and /dev/sr0) is one drive
     if (device && seen.has(device)) continue;
+    // An empty drive has no device to compare, on either side, so the model is what is left: MakeMKV writes it with
+    // its own prefix and serial around the model ("DVD+R-DL HL-DT-ST DVDRAM GT50N LT20 M1BC…"), so one contains the
+    // other rather than equalling it. Without this an already-listed drive is added again as soon as it is empty.
+    const model = normaliseModel(c.name);
+    if (!device && model && names.some((n) => n.includes(model) || model.includes(n))) continue;
     if (device) seen.add(device);
     out.push({ candidate: c, device });
   }
   return out;
 }
 
-export async function autoDetectedDrives(taken: string[], startIndex = 2000): Promise<DiscDrive[]> {
+/** A drive model as something two differently-decorated names can be compared by. */
+function normaliseModel(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+export async function autoDetectedDrives(taken: string[], startIndex = 2000, takenNames: string[] = []): Promise<DiscDrive[]> {
   const out: DiscDrive[] = [];
-  for (const { candidate: c, device: dev } of newDrives(await listDriveCandidates().catch(() => []), taken)) {
+  for (const { candidate: c, device: dev } of newDrives(await listDriveCandidates().catch(() => []), taken, takenNames)) {
     const index = startIndex + out.length;
     if (!dev) {
       // macOS names the device only once a disc is in, and drutil has already said whether one is

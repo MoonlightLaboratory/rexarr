@@ -178,7 +178,12 @@ export class DiscManager {
     let auto: DiscDrive[] = [];
     if (!busy) {
       try {
-        auto = await autoDetectedDrives([...real.map((d) => d.path), ...manual.map((d) => d.path), ...(store.settings.disc.physicalDrives ?? []).map((p) => p.path)]);
+        auto = await autoDetectedDrives(
+          [...real.map((d) => d.path), ...manual.map((d) => d.path), ...(store.settings.disc.physicalDrives ?? []).map((p) => p.path)],
+          2000,
+          // an empty drive has no device on either side, so MakeMKV's model names are what stops it being listed twice
+          [...real.map((d) => d.name), ...manual.map((d) => d.name)],
+        );
       } catch (err) {
         this.lastDriveError = `drive detection: ${(err as Error).message}`;
       }

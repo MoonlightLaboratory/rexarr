@@ -85,3 +85,15 @@ test('drutil status is read per drive, so a disc in the second drive is not cred
   assert.equal(driveId(' HL-DT-ST DVDRAM GT50N      LT20'), 'HL-DT-ST DVDRAM GT50N');
   assert.equal(driveId(''), '');
 });
+
+test('an empty drive MakeMKV already listed is not found a second time', () => {
+  // drutil and MakeMKV name the same drive differently, and with no disc in it there is no device on either side
+  // to match on, so the model has to do it or the drive is listed twice
+  const candidates: DriveCandidate[] = [{ path: '', name: 'HL-DT-ST DVDRAM GT50N', state: 'empty' }];
+  const makemkvName = 'DVD+R-DL HL-DT-ST DVDRAM GT50N LT20 M1BC6B45752';
+  assert.deepEqual(newDrives(candidates, [''], [makemkvName]), [], 'already listed, so not added again');
+
+  // a drive MakeMKV did not list is still worth adding - that is what this detection is for
+  assert.equal(newDrives(candidates, [''], ['DVD+R-DL TSSTcorp DVD+-RW TS-L633J D400']).length, 1);
+  assert.equal(newDrives(candidates, [''], []).length, 1);
+});

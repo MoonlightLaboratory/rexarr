@@ -542,3 +542,23 @@ test('a disc that will not open says why, in MakeMKV\'s words', () => {
   assert.doesNotMatch(img, /^MakeMKV/);
   assert.match(openFailureReason([], 'file:/srv/images/Thing'), /the image may be incomplete/i);
 });
+
+test('a drive with an empty tray is still a drive', () => {
+  // the real listing of this machine's two USB drives with nothing in them: MakeMKV names the device only once a
+  // disc is loaded, so both report no path. Dropping those left the drive list empty on a machine with two drives.
+  const out = parseDrives(
+    [
+      'DRV:0,0,999,0,"DVD+R-DL HL-DT-ST DVDRAM GT50N LT20 M1BC6B45752","",""',
+      'DRV:1,0,999,0,"DVD+R-DL TSSTcorp DVD+-RW TS-L633J D400 R8566GNB405125","",""',
+      'DRV:2,256,999,0,"","",""',
+      'TCOUNT:0',
+    ].join('\n'),
+  );
+  assert.equal(out.length, 2, 'both drives are listed');
+  assert.deepEqual(out.map((d) => d.state), ['empty', 'empty']);
+  assert.deepEqual(out.map((d) => d.path), ['', '']);
+  // with no device to address, MakeMKV's own number is the only handle there is
+  assert.deepEqual(out.map((d) => d.source), ['disc:0', 'disc:1']);
+  // and an empty slot is still not a drive
+  assert.equal(out.find((d) => !d.name), undefined);
+});
