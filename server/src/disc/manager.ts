@@ -18,7 +18,7 @@ import { cdTrackTags } from '../music/tags.js';
 import { detectMqa } from '../audio/mqa.js';
 import { proxiedImage } from '../routes/images.js';
 import { appEvents } from '../system.js';
-import { ejectDrive, emptyScanNote, isOpenFailure, labelToTitle, listDrives, listVirtualDrives, readDisc, readScanOutput, resolveMakemkv, ripArgs, ripTitle, scanArgs, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
+import { ejectDrive, emptyScanNote, isOpenFailure, openFailureReason, labelToTitle, listDrives, listVirtualDrives, readDisc, readScanOutput, resolveMakemkv, ripArgs, ripTitle, scanArgs, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
 import { isOnline, listAgents } from '../agents/registry.js';
 import { readOnAgent, runOnAgent } from '../agents/remote.js';
 import { applyEntry, buildEntry, fingerprintOf, lookupDisc as lookupInRexDb, rexdbSettings, submitEntry } from './rexdb.js';
@@ -1366,28 +1366,54 @@ export class DiscManager {
         const minSeconds = rip.scanMinSeconds ?? store.settings.disc.minTitleSeconds;
         const agent = this.agentFor(rip);
         // The agent writes into the same shared folder the server reads from, so only the command travels.
-        const handle = agent
-          ? (() => {
-              this.log(rip, `Ripping title ${t.id} on agent "${agent.name}"`);
-              const h = runOnAgent({
-                agentId: agent.id,
-                agentName: agent.name,
-                kind: 'rip',
-                ownerId: rip.id,
-                label: `${rip.label || source} title ${t.id}`,
-                program: 'makemkvcon',
-                args: ripArgs(source, t.id, work, minSeconds),
-                onProgress: (p) => onProgress(p.percent, rip.progress.step),
-                onLog: (line) => this.log(rip, line),
-              });
-              return { process: undefined as never, done: h.done.then((r) => r.code), cancel: h.cancel };
-            })()
-          : ripTitle(this.makemkv(), source, t.id, work, minSeconds, onProgress, (line) => this.log(rip, line));
-        this.running.set(rip.id, handle);
-        const code = await handle.done;
-        this.running.delete(rip.id);
+        const attempt = async (): Promise<{ code: number | null; said: string[] }> => {
+          const said: string[] = [];
+          const note = (line: string) => {
+            said.push(line);
+            this.log(rip, line);
+          };
+          const handle = agent
+            ? (() => {
+                this.log(rip, `Ripping title ${t.id} on agent "${agent.name}"`);
+                const h = runOnAgent({
+                  agentId: agent.id,
+                  agentName: agent.name,
+                  kind: 'rip',
+                  ownerId: rip.id,
+                  label: `${rip.label || source} title ${t.id}`,
+                  program: 'makemkvcon',
+                  args: ripArgs(source, t.id, work, minSeconds),
+                  onProgress: (p) => onProgress(p.percent, rip.progress.step),
+                  onLog: note,
+                });
+                return { process: undefined as never, done: h.done.then((r) => r.code), cancel: h.cancel };
+              })()
+            : ripTitle(this.makemkv(), source, t.id, work, minSeconds, onProgress, note);
+          this.running.set(rip.id, handle);
+          const code = await handle.done;
+          this.running.delete(rip.id);
+          return { code, said };
+        };
+        let { code, said } = await attempt();
         if ((rip.status as RipStatus) === 'cancelled') return;
-        if (code !== 0) throw new Error(`makemkvcon exited with code ${code} on title ${t.id}`);
+        // macOS can remount a disc between the check above and MakeMKV opening it, which drops MakeMKV to OS
+        // access mode and it then cannot open the disc at all. Unmounting again and asking once more is the
+        // same answer the scan gives, and the disc is right there in the drive either way.
+        if (code !== 0 && said.some((l) => /Failed to open disc/i.test(l)) && !rip.virtual && rip.drivePath) {
+          const again = await unmountForDirectAccess(rip.drivePath).catch(() => null);
+          this.log(rip, `${again ?? 'The disc would not open'} – reading title ${t.id} again`);
+          await new Promise((r) => setTimeout(r, 5000));
+          if ((rip.status as RipStatus) === 'cancelled') return;
+          fs.rmSync(work, { recursive: true, force: true });
+          fs.mkdirSync(work, { recursive: true });
+          ({ code, said } = await attempt());
+          if ((rip.status as RipStatus) === 'cancelled') return;
+        }
+        if (code !== 0) {
+          // MakeMKV's own reason beats an exit code: "code 11" says nothing a user can act on
+          const why = said.some((l) => /Failed to open disc/i.test(l)) ? ` – ${openFailureReason(said, source)}` : '';
+          throw new Error(`makemkvcon exited with code ${code} on title ${t.id}${why}`);
+        }
         // Find the file MakeMKV wrote and rename it to something the *arr apps can parse.
         const written = fs.readdirSync(work).filter((f) => f.toLowerCase().endsWith('.mkv'));
         const src = written.length ? path.join(work, written[0]) : path.join(work, t.fileName);
