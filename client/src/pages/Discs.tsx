@@ -519,7 +519,7 @@ function CdBody({ rip, busy, act }: { rip: DiscRip; busy: boolean; act: (fn: () 
   );
 }
 
-function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) {
+function RipCard({ rip, onLog, nested }: { rip: DiscRip; onLog: (r: DiscRip) => void; nested?: boolean }) {
   const { profiles, smartProfiles, settings, toast } = useApp();
   const [media, setMedia] = useState<RipMedia>(rip.media);
   const [selected, setSelected] = useState<number[]>(rip.selectedTitleIds);
@@ -642,13 +642,17 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
   return (
     <div className="card mb">
       <div className="card-h">
-        <Icon.Disc />
-        <span className="truncate" style={{ minWidth: '10em', flexShrink: 1 }} title={rip.media.artist ? `${rip.media.artist} – ${rip.media.title}` : undefined}>
-          {rip.media.artist && <span className="dim">{rip.media.artist} – </span>}
-          {rip.media.title || rip.label || 'Unknown disc'}
-        </span>
-        {rip.media.year && <span className="dim">({rip.media.year})</span>}
-        <span className={`badge ${STATUS_CLASS[rip.status]}`}>{STATUS_LABEL[rip.status]}</span>
+        {/* inside a box set the row above already names the series, the disc and its state: repeating them here
+            made a card header inside a row inside a card, all saying the same thing */}
+        {!nested && <Icon.Disc />}
+        {!nested && (
+          <span className="truncate" style={{ minWidth: '10em', flexShrink: 1 }} title={rip.media.artist ? `${rip.media.artist} – ${rip.media.title}` : undefined}>
+            {rip.media.artist && <span className="dim">{rip.media.artist} – </span>}
+            {rip.media.title || rip.label || 'Unknown disc'}
+          </span>
+        )}
+        {!nested && rip.media.year && <span className="dim">({rip.media.year})</span>}
+        {!nested && <span className={`badge ${STATUS_CLASS[rip.status]}`}>{STATUS_LABEL[rip.status]}</span>}
         <span className="badge">{rip.discType === 'bluray' ? 'Blu-ray' : rip.discType === 'dvd' ? 'DVD' : rip.discType === 'cd' ? 'Audio CD' : 'Disc'}</span>
         {rip.cd?.mqa?.detected && <span className="badge purple">MQA-CD{rip.cd.mqa.originalSampleRate ? ` · ${rip.cd.mqa.originalSampleRate / 1000} kHz` : ''}</span>}
         {rip.origin === 'download' ? (
@@ -660,8 +664,8 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
         )}
         {rip.label && rip.discType !== 'cd' && <span className="small muted mono">{rip.label}</span>}
         <span className="spacer" />
-        <span className="small muted truncate" style={{ minWidth: 0, flexShrink: 100 }}>
-          {rip.driveName} · {fmtAge(rip.createdAt)}
+        <span className="small muted truncate" style={{ minWidth: 0, flexShrink: 100 }} title={rip.driveName}>
+          {driveName(rip.driveName, rip.driveIndex)} · {fmtAge(rip.createdAt)}
         </span>
         <button className="iconButton" title="Log" onClick={() => onLog(rip)}>
           <Icon.Terminal />
@@ -1344,7 +1348,7 @@ const PHASE: Record<string, { label: string; cls: string }> = {
  * One disc of a box set, as the set lists it: which disc it is, which episodes are on it by name, and what it is
  * doing. "Disc 2 · E07 to E12" is the thing worth seeing at a glance; the whole rip card is a click away.
  */
-function BatchDiscRow({ rip, episodes, open, onToggle, onChanged }: { rip: DiscRip; episodes: Episode[] | null; open: boolean; onToggle: () => void; onChanged: () => void }) {
+function BatchDiscRow({ rip, episodes, open, onToggle, onChanged, onLog }: { rip: DiscRip; episodes: Episode[] | null; open: boolean; onToggle: () => void; onChanged: () => void; onLog: (r: DiscRip) => void }) {
   const { toast } = useApp();
   const phase = PHASE[discPhase(rip.status)] ?? PHASE.waiting;
   const range = episodeRange(rip);
@@ -1353,7 +1357,8 @@ function BatchDiscRow({ rip, episodes, open, onToggle, onChanged }: { rip: DiscR
   const disc = rip.media.discNumber;
   const phaseKey = discPhase(rip.status);
   return (
-    <div style={{ borderTop: '1px solid var(--borderColor)' }}>
+    <div>
+      {/* the row draws its own divider; a second one here made the line above a disc twice that above a slot */}
       <div className="batch-row clickable" onClick={onToggle}>
         {/* these SVGs carry no size of their own – they are sized by the context they sit in, and a bare row is not one */}
         <span style={{ display: 'inline-flex', width: 14, height: 14, color: 'var(--dimColor)' }}>{open ? <Icon.ChevronDown /> : <Icon.ChevronRight />}</span>
@@ -1367,6 +1372,7 @@ function BatchDiscRow({ rip, episodes, open, onToggle, onChanged }: { rip: DiscR
         </span>
         <span>{range ? (range.from === range.to ? `E${pad(range.from)}` : `E${pad(range.from)} to E${pad(range.to)}`) : <span className="small dim">not worked out yet</span>}</span>
         <span className="small dim">{eps.length ? `${eps.length} episode${eps.length === 1 ? '' : 's'}` : rip.titles.length ? `${rip.titles.length} title(s)` : ''}</span>
+        <span />
         <span>
           <span className={`badge sm ${phase.cls}`}>{phase.label}</span>
           {(phaseKey === 'ripping' || phaseKey === 'remuxing') && <span className="small dim"> {Math.round(ripOverallPercent(rip.progress))}%</span>}
@@ -1389,7 +1395,7 @@ function BatchDiscRow({ rip, episodes, open, onToggle, onChanged }: { rip: DiscR
         </button>
       </div>
       {open && (
-        <div>
+        <div className="batch-open">
           {eps.length > 0 && (
             <div className="small batch-eps">
               {eps.map((n) => (
@@ -1400,7 +1406,7 @@ function BatchDiscRow({ rip, episodes, open, onToggle, onChanged }: { rip: DiscR
               ))}
             </div>
           )}
-          <RipCard rip={rip} onLog={() => undefined} />
+          <RipCard rip={rip} onLog={onLog} nested />
         </div>
       )}
     </div>
@@ -1473,15 +1479,18 @@ function BatchCard({ rips, onLog, onChanged, waitingFor = [] }: { rips: DiscRip[
           Discs…
         </button>
       </div>
-      <div style={{ padding: '0 12px 8px' }}>
-        <div className="progress md" title={`${prog.percent}% of the whole set`}>
-          <div style={{ width: `${prog.percent}%` }} />
-          <span className="text">{prog.percent}%</span>
+      {/* an empty bar reading 0% is a grey slab that says nothing the badge above has not already said */}
+      {prog.percent > 0 && (
+        <div style={{ padding: '0 12px 10px' }}>
+          <div className="progress md" title={`${prog.percent}% of the whole set`}>
+            <div style={{ width: `${prog.percent}%` }} />
+            <span className="text">{prog.percent}%</span>
+          </div>
         </div>
-      </div>
+      )}
       <div>
         {discs.map((d) => (
-          <BatchDiscRow key={d.id} rip={d} episodes={episodes} open={open === d.id} onToggle={() => setOpen(open === d.id ? null : d.id)} onChanged={onChanged} />
+          <BatchDiscRow key={d.id} rip={d} episodes={episodes} open={open === d.id} onToggle={() => setOpen(open === d.id ? null : d.id)} onChanged={onChanged} onLog={onLog} />
         ))}
         {/* the discs that have not turned up yet, so what is still missing is visible without counting */}
         {incoming.map((n) => (
@@ -1489,8 +1498,12 @@ function BatchCard({ rips, onLog, onChanged, waitingFor = [] }: { rips: DiscRip[
             <span />
             <strong>Disc {n}</strong>
             <span className="small dim">not inserted yet</span>
-            <span className="small dim">{waitingFor.includes(n) ? 'a drive is waiting for it' : ''}</span>
-            <span className="badge sm">incoming</span>
+            <span className="small dim">{waitingFor.includes(n) ? 'a drive is waiting' : ''}</span>
+            <span />
+            {/* wrapped like the disc rows': the badge carries a margin, so as a grid item it sits 2px off theirs */}
+            <span>
+              <span className="badge sm">incoming</span>
+            </span>
             <span />
           </div>
         ))}
