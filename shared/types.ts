@@ -577,6 +577,11 @@ export interface DiscSettings {
   autoEject: boolean;
   /** Keep the raw MakeMKV rip after a successful transcode. */
   keepRaw: boolean;
+  /**
+   * Gather the discs of one season into a box set: a disc whose series and season match a disc already in the
+   * queue offers to join it rather than starting an item of its own. Off: every disc stands alone, as it used to.
+   */
+  groupBoxSets: boolean;
   /** Every 10 minutes, import finished episodes still in the rip folder into Sonarr (failed or hand-copied ones). */
   autoImport: boolean;
   /** Add a show / movie to Sonarr / Radarr when its disc starts ripping, if it is not there yet. */
@@ -1644,6 +1649,24 @@ export type RipStatus =
   | 'failed'
   | 'cancelled';
 
+/** The box set a disc belongs to, as every member carries it. */
+export interface DiscBatchRef {
+  id: string;
+  /** "Naruto - Season 1 box set", shown as the parent item. */
+  name: string;
+}
+
+/** A box set a disc has been matched to but not yet put in. */
+export interface DiscBatchSuggestion {
+  /** The set to join, when one of these discs is already in one. Absent: accepting makes the set. */
+  id?: string;
+  name: string;
+  /** The disc that matched, which joins the new set too when there is not one yet. */
+  ripId: string;
+  /** What it was matched on, so the page can say why it is asking. */
+  why: string;
+}
+
 export interface RipMedia {
   /** The season's own name, when it has one (AniDB), e.g. "My Teen Romantic Comedy SNAFU Too!" for season 2. */
   seasonTitle?: string;
@@ -1827,6 +1850,15 @@ export interface DiscRip {
   episodeMap?: Record<number, number>;
   /** Title ids that look like a "play all" title (duration ≈ sum of the others). */
   playAllTitleIds?: number[];
+  /**
+   * The box set this disc is one of. The name is carried on every member rather than kept in a list of its own:
+   * a set is only ever its discs, so it comes and goes with them and there is no empty set to tidy up.
+   */
+  batch?: DiscBatchRef;
+  /** A box set this disc looks like part of, offered and not yet answered. Nothing exists until it is accepted. */
+  batchSuggestion?: DiscBatchSuggestion;
+  /** Asked and declined: this disc stands alone and is not offered a set again. */
+  batchDeclined?: boolean;
   profileId?: string;
   profileName?: string;
   options: RipOptions;

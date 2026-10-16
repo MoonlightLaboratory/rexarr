@@ -162,6 +162,28 @@ export default async function discRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
+  // Box sets: a disc is offered one when it is identified, and these are the three answers - join it, stand alone,
+  // or leave the set it is in. The set itself is only its discs, so there is nothing else to create or delete.
+  app.post<{ Params: { id: string }; Body: unknown }>('/api/disc/rips/:id/batch', async (req, reply) => {
+    const body = z.object({ accept: z.boolean() }).safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: 'accept required' });
+    if (!discs.get(req.params.id)) return reply.code(404).send({ error: 'rip not found' });
+    return body.data.accept ? discs.joinBatch(req.params.id) : discs.declineBatch(req.params.id);
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/disc/rips/:id/batch', async (req, reply) => {
+    if (!discs.get(req.params.id)) return reply.code(404).send({ error: 'rip not found' });
+    return discs.leaveBatch(req.params.id);
+  });
+
+  app.patch<{ Params: { id: string }; Body: unknown }>('/api/disc/batches/:id', async (req, reply) => {
+    const body = z.object({ name: z.string().trim().min(1).max(200) }).safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: 'name required' });
+    const n = discs.renameBatch(req.params.id, body.data.name);
+    if (!n) return reply.code(404).send({ error: 'box set not found' });
+    return { ok: true, discs: n };
+  });
+
   app.post<{ Params: { id: string } }>('/api/disc/rips/:id/scan', async (req, reply) => {
     if (!discs.get(req.params.id)) return reply.code(404).send({ error: 'rip not found' });
     await discs.scan(req.params.id);

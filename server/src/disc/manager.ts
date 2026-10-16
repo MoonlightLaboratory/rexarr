@@ -22,6 +22,7 @@ import { ejectDrive, emptyScanNote, isOpenFailure, labelToTitle, listDrives, lis
 import { isOnline, listAgents } from '../agents/registry.js';
 import { readOnAgent, runOnAgent } from '../agents/remote.js';
 import { applyEntry, buildEntry, fingerprintOf, lookupDisc as lookupInRexDb, rexdbSettings, submitEntry } from './rexdb.js';
+import { boxSetName, sameSet, sortDiscs } from '../../../shared/boxset.js';
 import { byTitle, omdbConfigured } from '../omdb.js';
 import { audioSelectionFor, describeTracks } from './audio.js';
 import { ensureRipFolder } from './ripFolder.js';
@@ -227,6 +228,90 @@ export class DiscManager {
     return ((rip.media.discNumber ?? 1) - 1) * episodeCount + 1;
   }
 
+  /**
+   * Does this disc belong with one already in the queue?
+   *
+   * Nothing is created here. A set that does not exist yet is only named and offered, because a disc that turns
+   * out to be a one-off should not leave a set behind it. Accepting is what makes the set - see joinBatch.
+   */
+  private offerBatch(rip: DiscRip) {
+    if (!store.settings.disc.groupBoxSets) return;
+    if (rip.batch || rip.batchDeclined || rip.media.kind !== 'series') return;
+    // the nearest other disc of the same season: one already in a set decides which set, so it is preferred
+    const siblings = this.list().filter((r) => r.id !== rip.id && !r.virtual && sameSet(r.media, rip.media));
+    const inSet = siblings.find((r) => r.batch);
+    const match = inSet ?? sortDiscs(siblings)[0];
+    if (!match) {
+      rip.batchSuggestion = undefined;
+      return;
+    }
+    const why = rip.media.arrId !== undefined && match.media.arrId === rip.media.arrId ? `same series and season as ${match.label || 'the other disc'}` : `its label reads as the same series and season as ${match.label || 'another disc'}`;
+    rip.batchSuggestion = { id: match.batch?.id, name: match.batch?.name ?? boxSetName(rip.media), ripId: match.id, why };
+  }
+
+  /** Accept a suggested set: the one it names, or a new one holding both discs. */
+  joinBatch(id: string): DiscRip | undefined {
+    const rip = this.get(id);
+    const s = rip?.batchSuggestion;
+    if (!rip || !s) return rip;
+    const batch = s.id ? { id: s.id, name: s.name } : { id: randomUUID(), name: s.name };
+    rip.batch = batch;
+    rip.batchSuggestion = undefined;
+    rip.batchDeclined = undefined;
+    // a set that did not exist until now takes in the disc that matched, or it would be a set of one
+    const match = this.get(s.ripId);
+    if (!s.id && match && !match.batch) {
+      match.batch = batch;
+      match.batchSuggestion = undefined;
+      // it is in the set too, so its own log should say so rather than leaving it to be inferred
+      this.log(match, `Added to the box set "${batch.name}" with ${rip.label || 'the disc just read'}`);
+      this.emit(match);
+    }
+    this.log(rip, `Added to the box set "${batch.name}"`);
+    store.saveRips();
+    this.emit(rip);
+    return rip;
+  }
+
+  /** Decline it, and do not ask about this disc again. */
+  declineBatch(id: string): DiscRip | undefined {
+    const rip = this.get(id);
+    if (!rip) return undefined;
+    rip.batchSuggestion = undefined;
+    rip.batchDeclined = true;
+    store.saveRips();
+    this.emit(rip);
+    return rip;
+  }
+
+  /** Take a disc out of its set. The set is its discs, so the last one out dissolves it. */
+  leaveBatch(id: string): DiscRip | undefined {
+    const rip = this.get(id);
+    if (!rip?.batch) return rip;
+    const was = rip.batch;
+    rip.batch = undefined;
+    rip.batchDeclined = true;
+    const left = this.list().filter((r) => r.batch?.id === was.id);
+    // one disc on its own is not a set
+    if (left.length === 1) left[0].batch = undefined;
+    for (const r of left) this.emit(r);
+    this.log(rip, `Taken out of the box set "${was.name}"`);
+    store.saveRips();
+    this.emit(rip);
+    return rip;
+  }
+
+  /** Rename a set, on every disc that is in it. */
+  renameBatch(batchId: string, name: string): number {
+    const members = this.list().filter((r) => r.batch?.id === batchId);
+    for (const r of members) {
+      r.batch = { id: batchId, name };
+      this.emit(r);
+    }
+    if (members.length) store.saveRips();
+    return members.length;
+  }
+
   /** The agent whose drive this rip is in, when it is not one of ours. */
   private agentFor(rip: DiscRip): { id: string; name: string } | undefined {
     const d = this.drives.find((x) => x.index === rip.driveIndex);
@@ -383,6 +468,8 @@ export class DiscManager {
       await this.identify(rip);
       this.applyDefaultSelection(rip);
       await this.applyRexDb(rip);
+      // now the series, season and episodes are known, which is what a set is matched on
+      this.offerBatch(rip);
       // the handle that actually opened the disc, so the rip that follows does not have to find it again
       rip.source = source;
       rip.status = 'ready';

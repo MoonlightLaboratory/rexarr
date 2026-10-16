@@ -194,6 +194,10 @@ export const api = {
   addVirtualDrive: (path: string, label?: string) => req<VirtualDrive>('POST', '/api/disc/virtual', { path, label }),
   removeVirtualDrive: (id: string) => req<{ ok: true }>('DELETE', `/api/disc/virtual/${id}`),
   scanRip: (id: string) => req<DiscRip>('POST', `/api/disc/rips/${id}/scan`),
+  // Box sets: answer the offer a disc was made, take a disc back out, or rename the set on every disc in it.
+  answerBatch: (id: string, accept: boolean) => req<DiscRip>('POST', `/api/disc/rips/${id}/batch`, { accept }),
+  leaveBatch: (id: string) => req<DiscRip>('DELETE', `/api/disc/rips/${id}/batch`),
+  renameBatch: (batchId: string, name: string) => req<{ ok: boolean; discs: number }>('PATCH', `/api/disc/batches/${batchId}`, { name }),
   updateRip: (id: string, patch: RipPatch) => req<DiscRip>('PATCH', `/api/disc/rips/${id}`, patch),
   startRip: (id: string, patch: RipPatch) => req<DiscRip>('POST', `/api/disc/rips/${id}/start`, patch),
   cancelRip: (id: string) => req<{ ok: true }>('POST', `/api/disc/rips/${id}/cancel`),

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { MusicBrainzRelease, DriveCandidate, DiscAudioTrack, DiscDrive, DiscEstimate, DiscRip, DiscTitle, Episode, ExtraType, LookupResult, MakemkvInfo, RipMedia, RipOptions, RipStatus, TitleRole, WantedDisc } from '@shared/types';
 import { api, fmtAge, fmtBytes, fmtDuration, ripOverallPercent } from '../api';
+import { batchProgress, discPhase, episodeNumbers, episodeRange, sortDiscs } from '@shared/boxset';
 import { useApp } from '../App';
 import { Page, ToolbarButton } from '../components/Layout';
 import { Icon } from '../components/Icons';
@@ -655,6 +656,7 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
         </div>
       )}
       {rip.status === 'failed' && <div className="error" style={{ margin: 14 }}>{rip.error}</div>}
+      {rip.batchSuggestion && <BatchOffer rip={rip} />}
 
       {(rip.status === 'ripping' || rip.status === 'transcoding' || rip.status === 'delivering') && (
         <div className="card-b" style={{ paddingBottom: 6 }}>
@@ -889,6 +891,42 @@ const EXTRA_OPTIONS: { type: ExtraType; label: string }[] = [
  * What a title is: an episode of the season, a special from season 0 (when TVDB lists specials), or an extra that is
  * kept next to the show in an Extras folder (Sonarr only imports episodes).
  */
+
+/**
+ * "Add to Naruto - Season 1 box set?" - asked on a disc that reads as part of a set already in the queue.
+ *
+ * It asks rather than just doing it: two discs of one season are usually a set, but not always, and a disc put in
+ * the wrong set would be numbered from the wrong place. Declining is remembered, so the disc is not asked twice.
+ */
+function BatchOffer({ rip }: { rip: DiscRip }) {
+  const { toast } = useApp();
+  const [busy, setBusy] = useState(false);
+  const s = rip.batchSuggestion!;
+  const answer = (accept: boolean) => {
+    setBusy(true);
+    api
+      .answerBatch(rip.id, accept)
+      .then(() => toast('info', accept ? `Added to “${s.name}”` : 'Kept as its own disc'))
+      .catch((e) => toast('error', (e as Error).message))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <div className="info" style={{ margin: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      <span>
+        Part of a set? Add this disc to <strong>{s.name}</strong>?
+        <span className="small dim"> {s.why}. Its episodes carry on from where the last disc ended.</span>
+      </span>
+      <span className="spacer" />
+      <button className="btn sm primary" disabled={busy} onClick={() => answer(true)}>
+        Add to set
+      </button>
+      <button className="btn sm" disabled={busy} onClick={() => answer(false)}>
+        Keep separate
+      </button>
+    </div>
+  );
+}
+
 function TitleRoleCell({
   title,
   isSeries,
@@ -1205,6 +1243,147 @@ function RexDbPanel({ rip }: { rip: DiscRip }) {
   );
 }
 
+
+/** The phases a box set reports, as a word and a colour. */
+const PHASE: Record<string, { label: string; cls: string }> = {
+  waiting: { label: 'Waiting', cls: '' },
+  ripping: { label: 'Ripping', cls: 'blue' },
+  remuxing: { label: 'Remuxing', cls: 'blue' },
+  done: { label: 'Done', cls: 'green' },
+  failed: { label: 'Failed', cls: 'red' },
+  cancelled: { label: 'Cancelled', cls: '' },
+};
+
+/**
+ * One disc of a box set, as the set lists it: which disc it is, which episodes are on it by name, and what it is
+ * doing. "Disc 2 · E07 to E12" is the thing worth seeing at a glance; the whole rip card is a click away.
+ */
+function BatchDiscRow({ rip, episodes, open, onToggle, onChanged }: { rip: DiscRip; episodes: Episode[] | null; open: boolean; onToggle: () => void; onChanged: () => void }) {
+  const { toast } = useApp();
+  const phase = PHASE[discPhase(rip.status)] ?? PHASE.waiting;
+  const range = episodeRange(rip);
+  const eps = episodeNumbers(rip);
+  const nameOf = (n: number) => episodes?.find((e) => e.episodeNumber === n || e.absoluteEpisodeNumber === n)?.title;
+  const disc = rip.media.discNumber;
+  const phaseKey = discPhase(rip.status);
+  return (
+    <div style={{ borderTop: '1px solid var(--borderColor)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', cursor: 'pointer', flexWrap: 'wrap' }} onClick={onToggle}>
+        {/* these SVGs carry no size of their own – they are sized by the context they sit in, and a bare flex row is not one */}
+        <span style={{ display: 'inline-flex', width: 14, height: 14, flex: '0 0 14px', color: 'var(--dimColor)' }}>{open ? <Icon.ChevronDown /> : <Icon.ChevronRight />}</span>
+        <strong style={{ minWidth: 60 }}>{disc ? `Disc ${disc}` : rip.label || 'Disc'}</strong>
+        {rip.media.episodeStartGuessed && (
+          <span className="badge sm" title="The first episode was worked out from the disc number, not read off the disc. Worth checking.">
+            guessed
+          </span>
+        )}
+        <span style={{ minWidth: 110 }}>{range ? (range.from === range.to ? `E${pad(range.from)}` : `E${pad(range.from)} to E${pad(range.to)}`) : <span className="small dim">episodes not worked out yet</span>}</span>
+        <span className="small dim">{eps.length ? `${eps.length} episode${eps.length === 1 ? '' : 's'}` : rip.titles.length ? `${rip.titles.length} title(s)` : ''}</span>
+        <span className="spacer" />
+        <span className={`badge sm ${phase.cls}`}>{phase.label}</span>
+        {(phaseKey === 'ripping' || phaseKey === 'remuxing') && <span className="small dim">{Math.round(ripOverallPercent(rip.progress))}%</span>}
+        <button
+          className="btn sm"
+          title="Take this disc out of the box set. It keeps its own entry and nothing already ripped is touched."
+          onClick={(e) => {
+            e.stopPropagation();
+            api
+              .leaveBatch(rip.id)
+              .then(() => {
+                toast('info', 'Taken out of the set');
+                onChanged();
+              })
+              .catch((err) => toast('error', (err as Error).message));
+          }}
+        >
+          Remove
+        </button>
+      </div>
+      {open && (
+        <div>
+          {eps.length > 0 && (
+            <div className="small" style={{ padding: '0 12px 10px 34px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {eps.map((n) => (
+                <span key={n}>
+                  <strong>E{pad(n)}</strong>{' '}
+                  {nameOf(n) ?? <span className="dim">{episodes === null ? 'name needs the series in Sonarr' : 'not in Sonarr'}</span>}
+                </span>
+              ))}
+            </div>
+          )}
+          <RipCard rip={rip} onLog={() => undefined} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function pad(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+/**
+ * A box set: the parent item for the discs of one season, with its own progress across all of them.
+ *
+ * The set's name lives on each member rip, so there is nothing to fetch for it - the discs are the set.
+ * Episode names are fetched once here rather than per disc, since every disc in a set is the same season.
+ */
+function BatchCard({ rips, onLog, onChanged }: { rips: DiscRip[]; onLog: (r: DiscRip) => void; onChanged: () => void }) {
+  const { toast } = useApp();
+  const discs = useMemo(() => sortDiscs(rips), [rips]);
+  const batch = discs[0].batch!;
+  const prog = batchProgress(discs);
+  const [open, setOpen] = useState<string | null>(null);
+  const [episodes, setEpisodes] = useState<Episode[] | null>(null);
+  const known = discs.find((d) => d.media.arrId !== undefined);
+  const arrId = known?.media.arrId;
+  const season = known?.media.seasonNumber ?? 1;
+  useEffect(() => {
+    if (arrId === undefined) return;
+    let live = true;
+    api.episodes(arrId, season).then((e) => live && setEpisodes(e)).catch(() => live && setEpisodes(null));
+    return () => { live = false; };
+  }, [arrId, season]);
+
+  const ripping = discs.filter((d) => ['ripping', 'remuxing'].includes(discPhase(d.status)));
+  return (
+    <div className="card mb">
+      <div className="card-h">
+        <span style={{ display: 'inline-flex', width: 16, height: 16, flex: '0 0 16px' }}>
+          <Icon.Disc />
+        </span>
+        <strong>{batch.name}</strong>
+        <span className="badge sm">{prog.total} disc{prog.total === 1 ? '' : 's'}</span>
+        {prog.done === prog.total ? <span className="badge sm green">Complete</span> : <span className="badge sm">{prog.done} of {prog.total} done</span>}
+        <span className="spacer" />
+        {ripping.length > 0 && <span className="small dim">{ripping.map((d) => `Disc ${d.media.discNumber ?? '?'} ${PHASE[discPhase(d.status)].label.toLowerCase()}`).join(', ')}</span>}
+        <button
+          className="btn sm"
+          title="Rename this box set"
+          onClick={() => {
+            const name = prompt('Box set name', batch.name)?.trim();
+            if (!name || name === batch.name) return;
+            api.renameBatch(batch.id, name).then(() => { toast('info', 'Box set renamed'); onChanged(); }).catch((e) => toast('error', (e as Error).message));
+          }}
+        >
+          Rename
+        </button>
+      </div>
+      <div style={{ padding: '0 12px 8px' }}>
+        <div className="progress md" title={`${prog.percent}% of the whole set`}>
+          <div style={{ width: `${prog.percent}%` }} />
+          <span className="text">{prog.percent}%</span>
+        </div>
+      </div>
+      <div>
+        {discs.map((d) => (
+          <BatchDiscRow key={d.id} rip={d} episodes={episodes} open={open === d.id} onToggle={() => setOpen(open === d.id ? null : d.id)} onChanged={onChanged} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RipEstimate({ titles, sourceBytes, estimate, transcode }: { titles: number; sourceBytes: number; estimate: DiscEstimate | null; transcode: boolean }) {
   const out = transcode ? estimate?.transcode?.bytes : estimate?.ripBytes;
   const saved = out && sourceBytes ? Math.round((1 - out / sourceBytes) * 100) : 0;
@@ -1339,6 +1518,26 @@ export function DiscsPage() {
   const active = useMemo(() => rips.filter((r) => ACTIVE.includes(r.status)), [rips]);
   const history = useMemo(() => rips.filter((r) => !ACTIVE.includes(r.status)), [rips]);
   const list = tab === 'active' ? active : history;
+  // A box set shows up once, where its first disc would have, with the rest of its discs inside it.
+  const groups = useMemo(() => {
+    const out: { key: string; batch: boolean; rips: DiscRip[] }[] = [];
+    const byBatch = new Map<string, { key: string; batch: boolean; rips: DiscRip[] }>();
+    for (const r of list) {
+      if (!r.batch) {
+        out.push({ key: r.id, batch: false, rips: [r] });
+        continue;
+      }
+      const existing = byBatch.get(r.batch.id);
+      if (existing) {
+        existing.rips.push(r);
+        continue;
+      }
+      const g = { key: r.batch.id, batch: true, rips: [r] };
+      byBatch.set(r.batch.id, g);
+      out.push(g);
+    }
+    return out;
+  }, [list]);
 
   return (
     <Page
@@ -1425,9 +1624,13 @@ export function DiscsPage() {
           </div>
         </div>
       )}
-      {list.map((r) => (
-        <RipCard key={r.id} rip={r} onLog={setLogRip} />
-      ))}
+      {groups.map((g) =>
+        g.batch ? (
+          <BatchCard key={g.key} rips={g.rips} onLog={setLogRip} onChanged={() => refresh(false)} />
+        ) : (
+          <RipCard key={g.key} rip={g.rips[0]} onLog={setLogRip} />
+        ),
+      )}
       {logRip && <LogModal rip={logRip} onClose={() => setLogRip(null)} />}
       {addDrive && <AddDriveModal onClose={() => setAddDrive(false)} onAdded={() => refresh(true)} />}
       {openImage && <OpenImageModal onClose={() => setOpenImage(false)} onOpened={() => { setTab('active'); refresh(false); }} />}

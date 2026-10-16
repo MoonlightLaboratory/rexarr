@@ -372,6 +372,7 @@ export const DEFAULT_SETTINGS = {
     autoTranscode: true,
     autoDeliver: true,
     autoEject: true,
+    groupBoxSets: true,
     keepRaw: false,
     autoImport: true,
     addMissing: true,

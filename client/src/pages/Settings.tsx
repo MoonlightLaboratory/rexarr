@@ -1437,7 +1437,9 @@ export function SettingsPage() {
             <label className="check mb"><input type="checkbox" checked={s.disc.autoTranscode} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoTranscode: e.target.checked } })} /> Transcode with the default profile</label>
             <label className="check mb"><input type="checkbox" checked={s.disc.autoDeliver} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoDeliver: e.target.checked } })} /> Hand finished files to Radarr / Sonarr</label>
             <label className="check mb"><input type="checkbox" checked={s.disc.autoEject} onChange={(e) => setS({ ...s, disc: { ...s.disc, autoEject: e.target.checked } })} /> Eject when done</label>
-            <label className="check"><input type="checkbox" checked={s.disc.keepRaw} onChange={(e) => setS({ ...s, disc: { ...s.disc, keepRaw: e.target.checked } })} /> Keep the raw MakeMKV rip after transcoding</label>
+            <label className="check mb"><input type="checkbox" checked={s.disc.keepRaw} onChange={(e) => setS({ ...s, disc: { ...s.disc, keepRaw: e.target.checked } })} /> Keep the raw MakeMKV rip after transcoding</label>
+            <label className="check"><input type="checkbox" checked={s.disc.groupBoxSets} onChange={(e) => setS({ ...s, disc: { ...s.disc, groupBoxSets: e.target.checked } })} /> Group multi-disc sets into box sets</label>
+            <div className="small dim">A disc whose series and season match a disc already in the queue offers to join it, instead of starting an item of its own. The set shows the discs under one parent, with progress across all of them. Each disc still asks before it joins.</div>
           </div>
           <div className="subhead">Which titles to rip</div>
           <div className="grid-2">
