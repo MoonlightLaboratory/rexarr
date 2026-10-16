@@ -139,3 +139,17 @@ test('a set knows which discs are still missing, and which to ask for next', () 
   // and past the end of the set, the next disc is simply the one after the last
   assert.equal(nextWantedDisc([d1, d3], 3, [2]), 4);
 });
+
+test("a set's progress follows the titles a disc writes, not its per-title percent", () => {
+  // a five-title disc on its second title, a third of the way in, is not 33% done - it is a sixth
+  const mid = rip({ id: 'm', status: 'ripping', progress: { percent: 33, step: '', titleIndex: 2, titleCount: 5 } });
+  assert.equal(batchProgress([mid]).percent, 27);
+
+  // the first title finishing is not the disc finishing, which is what the raw percent used to claim
+  const firstDone = rip({ id: 'f', status: 'ripping', progress: { percent: 100, step: '', titleIndex: 1, titleCount: 5 } });
+  assert.equal(batchProgress([firstDone]).percent, 20);
+
+  // a single-title disc has nothing to weigh, so its own percent stands
+  const single = rip({ id: 's', status: 'ripping', progress: { percent: 40, step: '', titleIndex: 1, titleCount: 1 } });
+  assert.equal(batchProgress([single]).percent, 40);
+});

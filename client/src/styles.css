@@ -1463,6 +1463,10 @@ table.metaTags td.mono { word-break: break-word; }
    smearing a gradient over the row it sits under. */
 .batch-open > .card { margin: 0; border-left: 0; border-right: 0; border-radius: 0; box-shadow: none; border-top: 1px solid var(--borderColor); }
 /* a long disc runs to columns rather than a tall thin list */
+/* A set's bar is a summary, not a full-bleed slab: on a wide screen a 15px rule from edge to edge reads as a
+   divider rather than a measure, so it is held to a readable width in the middle of the card. */
+.batch-progress { padding: 0 12px 10px; display: flex; justify-content: center; }
+.batch-progress > .progress { max-width: 520px; }
 .batch-eps { padding: 10px 12px 12px 38px; columns: 280px; column-gap: 24px; }
 .batch-eps > span { display: block; break-inside: avoid; padding: 1px 0; }
 

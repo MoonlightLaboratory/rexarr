@@ -76,6 +76,19 @@ export function episodeRange(rip: DiscRip): { from: number; to: number } | null 
   return { from: eps[0], to: eps[eps.length - 1] };
 }
 
+/**
+ * How far through its own titles a disc is.
+ *
+ * A disc's raw percent is per title, so a five-title disc reads 100% when the first one is written and drops back
+ * to nothing when the second starts. The title it is on is what turns that into a figure for the disc.
+ */
+function discPercent(p: DiscRip['progress'] | undefined): number {
+  if (!p) return 0;
+  const pct = Number.isFinite(p.percent) ? p.percent : 0;
+  if (!p.titleCount || p.titleCount <= 1 || p.titleIndex < 1) return pct;
+  return Math.min(100, ((p.titleIndex - 1 + pct / 100) / p.titleCount) * 100);
+}
+
 /** How far through a whole set is, counting every disc equally. */
 export function batchProgress(rips: DiscRip[]): { percent: number; done: number; total: number } {
   const total = rips.length;
@@ -86,7 +99,7 @@ export function batchProgress(rips: DiscRip[]): { percent: number; done: number;
     if (phase === 'done') return 100;
     // a disc that has not started, or that stopped without finishing, has written nothing towards the set
     if (phase === 'waiting' || phase === 'cancelled' || phase === 'failed') return 0;
-    return Math.max(0, Math.min(100, r.progress?.percent ?? 0));
+    return Math.max(0, Math.min(100, discPercent(r.progress)));
   });
   return { percent: Math.round(each.reduce((a, b) => a + b, 0) / total), done, total };
 }

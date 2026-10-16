@@ -1479,9 +1479,10 @@ function BatchCard({ rips, onLog, onChanged, waitingFor = [] }: { rips: DiscRip[
           Discs…
         </button>
       </div>
-      {/* an empty bar reading 0% is a grey slab that says nothing the badge above has not already said */}
-      {prog.percent > 0 && (
-        <div style={{ padding: '0 12px 10px' }}>
+      {/* shown once a disc is actually working: keyed off percent it vanished between titles, because a disc's
+          percent restarts at zero with every title it writes */}
+      {discs.some((d) => discPhase(d.status) !== 'waiting') && (
+        <div className="batch-progress">
           <div className="progress md" title={`${prog.percent}% of the whole set`}>
             <div style={{ width: `${prog.percent}%` }} />
             <span className="text">{prog.percent}%</span>
