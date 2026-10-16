@@ -144,19 +144,73 @@ export async function listDriveCandidates(): Promise<DriveCandidate[]> {
   } else if (process.platform === 'darwin') {
     const list = await run('drutil', ['list'], { timeout: 10_000 }).then((r) => r.stdout).catch(() => '');
     const status = await run('drutil', ['status'], { timeout: 10_000 }).then((r) => r.stdout).catch(() => '');
-    const devices = [...status.matchAll(/Name:\s*(\/dev\/disk\d+)/g)].map((m) => m[1]);
-    const drives = list.split('\n').slice(1).map((l) => l.trim()).filter((l) => /^\d+\s/.test(l));
+    const blocks = statusDrives(status);
+    const drives = list.split('\n').map((l) => l.replace(/\s+$/, '')).filter((l) => /^\s*\d+\s/.test(l));
     // drutil only names the device once a disc is in; with none it says so, which is a state rather than a gap
     const empty = /No Media Inserted/i.test(status);
     drives.forEach((line, i) => {
-      const [, vendor, product] = line.match(/^\d+\s+(\S+)\s+(.+?)\s{2,}/) ?? [];
+      const id = driveId(line);
+      // this drive's own block, not the i-th device node in the output: see statusDrives
+      const device = blocks.find((b) => b.id && b.id === id)?.device ?? (blocks.length === drives.length ? blocks[i]?.device ?? '' : '');
       out.push({
-        path: devices[i] ?? '',
-        name: [vendor, product].filter(Boolean).join(' ') || `Drive ${i + 1}`,
-        state: devices[i] ? 'loaded' : empty ? 'empty' : 'unknown',
-        note: devices[i] ? undefined : 'Insert a disc to see its /dev/diskN path',
+        path: device,
+        name: id || `Drive ${i + 1}`,
+        state: device ? 'loaded' : empty ? 'empty' : 'unknown',
+        note: device ? undefined : 'Insert a disc to see its /dev/diskN path',
       });
     });
   }
   return out;
+}
+
+/**
+ * The ways MakeMKV can be told to open one drive, best first.
+ *
+ * Neither handle is reliable on its own. `disc:N` is the drive's slot in whichever listing produced it, so a drive
+ * MakeMKV fails to enumerate shifts every slot after it and the number opens a different, often empty, drive.
+ * `dev:<node>` does not move, but MakeMKV answers "Unknown device" for a drive it did not manage to enumerate in
+ * that run - which happens to a second drive more than a first. So a scan is given both and tries the next when the
+ * disc will not open.
+ *
+ * `stored` (what the rip was created with) leads when it still addresses this same drive, because a handle already
+ * known to work beats a fresh guess; when the drive has been renumbered since, it is dropped to last.
+ */
+export function driveSources(stored: string, live: DiscDrive | undefined): string[] {
+  const candidates: string[] = [];
+  if (live?.source) candidates.push(live.source);
+  // only a drive MakeMKV listed has one of its numbers; Rexarr's own bands (virtual, found, added by hand) do not
+  if (live && !live.auto && !live.virtual && live.index < 1000) candidates.push(`disc:${live.index}`);
+  const ordered = candidates.includes(stored) ? [stored, ...candidates.filter((c) => c !== stored)] : [...candidates, stored];
+  return [...new Set(ordered)].filter(Boolean);
+}
+
+/**
+ * The drives `drutil status` describes, in order, each with the device node of the disc in it ('' when empty).
+ *
+ * This used to be read positionally - every "Name: /dev/diskN" in the output, zipped against the rows of
+ * `drutil list`. With one drive that works. With two it does not: a drive holding no disc prints no Name line, so
+ * the nodes shift up and a disc in the second drive is attributed to the first, leaving the drive the disc is
+ * actually in with no device at all. Each Name belongs to the drive whose block it appears in, so that is how it
+ * is read - which also does not care how many blocks there are or whether drutil repeats its header.
+ */
+export function statusDrives(status: string): { id: string; device: string }[] {
+  const out: { id: string; device: string }[] = [];
+  const lines = status.split('\n');
+  for (const [i, line] of lines.entries()) {
+    if (/^\s*Vendor\s+Product/i.test(line)) {
+      // the row under the header names the drive this block is about
+      const id = driveId(lines[i + 1] ?? '');
+      if (id) out.push({ id, device: '' });
+      continue;
+    }
+    const name = line.match(/Name:\s*(\/dev\/r?disk\d+)/);
+    if (name && out.length) out[out.length - 1].device = name[1];
+  }
+  return out;
+}
+
+/** "HL-DT-ST DVDRAM GT50N" from a drutil row, which `list` and `status` write with different columns after it. */
+export function driveId(row: string): string {
+  const m = row.match(/^\s*(?:\d+\s+)?(\S+)\s+(.+?)\s{2,}/);
+  return m ? `${m[1]} ${m[2].trim()}` : '';
 }

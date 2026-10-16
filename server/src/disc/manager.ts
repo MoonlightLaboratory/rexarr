@@ -9,7 +9,7 @@ import { arr } from '../arr/index.js';
 import { queue } from '../jobs/queue.js';
 import { toArrPath } from '../paths.js';
 import { anidb } from '../anidb.js';
-import { autoDetectedDrives, canonicalDevice, probePhysicalDrive } from './devices.js';
+import { autoDetectedDrives, canonicalDevice, driveSources, probePhysicalDrive } from './devices.js';
 import { execFile } from 'node:child_process';
 import { discId, downloadCover, getRelease, lookupDisc, readCdToc, tocString } from '../music/musicbrainz.js';
 import { freacInfo, ripCdTrack } from '../music/freac.js';
@@ -303,22 +303,22 @@ export class DiscManager {
   }
 
   /**
-   * How to address this disc's drive right now.
-   *
-   * A rip stores the source it was created with, but MakeMKV's `disc:N` is a slot in whichever listing produced it:
-   * a drive it fails to enumerate next time shifts every slot after it, and the stored handle then opens a different,
-   * often empty, drive. Where the drive is still listed under the same device node, its current source wins.
+   * The ways to address this disc's drive, best first. More than one because neither of MakeMKV's handles is
+   * dependable on its own - see driveSources - and a scan works down the list when a disc will not open.
    */
-  private sourceFor(rip: DiscRip): string {
+  private sourcesFor(rip: DiscRip): string[] {
     const stored = rip.source ?? `disc:${rip.driveIndex}`;
-    if (rip.virtual || !rip.drivePath) return stored;
+    if (rip.virtual || !rip.drivePath) return [stored];
     const want = canonicalDevice(rip.drivePath);
-    const live = this.drives.find((d) => d.path && !d.virtual && canonicalDevice(d.path) === want);
-    return live?.source || stored;
+    return driveSources(stored, this.drives.find((d) => d.path && !d.virtual && canonicalDevice(d.path) === want));
+  }
+
+  private sourceFor(rip: DiscRip): string {
+    return this.sourcesFor(rip)[0] ?? `disc:${rip.driveIndex}`;
   }
 
   /** Read the title list and try to identify the disc. */
-  async scan(id: string, retried = false): Promise<void> {
+  async scan(id: string, attempt = 0): Promise<void> {
     const rip = this.get(id);
     if (!rip) return;
     rip.status = 'scanning';
@@ -338,7 +338,8 @@ export class DiscManager {
       rip.scanMinSeconds = d.includeExtras ? Math.min(d.extraMinSeconds ?? 30, d.minTitleSeconds) : d.minTitleSeconds;
       const abort = new AbortController();
       this.scans.set(rip.id, abort);
-      const source = this.sourceFor(rip);
+      const sources = this.sourcesFor(rip);
+      const source = sources[Math.min(attempt, sources.length - 1)];
       this.log(rip, `makemkvcon info ${source}, minimum title length ${rip.scanMinSeconds}s`);
       const onAgent = this.agentFor(rip);
       if (onAgent) this.log(rip, `Reading it on agent "${onAgent.name}"`);
@@ -377,19 +378,24 @@ export class DiscManager {
       await this.identify(rip);
       this.applyDefaultSelection(rip);
       await this.applyRexDb(rip);
+      // the handle that actually opened the disc, so the rip that follows does not have to find it again
+      rip.source = source;
       rip.status = 'ready';
     } catch (err) {
       if ((rip.status as RipStatus) === 'cancelled') return;
       const msg = (err as Error).message;
-      // A disc is detected as soon as the drive reports a label, which can be before the drive has finished coming up
-      // to speed; the read then fails to open the disc. Waiting a moment and asking once more is the difference
-      // between that and a disc the user is told cannot be read - the same disc often reads fine seconds later.
-      if (!retried && isOpenFailure(msg)) {
-        this.log(rip, `${msg} Giving the drive a moment and reading it again…`);
+      // Two reasons a disc will not open on the first ask, both of which another attempt answers. The drive may not
+      // be up to speed yet - a disc is noticed as soon as the drive reports a label, and reads fine seconds later -
+      // or the handle used may be the one MakeMKV cannot resolve for this drive, where the other one can.
+      const sources = this.sourcesFor(rip);
+      const attempts = Math.max(2, sources.length);
+      if (attempt + 1 < attempts && isOpenFailure(msg)) {
+        const next = sources[Math.min(attempt + 1, sources.length - 1)];
+        this.log(rip, `${msg} Giving the drive a moment and reading it again${next !== sources[Math.min(attempt, sources.length - 1)] ? ` as ${next}` : ''}…`);
         this.emit(rip);
         await new Promise((r) => setTimeout(r, 10_000));
         if ((rip.status as RipStatus) === 'cancelled') return;
-        return this.scan(id, true);
+        return this.scan(id, attempt + 1);
       }
       rip.status = 'failed';
       rip.error = msg;
