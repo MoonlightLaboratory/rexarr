@@ -302,6 +302,21 @@ export class DiscManager {
     return rip;
   }
 
+  /**
+   * How to address this disc's drive right now.
+   *
+   * A rip stores the source it was created with, but MakeMKV's `disc:N` is a slot in whichever listing produced it:
+   * a drive it fails to enumerate next time shifts every slot after it, and the stored handle then opens a different,
+   * often empty, drive. Where the drive is still listed under the same device node, its current source wins.
+   */
+  private sourceFor(rip: DiscRip): string {
+    const stored = rip.source ?? `disc:${rip.driveIndex}`;
+    if (rip.virtual || !rip.drivePath) return stored;
+    const want = canonicalDevice(rip.drivePath);
+    const live = this.drives.find((d) => d.path && !d.virtual && canonicalDevice(d.path) === want);
+    return live?.source || stored;
+  }
+
   /** Read the title list and try to identify the disc. */
   async scan(id: string, retried = false): Promise<void> {
     const rip = this.get(id);
@@ -323,7 +338,7 @@ export class DiscManager {
       rip.scanMinSeconds = d.includeExtras ? Math.min(d.extraMinSeconds ?? 30, d.minTitleSeconds) : d.minTitleSeconds;
       const abort = new AbortController();
       this.scans.set(rip.id, abort);
-      const source = rip.source ?? `disc:${rip.driveIndex}`;
+      const source = this.sourceFor(rip);
       this.log(rip, `makemkvcon info ${source}, minimum title length ${rip.scanMinSeconds}s`);
       const onAgent = this.agentFor(rip);
       if (onAgent) this.log(rip, `Reading it on agent "${onAgent.name}"`);
@@ -1063,7 +1078,7 @@ export class DiscManager {
             this.emit(rip);
           }
         };
-        const source = rip.source ?? `disc:${rip.driveIndex}`;
+        const source = this.sourceFor(rip);
         const minSeconds = rip.scanMinSeconds ?? store.settings.disc.minTitleSeconds;
         const agent = this.agentFor(rip);
         // The agent writes into the same shared folder the server reads from, so only the command travels.

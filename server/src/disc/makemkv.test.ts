@@ -28,9 +28,28 @@ test('parseDrives maps states and skips absent drives', () => {
     ].join('\n'),
   );
   assert.equal(out.length, 2);
-  assert.deepEqual(out[0], { index: 0, state: 'loaded', name: 'BD-RE HL-DT-ST BD-RE  WH16NS40 1.02', discLabel: 'BLADE_RUNNER_2049', path: '/dev/rdisk4', source: 'disc:0' });
+  // the source is the device node, not disc:0 - MakeMKV's index is a slot in this one listing, and a drive missing
+  // from the next listing shifts the slots, so a stored index can open a different drive (see the test below)
+  assert.deepEqual(out[0], { index: 0, state: 'loaded', name: 'BD-RE HL-DT-ST BD-RE  WH16NS40 1.02', discLabel: 'BLADE_RUNNER_2049', path: '/dev/rdisk4', source: 'dev:/dev/rdisk4' });
   assert.equal(out[1].state, 'empty');
   assert.equal(out[1].discLabel, undefined);
+});
+
+test('a drive is addressed by device node, because MakeMKV\'s index moves', () => {
+  // the same two drives, read twice. In the first listing the empty drive was not enumerated, so the disc sits at
+  // index 0; in the second it is at index 1. Both describe /dev/rdisk4 - taken as "disc:0", the second listing's
+  // index 0 is the empty drive, which is exactly how a disc fails to open in under a second.
+  const withoutEmpty = parseDrives('DRV:0,2,999,1,"HL-DT-ST DVDRAM GT50N","SNAFU_2_DISC_1","/dev/rdisk4"');
+  const withEmpty = parseDrives(
+    ['DRV:0,0,999,0,"TSSTcorp DVD+-RW TS-L633J","","/dev/rdisk9"', 'DRV:1,2,999,1,"HL-DT-ST DVDRAM GT50N","SNAFU_2_DISC_1","/dev/rdisk4"'].join('\n'),
+  );
+  assert.equal(withoutEmpty[0].index, 0);
+  assert.equal(withEmpty[1].index, 1, 'the same drive, a different index');
+  assert.equal(withoutEmpty[0].source, withEmpty[1].source, 'but one source, so a scan reaches the drive either way');
+  assert.equal(withoutEmpty[0].source, 'dev:/dev/rdisk4');
+
+  // Windows reports a drive letter rather than a node, and there the index is all there is
+  assert.equal(parseDrives('DRV:0,2,999,1,"BD-RE Drive","DISC","D:")')[0]?.source, 'disc:0');
 });
 
 test('parseDiscInfo builds titles with streams', () => {

@@ -98,7 +98,14 @@ export function parseDrives(stdout: string): DiscDrive[] {
     const f = splitRobot(line.slice(4));
     const state = Number(f[1]);
     if (state === 256 || !f[6]) continue; // no drive
-    drives.push({ index: Number(f[0]), state: driveState(state), name: f[4], discLabel: f[5] || undefined, path: f[6], source: `disc:${Number(f[0])}` });
+    const index = Number(f[0]);
+    const device = f[6];
+    // Address the drive by its device node, not by MakeMKV's index. That index is the drive's slot in whichever
+    // listing produced it, and a drive MakeMKV fails to enumerate in the next run shifts every slot after it - so an
+    // index read a moment ago can open a different, often empty, drive and fail instantly. The device node does not
+    // move. Only a POSIX node is usable this way: Windows has drive letters here, where the index is all there is.
+    const source = device.startsWith('/') ? `dev:${device}` : `disc:${index}`;
+    drives.push({ index, state: driveState(state), name: f[4], discLabel: f[5] || undefined, path: device, source });
   }
   return drives;
 }
