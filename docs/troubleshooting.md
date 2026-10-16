@@ -52,6 +52,12 @@ See the [disc troubleshooting table](guide/disc-ripping.md#troubleshooting) for 
 - **Nothing imported, rip failed with *cannot see …*** — the rip directory is not reachable by the app at that path.
   Fix the mapping and run *Import rip folder now*; the files are still there.
 - **No titles found on this disc** — the OS mounted it, or MakeMKV cannot decrypt it (Blu-ray needs a key).
+- **MakeMKV could not open the disc** — the message says which: a drive not ready yet (Rexarr waits and tries
+  once more by itself), a drive MakeMKV did not find, an unreadable disc image, or a mounted volume on macOS.
+- **Drives vanish, or a disc is in the tray and Rexarr lists no drives** — usually the drive has dropped off the
+  USB bus, not a fault in Rexarr. `drutil list` on macOS shows whether the machine can see it at all. Two USB
+  optical drives need more power than a bus-powered hub provides: plug each one directly in, or use a powered
+  hub. See [Drives that come and go](guide/disc-ripping.md#drives-that-come-and-go).
 - **A title is missing** — it is shorter than *Minimum title length*; lower it or tick *Include extras and
   specials*.
 - **Cannot create the rip folder …** — the folder in **Settings → Disc ripping → Rip folder** cannot be made.

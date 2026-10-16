@@ -104,6 +104,26 @@ In Docker, pass **both nodes of each drive**: `--device /dev/sr0 --device /dev/s
 /dev/sg1`. Drives on the same USB bus share its bandwidth, so two rips from one hub are slower than two from
 separate ports.
 
+### Drives that come and go
+
+Two USB optical drives are more than a bus-powered hub can feed. A drive short of power does not fail cleanly: it
+drops off the bus and re-enumerates, and what you see instead is MakeMKV reporting *NOT READY* or *Unknown
+device*, drives appearing and disappearing from the list, or a disc that will not open however many times you try.
+
+Rexarr cannot fix a drive that is not there, so check the machine rather than the app first. On macOS:
+
+```bash
+drutil list                       # the drives macOS itself can see
+ioreg -p IOUSB -w0 | grep -c "+-o"   # how many USB nodes exist at all
+```
+
+An empty `drutil list` while a disc is in the tray means the drive is off the bus. A USB device that keeps
+reconnecting leaves a node behind each time, so a registry full of them — dozens at the same address — is the
+signature of a drive that has been dropping out, and those stale entries clear on a reboot.
+
+The fix is power, not software: plug each drive **straight into the machine**, or into a hub with its own power
+supply, and use the drive's Y-cable if it came with one. One drive per port.
+
 ### Virtual drives
 
 A disc image behaves exactly like a disc:
@@ -422,5 +442,8 @@ cover art. See [Music → Audio CDs](music.md#audio-cds).
 | Episodes land on the wrong numbers | Set season and first episode before ripping; check the title order in the Episode column |
 | A title is missing from the list | It is shorter than *Minimum title length* — lower it or tick *Include extras and specials* |
 | Titles change number between scan and rip | Scan and rip use the same minimum length; if you changed it, scan again |
+| *MakeMKV could not open the disc* | The message says which it is, in MakeMKV's words. **The drive is not ready** — it was still coming up to speed when the disc was read; Rexarr waits and tries once more on its own, so a second failure means the drive cannot read this disc. **MakeMKV did not find that drive** — it is busy, not ready, or no longer connected. **The image may be incomplete** — an `.iso` that is not a video disc. On macOS it can also still be a mounted volume, which Rexarr unmounts before reading |
+| A drive holds a disc but Rexarr lists no drives | Rexarr lists the drives MakeMKV lists, including empty ones. If MakeMKV lists none either, the drive is off the bus rather than missing from Rexarr — see [Drives that come and go](#drives-that-come-and-go) |
+| The same drive appears twice | A drive MakeMKV reports both as an empty slot and with its disc, or one Rexarr found itself while MakeMKV had not listed it. Both are collapsed to one drive; if you still see two, **Refresh** |
 | Drive is not listed | **Discs → Add drive** with the device path; in Docker pass `/dev/sr0` **and** `/dev/sg0` |
 | MakeMKV is missing or will not start | **System → Status** says why (wrong architecture, not executable, not found) |
