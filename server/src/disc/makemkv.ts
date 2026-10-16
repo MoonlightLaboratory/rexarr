@@ -235,12 +235,43 @@ export function ripArgs(source: string, titleId: number, outDir: string, minLeng
   return ['-r', '--progress=-same', '--messages=-stdout', `--minlength=${Math.max(0, Math.floor(minLengthSeconds))}`, 'mkv', source, String(titleId), outDir];
 }
 
+/**
+ * Why "Failed to open disc" happened, in MakeMKV's own words where it has them.
+ *
+ * A macOS mount is only one of the causes, and it used to be the only one named. A drive that is still spinning up
+ * answers NOT READY, and one MakeMKV never managed to enumerate is an Unknown device - sending the user to Disk
+ * Utility for either of those is sending them after a problem that is not there.
+ */
+export function openFailureReason(messages: string[], source = ''): string {
+  const said = messages.filter((m) => /scsi error|not ready|unknown device|tray open|medium not present/i.test(m));
+  const text = said[said.length - 1] ?? '';
+  if (/becoming ready|not ready|tray open|medium not present/i.test(text))
+    return 'the drive reports the disc is not ready \u2013 it may still be spinning up, or the drive cannot read this disc. Wait a few seconds and scan again, or try the disc in another drive.';
+  if (/unknown device/i.test(text))
+    return 'MakeMKV did not find that drive. Usually the drive is busy, not ready, or no longer connected \u2013 reinsert the disc and scan again.';
+  // An image has no drive to be unready and nothing to unmount, so none of the advice below would apply to it
+  if (/^(iso|file):/i.test(source))
+    return 'the image may be incomplete, not a video disc, or in a format MakeMKV does not support.';
+  // Nothing in MakeMKV's output to go on. A drive that was not ready says nothing at all when it is addressed by
+  // index, so that possibility is named first - it is the one that fixes itself - and the mount second.
+  if (process.platform === 'darwin')
+    return 'the drive may not be ready yet, or macOS still has the disc mounted. Scan again in a moment, or unmount the volume in Disk Utility.';
+  return 'check that the drive is ready, that it can read this disc, and that MakeMKV has access to the device.';
+}
+
+/**
+ * Was a scan's failure the disc not opening? Worth one more attempt: a drive still coming up to speed fails this way
+ * and reads the disc perfectly a moment later.
+ */
+export function isOpenFailure(message: string): boolean {
+  return /could not open the disc/i.test(message);
+}
+
 /** Read what a scan printed. Split out so a scan run on an agent is read exactly as a local one is. */
-export function readScanOutput(stdout: string): DiscInfo {
+export function readScanOutput(stdout: string, source = ''): DiscInfo {
   if (/Failed to open disc/i.test(stdout)) {
-    throw new Error(
-      `MakeMKV could not open the disc${process.platform === 'darwin' ? ' (macOS may still have it mounted: eject and reinsert it, or unmount the volume in Disk Utility)' : ' \u2013 check that the drive can read it and that MakeMKV has access to the device'}`,
-    );
+    const reason = openFailureReason(parseDiscInfo(stdout).messages, source);
+    throw new Error(`MakeMKV could not open the disc: ${reason}`);
   }
   return parseDiscInfo(stdout);
 }
@@ -252,7 +283,7 @@ export async function readDisc(makemkv: string, source: string, minLengthSeconds
     throw new Error(e.message ?? 'makemkvcon failed');
   });
   // an empty title list is usually this, not a disc without titles
-  return readScanOutput(stdout);
+  return readScanOutput(stdout, source);
 }
 
 /**

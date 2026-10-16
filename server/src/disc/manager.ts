@@ -18,7 +18,7 @@ import { cdTrackTags } from '../music/tags.js';
 import { detectMqa } from '../audio/mqa.js';
 import { proxiedImage } from '../routes/images.js';
 import { appEvents } from '../system.js';
-import { ejectDrive, emptyScanNote, labelToTitle, listDrives, listVirtualDrives, readDisc, readScanOutput, resolveMakemkv, ripArgs, ripTitle, scanArgs, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
+import { ejectDrive, emptyScanNote, isOpenFailure, labelToTitle, listDrives, listVirtualDrives, readDisc, readScanOutput, resolveMakemkv, ripArgs, ripTitle, scanArgs, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
 import { isOnline, listAgents } from '../agents/registry.js';
 import { readOnAgent, runOnAgent } from '../agents/remote.js';
 import { applyEntry, buildEntry, fingerprintOf, lookupDisc as lookupInRexDb, rexdbSettings, submitEntry } from './rexdb.js';
@@ -84,6 +84,8 @@ export class DiscManager {
       if (['scanning', 'ripping', 'delivering'].includes(r.status)) {
         r.status = 'failed';
         r.error = 'Server restarted mid-rip';
+        // and it is finished with, or the disc still in the drive is detected as new on the next poll
+        r.finishedAt = new Date().toISOString();
         this.log(r, r.error);
       }
     }
@@ -239,14 +241,17 @@ export class DiscManager {
       for (const d of drives) {
         if (d.state !== 'loaded') continue;
         const label = d.discLabel ?? '';
-        const active = store.rips.find((r) => r.drivePath === d.path && r.label === label && ACTIVE.includes(r.status));
+        // One drive can reach the list under two names – MakeMKV reports /dev/rdisk5 where Rexarr's own detection
+        // finds /dev/disk5 – and the entries for a disc must be found whichever of the two it was created under.
+        const sameDrive = (r: DiscRip) => r.drivePath === d.path || (!!r.drivePath && !!d.path && canonicalDevice(r.drivePath) === canonicalDevice(d.path));
+        const active = store.rips.find((r) => sameDrive(r) && r.label === label && ACTIVE.includes(r.status));
         if (active) continue;
         // A drive holds one disc. Right after it is (re)connected the label can read blank for a moment – that is the
         // same disc, not a new one – and a disc that is still being scanned or ripped must not get a second entry.
-        const busy = store.rips.find((r) => r.drivePath === d.path && ['inserted', 'scanning', 'ripping'].includes(r.status));
+        const busy = store.rips.find((r) => sameDrive(r) && ['inserted', 'scanning', 'ripping'].includes(r.status));
         if (busy || !label) continue;
         // A disc that already finished (or failed) and is still in the tray is not ripped again until it is swapped.
-        const recent = store.rips.find((r) => r.drivePath === d.path && r.label === label && r.finishedAt && Date.now() - new Date(r.finishedAt).getTime() < 6 * 3600_000);
+        const recent = store.rips.find((r) => sameDrive(r) && r.label === label && r.finishedAt && Date.now() - new Date(r.finishedAt).getTime() < 6 * 3600_000);
         if (recent) continue;
         const rip = this.createRip(d);
         void this.scan(rip.id).then(async () => {
@@ -298,7 +303,7 @@ export class DiscManager {
   }
 
   /** Read the title list and try to identify the disc. */
-  async scan(id: string) {
+  async scan(id: string, retried = false): Promise<void> {
     const rip = this.get(id);
     if (!rip) return;
     rip.status = 'scanning';
@@ -326,7 +331,7 @@ export class DiscManager {
         onAgent
           ? readOnAgent({ agentId: onAgent.id, ownerId: rip.id, label: `Scan ${rip.label || source}`, args: scanArgs(source, minSeconds), onLog: (l) => this.log(rip, l) }).done.then((r) => {
               if (r.code !== 0 && !r.stdout) throw new Error(`makemkvcon on ${onAgent.name} exited with code ${r.code}`);
-              return readScanOutput(r.stdout);
+              return readScanOutput(r.stdout, source);
             })
           : readDisc(this.makemkv(), source, minSeconds, abort.signal);
       const info = await scan(rip.scanMinSeconds).finally(() => this.scans.delete(rip.id));
@@ -360,8 +365,22 @@ export class DiscManager {
       rip.status = 'ready';
     } catch (err) {
       if ((rip.status as RipStatus) === 'cancelled') return;
+      const msg = (err as Error).message;
+      // A disc is detected as soon as the drive reports a label, which can be before the drive has finished coming up
+      // to speed; the read then fails to open the disc. Waiting a moment and asking once more is the difference
+      // between that and a disc the user is told cannot be read - the same disc often reads fine seconds later.
+      if (!retried && isOpenFailure(msg)) {
+        this.log(rip, `${msg} Giving the drive a moment and reading it again…`);
+        this.emit(rip);
+        await new Promise((r) => setTimeout(r, 10_000));
+        if ((rip.status as RipStatus) === 'cancelled') return;
+        return this.scan(id, true);
+      }
       rip.status = 'failed';
-      rip.error = (err as Error).message;
+      rip.error = msg;
+      // A failed scan is finished with: without a time the poll below treats the disc as newly inserted on its next
+      // pass and makes another entry for it, once every few seconds, for as long as the disc stays in the drive.
+      rip.finishedAt = new Date().toISOString();
       this.log(rip, `Scan failed: ${rip.error}`);
     }
     store.saveRips();

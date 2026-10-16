@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { emptyScanNote, lastRealMessage, findDiscImages, labelToTitle, listVirtualDrives, parseDiscInfo, parseDrives, parseDurationSeconds, splitRobot } from './makemkv.js';
+import { emptyScanNote, lastRealMessage, findDiscImages, labelToTitle, listVirtualDrives, isOpenFailure, openFailureReason, parseDiscInfo, parseDrives, parseDurationSeconds, readScanOutput, splitRobot } from './makemkv.js';
 import { audioSelectionFor, bestAudioPerLanguage, codecRank } from './audio.js';
 import type { DiscAudioTrack } from '../../../shared/types.js';
 import { matchLibrary, nameScore, splitSequel, type LibraryCandidate } from './identify.js';
@@ -482,4 +482,44 @@ test('a distributor on the front of the label does not lose the match', () => {
   // and dropping words cannot reduce a label to something that matches everything
   assert.equal(matchLibrary('Anime Limited', library, { preferSeries: true }), null);
   assert.equal(matchLibrary('Some Other Thing Entirely', library, { preferSeries: true }), null);
+});
+
+test('a disc that will not open says why, in MakeMKV\'s words', () => {
+  // a drive still spinning up, taken from a real failing scan: the old message blamed a macOS mount for this
+  const notReady = [
+    "Error 'Scsi error - NOT READY:MEDIUM NOT PRESENT - TRAY OPEN' occurred while reading 'HL-DT-ST DVDRAM GT50N' at offset '1048576'",
+    "Error 'Scsi error - NOT READY:LOGICAL UNIT IS IN PROCESS OF BECOMING READY' occurred while reading 'HL-DT-ST DVDRAM GT50N' at offset '65536'",
+  ];
+  assert.match(openFailureReason(notReady), /not ready/i);
+  assert.doesNotMatch(openFailureReason(notReady), /Disk Utility/i, 'it is not a mount, so do not send them to Disk Utility');
+
+  // addressed by drive index MakeMKV says nothing beyond the failure itself, so the reason has to cover both causes
+  assert.match(openFailureReason([]), /not be ready|drive is ready/i);
+
+  // a drive MakeMKV never enumerated is not a mount either
+  assert.match(openFailureReason(["Unknown device - '/dev/disk5'"]), /did not find that drive/i);
+
+  // with nothing to go on, the platform's usual cause is still the best guess
+  assert.ok(openFailureReason([]).length > 0);
+
+  // and the reason reaches the error the scan throws
+  const stdout = ['MSG:2003,0,3,"' + notReady[1] + '","%1","x"', 'MSG:5010,0,0,"Failed to open disc","Failed to open disc"'].join('\n');
+  assert.throws(() => readScanOutput(stdout), /could not open the disc: .*not ready/i);
+
+  // whatever the reason, the scan recognises its own open failure so it can try once more
+  try {
+    readScanOutput(stdout);
+    assert.fail('should have thrown');
+  } catch (e) {
+    assert.ok(isOpenFailure((e as Error).message), 'an open failure is retryable');
+  }
+  assert.equal(isOpenFailure('MakeMKV read disc:1 and found no titles'), false, 'a disc that opened is not retried');
+
+  // a disc image has no drive to be unready and no volume to unmount, so it must not be told to wait or unmount
+  const img = openFailureReason([], 'iso:/srv/images/Thing.iso');
+  assert.match(img, /the image may be incomplete/i);
+  assert.doesNotMatch(img, /Disk Utility|not be ready/i);
+  // it reads on from "could not open the disc:", so it must not start by naming MakeMKV again
+  assert.doesNotMatch(img, /^MakeMKV/);
+  assert.match(openFailureReason([], 'file:/srv/images/Thing'), /the image may be incomplete/i);
 });
