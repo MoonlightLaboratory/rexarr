@@ -165,10 +165,13 @@ export default async function discRoutes(app: FastifyInstance) {
   // Box sets: a disc is offered one when it is identified, and these are the three answers - join it, stand alone,
   // or leave the set it is in. The set itself is only its discs, so there is nothing else to create or delete.
   app.post<{ Params: { id: string }; Body: unknown }>('/api/disc/rips/:id/batch', async (req, reply) => {
-    const body = z.object({ accept: z.boolean() }).safeParse(req.body);
+    const body = z.object({ accept: z.boolean(), force: z.boolean().optional() }).safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: 'accept required' });
     if (!discs.get(req.params.id)) return reply.code(404).send({ error: 'rip not found' });
-    return body.data.accept ? discs.joinBatch(req.params.id) : discs.declineBatch(req.params.id);
+    if (!body.data.accept) return discs.declineBatch(req.params.id);
+    const joined = discs.joinBatch(req.params.id, body.data.force);
+    if (body.data.force && !joined?.batch) return reply.code(400).send({ error: 'No other disc of this series and season is in the queue' });
+    return joined;
   });
 
   app.delete<{ Params: { id: string } }>('/api/disc/rips/:id/batch', async (req, reply) => {

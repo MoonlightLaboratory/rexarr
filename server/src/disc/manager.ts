@@ -243,9 +243,10 @@ export class DiscManager {
    * Nothing is created here. A set that does not exist yet is only named and offered, because a disc that turns
    * out to be a one-off should not leave a set behind it. Accepting is what makes the set - see joinBatch.
    */
-  private offerBatch(rip: DiscRip) {
-    if (!store.settings.disc.groupBoxSets) return;
-    if (rip.batch || rip.batchDeclined || rip.media.kind !== 'series') return;
+  private offerBatch(rip: DiscRip, force = false) {
+    if (!store.settings.disc.groupBoxSets && !force) return;
+    // a disc taken out of a set is not offered it again on its own, but asking for it is a different thing
+    if (rip.batch || rip.media.kind !== 'series' || (rip.batchDeclined && !force)) return;
     // the nearest other disc of the same season: one already in a set decides which set, so it is preferred
     const siblings = this.list().filter((r) => r.id !== rip.id && !r.virtual && sameSet(r.media, rip.media));
     const inSet = siblings.find((r) => r.batch);
@@ -426,10 +427,13 @@ export class DiscManager {
   }
 
   /** Accept a suggested set: the one it names, or a new one holding both discs. */
-  joinBatch(id: string): DiscRip | undefined {
+  joinBatch(id: string, force = false): DiscRip | undefined {
     const rip = this.get(id);
-    const s = rip?.batchSuggestion;
-    if (!rip || !s) return rip;
+    if (!rip) return undefined;
+    // asked for by hand: work out the set now rather than waiting for the disc to be read again
+    if (force && !rip.batchSuggestion) this.offerBatch(rip, true);
+    const s = rip.batchSuggestion;
+    if (!s) return rip;
     const batch = s.id ? { id: s.id, name: s.name } : { id: randomUUID(), name: s.name };
     rip.batch = batch;
     rip.batchSuggestion = undefined;
@@ -467,9 +471,9 @@ export class DiscManager {
     const was = rip.batch;
     rip.batch = undefined;
     rip.batchDeclined = true;
+    // The set used to dissolve when one disc was left, which took that disc out of a set nobody had asked to
+    // break up - the other half of the set simply vanished. A set of one is kept: more discs are usually coming.
     const left = this.list().filter((r) => r.batch?.id === was.id);
-    // one disc on its own is not a set
-    if (left.length === 1) left[0].batch = undefined;
     for (const r of left) this.emit(r);
     this.log(rip, `Taken out of the box set "${was.name}"`);
     store.saveRips();

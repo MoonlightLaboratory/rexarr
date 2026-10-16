@@ -696,6 +696,22 @@ function RipCard({ rip, onLog, nested }: { rip: DiscRip; onLog: (r: DiscRip) => 
       )}
       {rip.status === 'failed' && <div className="error" style={{ margin: 14 }}>{rip.error}</div>}
       {rip.slotWarning && <SlotWarning rip={rip} />}
+      {!nested && !rip.batch && !rip.slotWarning && !rip.batchSuggestion && rip.media.kind === 'series' && rip.media.title && (
+        <div className="card-b" style={{ paddingTop: 0 }}>
+          <button
+            className="btn sm"
+            title="Put this disc into the box set for its series and season, making one if there is not one yet"
+            onClick={() =>
+              api
+                .answerBatch(rip.id, true, true)
+                .then((r) => toast('info', r.batch ? `Added to “${r.batch.name}”` : 'Added to the set'))
+                .catch((e) => toast('error', (e as Error).message))
+            }
+          >
+            Add to box set
+          </button>
+        </div>
+      )}
       {rip.batchSuggestion && !rip.slotWarning && <BatchOffer rip={rip} />}
 
       {(rip.status === 'ripping' || rip.status === 'transcoding' || rip.status === 'delivering') && (
@@ -1417,6 +1433,7 @@ function BatchDiscRow({ rip, episodes, open, onToggle, onChanged, onLog }: { rip
           title="Take this disc out of the box set. It keeps its own entry and nothing already ripped is touched."
           onClick={(e) => {
             e.stopPropagation();
+            if (!confirm(`Take ${disc ? `Disc ${disc}` : rip.label} out of "${rip.batch?.name}"?\n\nIt keeps its own entry and nothing already ripped is touched.`)) return;
             api
               .leaveBatch(rip.id)
               .then(() => {
@@ -1426,7 +1443,7 @@ function BatchDiscRow({ rip, episodes, open, onToggle, onChanged, onLog }: { rip
               .catch((err) => toast('error', (err as Error).message));
           }}
         >
-          Remove
+          Take out
         </button>
       </div>
       {open && (
