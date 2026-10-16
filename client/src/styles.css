@@ -1465,10 +1465,9 @@ table.metaTags td.mono { word-break: break-word; }
 /* a long disc runs to columns rather than a tall thin list */
 /* A set's bar is a summary, not a full-bleed slab: on a wide screen a 15px rule from edge to edge reads as a
    divider rather than a measure, so it is held to a readable width in the middle of the card. */
-.batch-progress { padding: 11px 12px; display: flex; justify-content: center; }
-/* Wide enough to read as a measure of the whole set, with room either side so it is plainly centred rather than
-   just stretched to the card's edges. */
-.batch-progress > .progress { width: 80%; max-width: 1100px; }
+/* The bar runs the width of the card, inside the same 12px gutter the disc rows use so its ends line up with
+   them, and with equal air above and below so it sits between the header's rule and the first disc. */
+.batch-progress { padding: 11px 12px; }
 .batch-eps { padding: 10px 12px 12px 38px; columns: 280px; column-gap: 24px; }
 .batch-eps > span { display: block; break-inside: avoid; padding: 1px 0; }
 
