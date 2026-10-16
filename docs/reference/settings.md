@@ -150,6 +150,7 @@ Auto transcode: `auto.enabled`, `auto.includeExisting`, `auto.sources.radarr` / 
 | Hand finished files to Radarr / Sonarr | `disc.autoDeliver` | |
 | Eject when done | `disc.autoEject` | |
 | Keep the raw MakeMKV rip after transcoding | `disc.keepRaw` | |
+| Group multi-disc sets into box sets | `disc.groupBoxSets` | A disc whose series and season match a disc already in the queue offers to join it instead of starting an item of its own. See [Box sets](../guide/disc-ripping.md#box-sets). |
 | Import finished rips automatically | `disc.autoImport` | the 10-minute rip-folder sweep |
 | Add shows and movies when their disc starts ripping | `disc.addMissing` | |
 | Monitor what was added | `disc.addMonitored` | off by default, so nothing is downloaded |

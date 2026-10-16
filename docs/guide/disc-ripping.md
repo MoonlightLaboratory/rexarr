@@ -205,8 +205,8 @@ Each title gets a role in the **Episode / extra** column:
 - a **special** from season 0 — listed when TVDB has specials for the show — imported by Sonarr as `S00Exx`,
 - an **extra**: *OP*, *ED*, *Extra*, *OVA*, *Special*, a **custom** name, or the disc's own title name.
 
-For a multi-disc set, disc 2 continues after disc 1's episodes; disc sets rip into `Show (Year) - Disc N` folders so
-parallel rips never mix files.
+For a multi-disc set, disc 2 continues after disc 1's episodes (see [Box sets](#box-sets)); disc sets rip into
+`Show (Year) - Disc N` folders so parallel rips never mix files.
 
 ### Specials and extras
 
@@ -229,6 +229,65 @@ copies that choice to every episode on the disc.
 
 Tracks that are not kept are dropped from the ripped MKV by a stream copy (no re-encode), which also shrinks the
 file before it is transcoded: on a Naruto DVD, 6 audio tracks down to 1 took a title from 1.58 GB to 1.21 GB.
+
+## Box sets
+
+A season that came on four discs is one thing, not four. When a disc is identified as the same series and season
+as a disc already in the queue, it offers to join it:
+
+> Part of a set? Add this disc to **Naruto - Season 1 box set**?  **[Add to set] [Keep separate]**
+
+It asks rather than assuming. Two discs of one season are usually a set, but not always, and a disc filed in the
+wrong one takes its episode numbers from the wrong place. A *no* is remembered, so the disc is not asked twice,
+and a disc can be taken out of a set later with **Remove** on its row.
+
+The set is the parent item, with each disc inside it:
+
+- **Disc 2 · E06 to E09 · 4 episodes · Waiting** — a disc reads as the episodes on it, not as `title_t03`.
+- Opening a disc lists those episodes **by name** from Sonarr, above the disc's own controls.
+- Each disc keeps its own state — *waiting*, *ripping*, *remuxing*, *done* — and the set shows progress across
+  all of them.
+- Discs that have not turned up yet are listed as **incoming**, so what is still missing is visible without
+  counting.
+- Episode numbers carry on from the disc before: disc 2 starts at E06 when disc 1 held five episodes. A number
+  worked out this way is marked *guessed*, because nothing on a disc says how many were on the ones before it.
+
+How many discs a set holds is worked out from the season's episode count and what its discs actually hold — 35
+episodes at four or five a disc is eight discs — and **Discs…** sets it by hand when that is wrong. **Rename**
+changes the set's name.
+
+A set is only ever its discs. There is no list of sets kept anywhere: one appears with its second disc, goes when
+its discs go, and leaves nothing empty behind. Turn the whole thing off with **Group multi-disc sets into box
+sets** in [Settings → Disc ripping](../reference/settings.md#disc-ripping).
+
+### Swapping discs through a set
+
+**Swap** appears on a drive as soon as its disc has been **copied** — not when the encode finishes. Remuxing reads
+the copy on disk, so holding a tray shut for the length of a transcode would idle the drive for nothing.
+
+One press ejects the tray and the drive says what to put in next:
+
+> Waiting for Disc 3 of Naruto - Season 1 box set
+
+Close the tray and the disc is read and dropped into that slot. While a drive is still reading, its **Swap** is
+greyed out.
+
+**Swap all finished** in the toolbar does every drive whose disc has been copied in one pass, so a whole stack can
+be pulled and reloaded together. Each drive is given a different disc to wait for, rather than both asking for
+disc 3.
+
+#### When the disc is not the one expected
+
+Nothing is filed by force. A disc that is not what the drive was waiting for says so and offers a choice:
+
+| What went in | What it says |
+| --- | --- |
+| Another series | *This reads as Bleach season 1, not Naruto - Season 1 box set.* |
+| A disc of the set that is already here | *Disc 3 of Naruto - Season 1 box set is already here.* |
+| A different disc of the same set | *The drive was waiting for disc 3 and this reads as disc 5.* |
+
+Each offers **Add as Disc N**, **Assign to a slot…** or **Reject — keep it separate**. A disc that matches no
+series at all is simply a new queue item, as it always was.
 
 ## Which disc to go and find
 

@@ -88,6 +88,12 @@ Docker `HEALTHCHECK` uses it.
 | POST | `/api/disc/rips/:id/estimate` | rip and encode size for a selection |
 | POST | `/api/disc/rips/:id/add-to-library` | add the show / movie to Sonarr / Radarr now |
 | DELETE | `/api/disc/rips/:id` | forget a rip |
+| POST | `/api/disc/rips/:id/batch` | answer the box set a disc was offered (`{"accept":true}`) |
+| DELETE | `/api/disc/rips/:id/batch` | take a disc out of its box set |
+| POST | `/api/disc/rips/:id/slot` | file a disc that was not the one expected (`{"disc":5}` or `{"reject":true}`) |
+| PATCH | `/api/disc/batches/:id` | rename a box set, or set how many discs it holds |
+| POST | `/api/disc/drives/:index/swap` | eject, and wait for the next disc of that drive's set |
+| POST | `/api/disc/drives/swap-all` | the same for every drive whose disc has been copied |
 | GET | `/api/disc/rip-directory/check` | can Radarr / Sonarr see the rip folder? |
 | POST | `/api/disc/import-rips` | import what is left in the rip folder |
 | POST | `/api/disc/drives/:index/cd` | read an audio CD |
