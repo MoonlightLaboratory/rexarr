@@ -100,3 +100,54 @@ export function sortDiscs(rips: DiscRip[]): DiscRip[] {
     return (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
   });
 }
+
+/**
+ * Is this disc's copy finished, so the disc itself can come out?
+ *
+ * The rip is the only part that needs the disc. Remuxing reads the copy on disk, so holding the tray shut until
+ * the encode finishes would keep a drive idle for the length of a transcode for no reason at all.
+ */
+export function discFreed(rip: DiscRip): boolean {
+  return rip.status === 'transcoding' || rip.status === 'delivering' || rip.status === 'done';
+}
+
+/** Is the drive still reading, so nothing should be taken out of it? */
+export function driveBusy(rip: DiscRip | undefined): boolean {
+  return Boolean(rip) && ['inserted', 'scanning', 'ripping'].includes(rip!.status);
+}
+
+/**
+ * How many discs a set holds, when nothing has said outright.
+ *
+ * A disc does not know how many came with it, so this is arithmetic on what is known: the season's episode count
+ * divided by what a disc of this set actually holds. It is a guess, shown as one, and a pinned count beats it.
+ */
+export function expectedDiscCount(rips: DiscRip[], seasonEpisodes: number): number | undefined {
+  const pinned = rips.find((r) => r.batch?.discsPinned && r.batch.expectedDiscs);
+  if (pinned) return pinned.batch!.expectedDiscs;
+  const highest = Math.max(0, ...rips.map((r) => r.media.discNumber ?? 0));
+  const counts = rips.map((r) => episodeNumbers(r).length).filter((n) => n > 0);
+  if (!seasonEpisodes || !counts.length) return highest || undefined;
+  const perDisc = counts.reduce((a, b) => a + b, 0) / counts.length;
+  if (perDisc <= 0) return highest || undefined;
+  // never fewer than the discs already here, and not a number so large it is obviously the wrong season
+  return Math.min(60, Math.max(highest, Math.ceil(seasonEpisodes / perDisc)));
+}
+
+/** The disc numbers of a set that have not turned up yet. */
+export function missingDiscs(rips: DiscRip[], expected: number | undefined): number[] {
+  if (!expected || expected < 1) return [];
+  const have = new Set(rips.map((r) => r.media.discNumber).filter((n): n is number => typeof n === 'number'));
+  const out: number[] = [];
+  for (let n = 1; n <= expected; n++) if (!have.has(n)) out.push(n);
+  return out;
+}
+
+/** The next disc of the set to ask for, ignoring any a drive is already waiting for. */
+export function nextWantedDisc(rips: DiscRip[], expected: number | undefined, claimed: number[] = []): number | undefined {
+  const missing = missingDiscs(rips, expected).filter((n) => !claimed.includes(n));
+  if (missing.length) return missing[0];
+  // past the end of what was expected, the next disc is simply the one after the highest here or claimed
+  const highest = Math.max(0, ...rips.map((r) => r.media.discNumber ?? 0), ...claimed);
+  return highest > 0 ? highest + 1 : undefined;
+}

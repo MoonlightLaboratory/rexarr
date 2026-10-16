@@ -1440,3 +1440,23 @@ table.metaTags td.mono { word-break: break-word; }
 .gMenu button { display: flex; flex-direction: column; gap: 2px; padding: 7px 10px; border: 0; border-radius: 4px; background: transparent; color: var(--textColor); cursor: pointer; text-align: left; }
 .gMenu button:hover { background: var(--themeLightColor); }
 .gMenu button span { color: var(--gray); font-size: var(--smallFontSize); white-space: normal; }
+
+/* Box set disc rows. A grid rather than a flex row: the columns have to line up down the list, and a badge on one
+   disc ("guessed") must not shunt that row's episodes and status out of step with the rows above and below it. */
+.batch-row { display: grid; grid-template-columns: 16px minmax(84px, 1fr) minmax(104px, auto) minmax(74px, auto) minmax(88px, auto) auto; align-items: center; gap: 10px; padding: 9px 12px; border-top: 1px solid var(--borderColor); }
+.batch-row > * { min-width: 0; }
+.batch-row .badge { white-space: nowrap; }
+.batch-row.clickable { cursor: pointer; }
+.batch-row.clickable:hover { background: var(--rowHoverColor, rgba(127, 127, 127, 0.06)); }
+.batch-row > .name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.batch-row > .name > strong { white-space: nowrap; }
+.batch-eps { padding: 2px 12px 10px 38px; display: flex; flex-direction: column; gap: 2px; }
+/* Only once the columns genuinely cannot fit: the episode count is the first thing worth losing, then the row
+   folds to two lines rather than clipping a badge down to "Wait". */
+@media (max-width: 620px) {
+  .batch-row { grid-template-columns: 16px minmax(70px, 1fr) auto auto; }
+  .batch-row > :nth-child(4) { display: none; }
+}
+@media (max-width: 440px) {
+  .batch-row { grid-template-columns: 16px 1fr auto; row-gap: 4px; }
+}

@@ -1575,6 +1575,11 @@ export interface DiscDrive {
   detected?: boolean;
   /** The machine has this drive but MakeMKV did not list it; Rexarr found it and added it unasked. */
   auto?: boolean;
+  /**
+   * This drive has been emptied for the next disc of a set and is waiting for it. Held while Rexarr runs rather
+   * than saved: a drive that is waiting is waiting for someone standing at it, not across a restart.
+   */
+  awaiting?: { batchId: string; batchName: string; discNumber: number };
 }
 
 /** A real optical drive added by device path. */
@@ -1654,6 +1659,24 @@ export interface DiscBatchRef {
   id: string;
   /** "Naruto - Season 1 box set", shown as the parent item. */
   name: string;
+  /**
+   * How many discs the set holds, when it is known. Nothing on a disc says so, so it is worked out from the
+   * season's episode count and what the discs seen so far hold - and can be set by hand when that is wrong.
+   */
+  expectedDiscs?: number;
+  /** The count above was set by hand and must not be recalculated. */
+  discsPinned?: boolean;
+}
+
+/** A disc that is not the one its drive was waiting for. */
+export interface DiscSlotWarning {
+  batchId: string;
+  batchName: string;
+  /** The disc the drive was waiting for. */
+  expectedDisc: number;
+  /** 'wrong-series' – it is not this set at all; 'duplicate' – that disc of the set is already here. */
+  kind: 'wrong-series' | 'duplicate' | 'unexpected-disc';
+  message: string;
 }
 
 /** A box set a disc has been matched to but not yet put in. */
@@ -1859,6 +1882,11 @@ export interface DiscRip {
   batchSuggestion?: DiscBatchSuggestion;
   /** Asked and declined: this disc stands alone and is not offered a set again. */
   batchDeclined?: boolean;
+  /**
+   * This disc went into a drive that was waiting for a particular disc of a set, and is not it - the wrong disc of
+   * the right set, or a disc of something else entirely. Nothing is assumed: the page asks what to do with it.
+   */
+  slotWarning?: DiscSlotWarning;
   profileId?: string;
   profileName?: string;
   options: RipOptions;

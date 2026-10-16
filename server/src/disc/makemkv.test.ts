@@ -562,3 +562,22 @@ test('a drive with an empty tray is still a drive', () => {
   // and an empty slot is still not a drive
   assert.equal(out.find((d) => !d.name), undefined);
 });
+
+test('one drive listed twice is one drive', () => {
+  // MakeMKV can report a drive as an empty slot and again with its disc while it is still working out what it has
+  const out = parseDrives(
+    [
+      'DRV:0,2,999,1,"DVD+R-DL HL-DT-ST DVDRAM GT50N LT20 M1BC","NARUTO_D2","/dev/rdisk7"',
+      'DRV:1,0,999,0,"DVD+R-DL TSSTcorp DVD+-RW TS-L633J D400 R85","",""',
+      'DRV:2,2,999,1,"DVD+R-DL TSSTcorp DVD+-RW TS-L633J D400 R85","NARUTO_D1","/dev/rdisk8"',
+    ].join('\n'),
+  );
+  assert.equal(out.length, 2, 'the empty duplicate of a drive that has a device is dropped');
+  assert.deepEqual(out.map((d) => d.path), ['/dev/rdisk7', '/dev/rdisk8']);
+
+  // a genuinely empty drive of its own is still kept
+  const empties = parseDrives(
+    ['DRV:0,0,999,0,"DVD+R-DL HL-DT-ST DVDRAM GT50N","",""', 'DRV:1,0,999,0,"DVD+R-DL TSSTcorp TS-L633J","",""'].join('\n'),
+  );
+  assert.equal(empties.length, 2);
+});

@@ -22,7 +22,7 @@ import { ejectDrive, emptyScanNote, isOpenFailure, labelToTitle, listDrives, lis
 import { isOnline, listAgents } from '../agents/registry.js';
 import { readOnAgent, runOnAgent } from '../agents/remote.js';
 import { applyEntry, buildEntry, fingerprintOf, lookupDisc as lookupInRexDb, rexdbSettings, submitEntry } from './rexdb.js';
-import { boxSetName, sameSet, sortDiscs } from '../../../shared/boxset.js';
+import { boxSetName, discFreed, driveBusy, expectedDiscCount, nextWantedDisc, sameSet, sortDiscs } from '../../../shared/boxset.js';
 import { byTitle, omdbConfigured } from '../omdb.js';
 import { audioSelectionFor, describeTracks } from './audio.js';
 import { ensureRipFolder } from './ripFolder.js';
@@ -77,6 +77,11 @@ export class DiscManager {
   /** Scans in progress, so cancelling or removing a disc stops MakeMKV instead of leaving it holding the drive. */
   private scans = new Map<string, AbortController>();
   private refreshing: Promise<DiscDrive[]> | null = null;
+  /**
+   * Drives emptied for the next disc of a set, by device node. Not saved: a drive that is waiting is waiting for
+   * someone standing in front of it, and an expectation outliving a restart would be stale by the time it mattered.
+   */
+  private awaiting = new Map<string, { batchId: string; batchName: string; discNumber: number }>();
   drives: DiscDrive[] = [];
   private lastDriveError = '';
 
@@ -201,6 +206,8 @@ export class DiscManager {
       }
     }
     this.drives = [...real, ...auto, ...manual, ...virtual, ...linked, ...farm];
+    // what each drive is waiting for, so the page can say which disc to put in it
+    for (const d of this.drives) d.awaiting = d.path ? this.awaiting.get(canonicalDevice(d.path)) : undefined;
     bus.publish({ type: 'drives', drives: this.drives });
     return this.drives;
   }
@@ -247,6 +254,132 @@ export class DiscManager {
     }
     const why = rip.media.arrId !== undefined && match.media.arrId === rip.media.arrId ? `same series and season as ${match.label || 'the other disc'}` : `its label reads as the same series and season as ${match.label || 'another disc'}`;
     rip.batchSuggestion = { id: match.batch?.id, name: match.batch?.name ?? boxSetName(rip.media), ripId: match.id, why };
+  }
+
+  /** The rip whose disc is in this drive now, if any. */
+  private ripInDrive(d: DiscDrive): DiscRip | undefined {
+    if (!d.path) return undefined;
+    const want = canonicalDevice(d.path);
+    return this.list().find((r) => r.drivePath && canonicalDevice(r.drivePath) === want && !['cancelled'].includes(r.status));
+  }
+
+  /** How many discs a set holds, as far as anything here knows. */
+  private expectedFor(batchId: string): number | undefined {
+    const members = this.list().filter((r) => r.batch?.id === batchId);
+    const pinned = members.find((r) => r.batch?.discsPinned && r.batch.expectedDiscs)?.batch?.expectedDiscs;
+    if (pinned) return pinned;
+    const stored = members.find((r) => r.batch?.expectedDiscs)?.batch?.expectedDiscs;
+    return stored ?? expectedDiscCount(members, 0);
+  }
+
+  /**
+   * Empty a drive and have it wait for the next disc of the set its disc belonged to.
+   *
+   * The disc comes out as soon as the copy is made - remuxing reads from disk, so holding the tray shut for the
+   * length of an encode would idle the drive for nothing.
+   */
+  async swapDrive(index: number, claimed: number[] = []): Promise<{ drive: number; waitingFor?: number; batch?: string }> {
+    const d = this.drives.find((x) => x.index === index);
+    if (!d) throw new Error('drive not found');
+    const rip = this.ripInDrive(d);
+    if (driveBusy(rip)) throw new Error(`${d.name || 'That drive'} is still reading its disc`);
+    // Swapping says "done with this disc, give me the next of the set", which a disc that has not been copied is
+    // not. Ejecting a disc nobody asked to rip is what the eject button is for.
+    if (rip && !discFreed(rip)) throw new Error(`${rip.label || 'That disc'} has not been copied yet – eject it instead if you do not want it`);
+    const batch = rip?.batch;
+    if (batch) {
+      const members = this.list().filter((r) => r.batch?.id === batch.id);
+      const taken = [...claimed, ...[...this.awaiting.values()].filter((a) => a.batchId === batch.id).map((a) => a.discNumber)];
+      const next = nextWantedDisc(members, this.expectedFor(batch.id), taken);
+      if (next !== undefined && d.path) {
+        this.awaiting.set(canonicalDevice(d.path), { batchId: batch.id, batchName: batch.name, discNumber: next });
+        d.awaiting = { batchId: batch.id, batchName: batch.name, discNumber: next };
+      }
+      await this.eject(index);
+      bus.publish({ type: 'drives', drives: this.drives });
+      return { drive: index, waitingFor: next, batch: batch.name };
+    }
+    await this.eject(index);
+    return { drive: index };
+  }
+
+  /** Empty every drive whose disc has been copied, so a whole stack can be swapped in one pass. */
+  async swapAllFinished(): Promise<{ drive: number; waitingFor?: number; batch?: string }[]> {
+    const out: { drive: number; waitingFor?: number; batch?: string }[] = [];
+    // each drive claims its own disc number, or two emptied together would both ask for the same one
+    const claimed: number[] = [];
+    for (const d of this.drives.filter((x) => !x.virtual && x.state === 'loaded')) {
+      const rip = this.ripInDrive(d);
+      if (!rip || !discFreed(rip)) continue;
+      try {
+        const r = await this.swapDrive(d.index, claimed);
+        if (r.waitingFor !== undefined) claimed.push(r.waitingFor);
+        out.push(r);
+      } catch {
+        // a drive that will not give its disc up is not a reason to leave the rest of the stack shut
+      }
+    }
+    return out;
+  }
+
+  /**
+   * A disc has turned up in a drive that was waiting for a particular one. Put it where it belongs, or say why it
+   * cannot go there - nothing is filed by force, because a disc in the wrong slot is numbered from the wrong place.
+   */
+  private placeInAwaitedSlot(rip: DiscRip, want: { batchId: string; batchName: string; discNumber: number }): boolean {
+    const members = this.list().filter((r) => r.batch?.id === want.batchId && r.id !== rip.id);
+    const anchor = members[0];
+    if (!anchor) return false;
+    if (!sameSet(anchor.media, rip.media)) {
+      // not this set at all: an unidentified disc is simply not placed, an identified one is queried
+      if (rip.media.kind !== 'series' || !rip.media.title) return false;
+      rip.slotWarning = {
+        batchId: want.batchId,
+        batchName: want.batchName,
+        expectedDisc: want.discNumber,
+        kind: 'wrong-series',
+        message: `This reads as ${rip.media.title}${rip.media.seasonNumber ? ` season ${rip.media.seasonNumber}` : ''}, not ${want.batchName}.`,
+      };
+      return true;
+    }
+    // the right series: the label's own disc number wins, since the disc knows better than the drive did
+    const disc = rip.media.discNumber ?? want.discNumber;
+    const clash = members.find((r) => r.media.discNumber === disc);
+    if (clash) {
+      rip.slotWarning = { batchId: want.batchId, batchName: want.batchName, expectedDisc: want.discNumber, kind: 'duplicate', message: `Disc ${disc} of ${want.batchName} is already here.` };
+      return true;
+    }
+    if (rip.media.discNumber !== undefined && rip.media.discNumber !== want.discNumber) {
+      rip.slotWarning = { batchId: want.batchId, batchName: want.batchName, expectedDisc: want.discNumber, kind: 'unexpected-disc', message: `The drive was waiting for disc ${want.discNumber} and this reads as disc ${disc}.` };
+      return true;
+    }
+    rip.media.discNumber = disc;
+    rip.batch = { id: want.batchId, name: want.batchName };
+    rip.batchSuggestion = undefined;
+    this.log(rip, `Put into "${want.batchName}" as disc ${disc} – the drive was waiting for it`);
+    return true;
+  }
+
+  /** Answer a slot warning: file it at a disc number, or leave it out of the set. */
+  resolveSlot(id: string, opts: { disc?: number; reject?: boolean }): DiscRip | undefined {
+    const rip = this.get(id);
+    const w = rip?.slotWarning;
+    if (!rip || !w) return rip;
+    if (opts.reject) {
+      rip.slotWarning = undefined;
+      rip.batchDeclined = true;
+      this.log(rip, `Left out of "${w.batchName}"`);
+    } else {
+      const disc = opts.disc ?? rip.media.discNumber ?? w.expectedDisc;
+      rip.media.discNumber = disc;
+      rip.batch = { id: w.batchId, name: w.batchName };
+      rip.slotWarning = undefined;
+      rip.batchSuggestion = undefined;
+      this.log(rip, `Put into "${w.batchName}" as disc ${disc}`);
+    }
+    store.saveRips();
+    this.emit(rip);
+    return rip;
   }
 
   /** Accept a suggested set: the one it names, or a new one holding both discs. */
@@ -301,11 +434,18 @@ export class DiscManager {
     return rip;
   }
 
-  /** Rename a set, on every disc that is in it. */
-  renameBatch(batchId: string, name: string): number {
+  /** Change a set - its name, or how many discs it holds - on every disc that is in it. */
+  updateBatch(batchId: string, patch: { name?: string; expectedDiscs?: number }): number {
     const members = this.list().filter((r) => r.batch?.id === batchId);
     for (const r of members) {
-      r.batch = { id: batchId, name };
+      const was = r.batch!;
+      r.batch = {
+        id: batchId,
+        name: patch.name ?? was.name,
+        expectedDiscs: patch.expectedDiscs ?? was.expectedDiscs,
+        // a count given by hand is not recalculated afterwards
+        discsPinned: patch.expectedDiscs !== undefined ? true : was.discsPinned,
+      };
       this.emit(r);
     }
     if (members.length) store.saveRips();
@@ -469,7 +609,9 @@ export class DiscManager {
       this.applyDefaultSelection(rip);
       await this.applyRexDb(rip);
       // now the series, season and episodes are known, which is what a set is matched on
-      this.offerBatch(rip);
+      const want = rip.drivePath ? this.awaiting.get(canonicalDevice(rip.drivePath)) : undefined;
+      if (want && this.placeInAwaitedSlot(rip, want)) this.awaiting.delete(canonicalDevice(rip.drivePath));
+      else this.offerBatch(rip);
       // the handle that actually opened the disc, so the rip that follows does not have to find it again
       rip.source = source;
       rip.status = 'ready';

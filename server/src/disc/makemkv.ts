@@ -110,7 +110,10 @@ export function parseDrives(stdout: string): DiscDrive[] {
     if (!device && !f[4]) continue; // no device and no model: not a drive worth showing
     drives.push({ index, state: driveState(state), name: f[4], discLabel: f[5] || undefined, path: device, source });
   }
-  return drives;
+  // One drive can appear twice in a listing - once with its disc and device, once as an empty slot of the same
+  // model - while MakeMKV is still working out what it has. The entry that names a device is the real one.
+  const named = new Set(drives.filter((d) => d.path).map((d) => d.name));
+  return drives.filter((d) => d.path || !named.has(d.name));
 }
 
 export async function listDrives(makemkv: string): Promise<DiscDrive[]> {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { MusicBrainzRelease, DriveCandidate, DiscAudioTrack, DiscDrive, DiscEstimate, DiscRip, DiscTitle, Episode, ExtraType, LookupResult, MakemkvInfo, RipMedia, RipOptions, RipStatus, TitleRole, WantedDisc } from '@shared/types';
 import { api, fmtAge, fmtBytes, fmtDuration, ripOverallPercent } from '../api';
-import { batchProgress, discPhase, episodeNumbers, episodeRange, sortDiscs } from '@shared/boxset';
+import { batchProgress, discFreed, driveBusy, episodeNumbers, episodeRange, expectedDiscCount, missingDiscs, discPhase, sortDiscs } from '@shared/boxset';
 import { useApp } from '../App';
 import { Page, ToolbarButton } from '../components/Layout';
 import { Icon } from '../components/Icons';
@@ -181,14 +181,26 @@ function AddDriveModal({ onClose, onAdded }: { onClose: () => void; onAdded: () 
   );
 }
 
-function DriveRow({ d, onEject, onRemove, onReadCd, busy }: { d: DiscDrive; onEject: () => void; onRemove?: () => void; onReadCd?: () => void; busy: boolean }) {
+/**
+ * A drive's name as something to read. MakeMKV writes it with what the drive can burn in front and its serial
+ * behind - "DVD+R-DL HL-DT-ST DVDRAM GT50N LT20 M1BC6B45752" - which wrapped onto two lines and said little.
+ */
+function driveName(name: string, index: number): string {
+  const trimmed = name
+    .replace(/^(?:BD|DVD)[+\-]?[A-Z\-]*(?:\s?DL)?\s+/i, '')
+    .replace(/\s+[A-Z0-9]{10,}$/i, '')
+    .trim();
+  return trimmed || name || `Drive ${index}`;
+}
+
+function DriveRow({ d, rip, onEject, onRemove, onReadCd, onSwap, busy }: { d: DiscDrive; rip?: DiscRip; onEject: () => void; onRemove?: () => void; onReadCd?: () => void; onSwap?: () => void; busy: boolean }) {
   const cls = d.state === 'loaded' ? 'green' : d.state === 'open' ? 'blue' : d.state === 'loading' ? 'teal' : 'muted';
   const linked = Boolean(d.virtualId);
   return (
     <div className="list-row">
       {d.virtual ? <Icon.HardDrive /> : <Icon.Disc />}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600 }}>{d.name || `Drive ${d.index}`}</div>
+        <div style={{ fontWeight: 600 }} title={d.name}>{driveName(d.name, d.index)}</div>
         <div className="small muted truncate" title={d.path}>
           {d.path || (d.auto ? 'the device appears once a disc is in' : '')}
           {d.manualId && d.detected === false && d.available !== false && ' · checked by Rexarr (not listed by MakeMKV)'}
@@ -203,8 +215,29 @@ function DriveRow({ d, onEject, onRemove, onReadCd, busy }: { d: DiscDrive; onEj
         </span>
       )}
       {d.available === false && !d.auto && <span className="badge red">{d.manualId ? 'device not found' : 'file missing'}</span>}
+      {d.awaiting && (
+        <span className="badge blue" title={`Put disc ${d.awaiting.discNumber} of ${d.awaiting.batchName} in this drive`}>
+          Waiting for Disc {d.awaiting.discNumber} of {d.awaiting.batchName}
+        </span>
+      )}
       {d.discLabel && <span className="badge remux">{d.discLabel}</span>}
       <span className={`badge ${cls}`}>{d.state}</span>
+      {onSwap && !d.virtual && (
+        <button
+          className="btn sm"
+          onClick={onSwap}
+          disabled={busy || !rip || !discFreed(rip)}
+          title={
+            driveBusy(rip)
+              ? 'This drive is still reading its disc'
+              : rip && discFreed(rip)
+                ? 'Eject this disc and wait for the next one of its set – the copy is made, so the disc is no longer needed'
+                : 'Available once this disc has been copied'
+          }
+        >
+          Swap
+        </button>
+      )}
       {onReadCd && !d.virtual && (
         <button className="iconButton" onClick={onReadCd} disabled={busy || d.available === false} title="Read audio CD (fre:ac + MusicBrainz)">
           <Icon.Music />
@@ -656,7 +689,8 @@ function RipCard({ rip, onLog }: { rip: DiscRip; onLog: (r: DiscRip) => void }) 
         </div>
       )}
       {rip.status === 'failed' && <div className="error" style={{ margin: 14 }}>{rip.error}</div>}
-      {rip.batchSuggestion && <BatchOffer rip={rip} />}
+      {rip.slotWarning && <SlotWarning rip={rip} />}
+      {rip.batchSuggestion && !rip.slotWarning && <BatchOffer rip={rip} />}
 
       {(rip.status === 'ripping' || rip.status === 'transcoding' || rip.status === 'delivering') && (
         <div className="card-b" style={{ paddingBottom: 6 }}>
@@ -923,6 +957,58 @@ function BatchOffer({ rip }: { rip: DiscRip }) {
       <button className="btn sm" disabled={busy} onClick={() => answer(false)}>
         Keep separate
       </button>
+    </div>
+  );
+}
+
+
+/**
+ * The disc in the drive is not the one that drive was waiting for.
+ *
+ * Nothing is filed by force here. A disc put in the wrong slot takes its episode numbers from the wrong place, and
+ * a duplicate would overwrite a disc already ripped, so the choice is the user's: file it where it really belongs,
+ * or leave it out of the set as its own item.
+ */
+function SlotWarning({ rip }: { rip: DiscRip }) {
+  const { toast } = useApp();
+  const [busy, setBusy] = useState(false);
+  const w = rip.slotWarning!;
+  const mine = rip.media.discNumber;
+  const act = (opts: { disc?: number; reject?: boolean }, ok: string) => {
+    setBusy(true);
+    api
+      .resolveSlot(rip.id, opts)
+      .then(() => toast('info', ok))
+      .catch((e) => toast('error', (e as Error).message))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <div className="warn" style={{ margin: 14 }}>
+      <div>
+        <strong>This is not the disc that drive was waiting for.</strong> {w.message}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+        {w.kind !== 'wrong-series' && mine !== undefined && w.kind !== 'duplicate' && (
+          <button className="btn sm primary" disabled={busy} onClick={() => act({ disc: mine }, `Added as disc ${mine}`)}>
+            Add as Disc {mine}
+          </button>
+        )}
+        <button
+          className="btn sm"
+          disabled={busy}
+          onClick={() => {
+            const raw = prompt(`Which disc of “${w.batchName}” is this?`, String(mine ?? w.expectedDisc));
+            const n = Number(raw);
+            if (!raw || !Number.isInteger(n) || n < 1 || n > 99) return;
+            act({ disc: n }, `Added as disc ${n}`);
+          }}
+        >
+          Assign to a slot…
+        </button>
+        <button className="btn sm" disabled={busy} onClick={() => act({ reject: true }, 'Kept out of the set')}>
+          Reject – keep it separate
+        </button>
+      </div>
     </div>
   );
 }
@@ -1268,20 +1354,23 @@ function BatchDiscRow({ rip, episodes, open, onToggle, onChanged }: { rip: DiscR
   const phaseKey = discPhase(rip.status);
   return (
     <div style={{ borderTop: '1px solid var(--borderColor)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', cursor: 'pointer', flexWrap: 'wrap' }} onClick={onToggle}>
-        {/* these SVGs carry no size of their own – they are sized by the context they sit in, and a bare flex row is not one */}
-        <span style={{ display: 'inline-flex', width: 14, height: 14, flex: '0 0 14px', color: 'var(--dimColor)' }}>{open ? <Icon.ChevronDown /> : <Icon.ChevronRight />}</span>
-        <strong style={{ minWidth: 60 }}>{disc ? `Disc ${disc}` : rip.label || 'Disc'}</strong>
-        {rip.media.episodeStartGuessed && (
-          <span className="badge sm" title="The first episode was worked out from the disc number, not read off the disc. Worth checking.">
-            guessed
-          </span>
-        )}
-        <span style={{ minWidth: 110 }}>{range ? (range.from === range.to ? `E${pad(range.from)}` : `E${pad(range.from)} to E${pad(range.to)}`) : <span className="small dim">episodes not worked out yet</span>}</span>
+      <div className="batch-row clickable" onClick={onToggle}>
+        {/* these SVGs carry no size of their own – they are sized by the context they sit in, and a bare row is not one */}
+        <span style={{ display: 'inline-flex', width: 14, height: 14, color: 'var(--dimColor)' }}>{open ? <Icon.ChevronDown /> : <Icon.ChevronRight />}</span>
+        <span className="name">
+          <strong>{disc ? `Disc ${disc}` : rip.label || 'Disc'}</strong>
+          {rip.media.episodeStartGuessed && (
+            <span className="badge sm" title="The first episode was worked out from the disc number, not read off the disc. Worth checking.">
+              guessed
+            </span>
+          )}
+        </span>
+        <span>{range ? (range.from === range.to ? `E${pad(range.from)}` : `E${pad(range.from)} to E${pad(range.to)}`) : <span className="small dim">not worked out yet</span>}</span>
         <span className="small dim">{eps.length ? `${eps.length} episode${eps.length === 1 ? '' : 's'}` : rip.titles.length ? `${rip.titles.length} title(s)` : ''}</span>
-        <span className="spacer" />
-        <span className={`badge sm ${phase.cls}`}>{phase.label}</span>
-        {(phaseKey === 'ripping' || phaseKey === 'remuxing') && <span className="small dim">{Math.round(ripOverallPercent(rip.progress))}%</span>}
+        <span>
+          <span className={`badge sm ${phase.cls}`}>{phase.label}</span>
+          {(phaseKey === 'ripping' || phaseKey === 'remuxing') && <span className="small dim"> {Math.round(ripOverallPercent(rip.progress))}%</span>}
+        </span>
         <button
           className="btn sm"
           title="Take this disc out of the box set. It keeps its own entry and nothing already ripped is touched."
@@ -1302,7 +1391,7 @@ function BatchDiscRow({ rip, episodes, open, onToggle, onChanged }: { rip: DiscR
       {open && (
         <div>
           {eps.length > 0 && (
-            <div className="small" style={{ padding: '0 12px 10px 34px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div className="small batch-eps">
               {eps.map((n) => (
                 <span key={n}>
                   <strong>E{pad(n)}</strong>{' '}
@@ -1328,7 +1417,7 @@ function pad(n: number): string {
  * The set's name lives on each member rip, so there is nothing to fetch for it - the discs are the set.
  * Episode names are fetched once here rather than per disc, since every disc in a set is the same season.
  */
-function BatchCard({ rips, onLog, onChanged }: { rips: DiscRip[]; onLog: (r: DiscRip) => void; onChanged: () => void }) {
+function BatchCard({ rips, onLog, onChanged, waitingFor = [] }: { rips: DiscRip[]; onLog: (r: DiscRip) => void; onChanged: () => void; waitingFor?: number[] }) {
   const { toast } = useApp();
   const discs = useMemo(() => sortDiscs(rips), [rips]);
   const batch = discs[0].batch!;
@@ -1346,6 +1435,9 @@ function BatchCard({ rips, onLog, onChanged }: { rips: DiscRip[]; onLog: (r: Dis
   }, [arrId, season]);
 
   const ripping = discs.filter((d) => ['ripping', 'remuxing'].includes(discPhase(d.status)));
+  // how many discs the set holds: arithmetic on the season's episodes and what a disc of this set actually has
+  const expected = expectedDiscCount(discs, episodes?.length ?? 0);
+  const incoming = missingDiscs(discs, expected);
   return (
     <div className="card mb">
       <div className="card-h">
@@ -1353,8 +1445,8 @@ function BatchCard({ rips, onLog, onChanged }: { rips: DiscRip[]; onLog: (r: Dis
           <Icon.Disc />
         </span>
         <strong>{batch.name}</strong>
-        <span className="badge sm">{prog.total} disc{prog.total === 1 ? '' : 's'}</span>
-        {prog.done === prog.total ? <span className="badge sm green">Complete</span> : <span className="badge sm">{prog.done} of {prog.total} done</span>}
+        <span className="badge sm">{expected ? `${prog.total} of ${expected} discs` : `${prog.total} disc${prog.total === 1 ? '' : 's'}`}</span>
+        {prog.done === prog.total && !incoming.length ? <span className="badge sm green">Complete</span> : <span className="badge sm">{prog.done} of {prog.total} done</span>}
         <span className="spacer" />
         {ripping.length > 0 && <span className="small dim">{ripping.map((d) => `Disc ${d.media.discNumber ?? '?'} ${PHASE[discPhase(d.status)].label.toLowerCase()}`).join(', ')}</span>}
         <button
@@ -1363,10 +1455,22 @@ function BatchCard({ rips, onLog, onChanged }: { rips: DiscRip[]; onLog: (r: Dis
           onClick={() => {
             const name = prompt('Box set name', batch.name)?.trim();
             if (!name || name === batch.name) return;
-            api.renameBatch(batch.id, name).then(() => { toast('info', 'Box set renamed'); onChanged(); }).catch((e) => toast('error', (e as Error).message));
+            api.updateBatch(batch.id, { name }).then(() => { toast('info', 'Box set renamed'); onChanged(); }).catch((e: unknown) => toast('error', (e as Error).message));
           }}
         >
           Rename
+        </button>
+        <button
+          className="btn sm"
+          title="How many discs this set holds. Worked out from the season's episode count unless you say otherwise."
+          onClick={() => {
+            const raw = prompt(`How many discs are in “${batch.name}”?`, String(expected ?? discs.length));
+            const n = Number(raw);
+            if (!raw || !Number.isInteger(n) || n < 1 || n > 60) return;
+            api.updateBatch(batch.id, { expectedDiscs: n }).then(() => { toast('info', `${batch.name}: ${n} discs`); onChanged(); }).catch((e: unknown) => toast('error', (e as Error).message));
+          }}
+        >
+          Discs…
         </button>
       </div>
       <div style={{ padding: '0 12px 8px' }}>
@@ -1378,6 +1482,17 @@ function BatchCard({ rips, onLog, onChanged }: { rips: DiscRip[]; onLog: (r: Dis
       <div>
         {discs.map((d) => (
           <BatchDiscRow key={d.id} rip={d} episodes={episodes} open={open === d.id} onToggle={() => setOpen(open === d.id ? null : d.id)} onChanged={onChanged} />
+        ))}
+        {/* the discs that have not turned up yet, so what is still missing is visible without counting */}
+        {incoming.map((n) => (
+          <div key={`slot-${n}`} className="batch-row" style={{ opacity: 0.55 }}>
+            <span />
+            <strong>Disc {n}</strong>
+            <span className="small dim">not inserted yet</span>
+            <span className="small dim">{waitingFor.includes(n) ? 'a drive is waiting for it' : ''}</span>
+            <span className="badge sm">incoming</span>
+            <span />
+          </div>
         ))}
       </div>
     </div>
@@ -1518,6 +1633,23 @@ export function DiscsPage() {
   const active = useMemo(() => rips.filter((r) => ACTIVE.includes(r.status)), [rips]);
   const history = useMemo(() => rips.filter((r) => !ACTIVE.includes(r.status)), [rips]);
   const list = tab === 'active' ? active : history;
+  // which rip is in which drive, so a drive knows whether its disc has been copied yet
+  const ripInDrive = useMemo(() => {
+    const canon = (p: string) => p.replace(/^\/dev\/rdisk/, '/dev/disk');
+    const m = new Map<number, DiscRip>();
+    for (const d of drives) {
+      if (!d.path) continue;
+      const hit = rips.find((r) => r.drivePath && canon(r.drivePath) === canon(d.path) && r.status !== 'cancelled');
+      if (hit) m.set(d.index, hit);
+    }
+    return m;
+  }, [drives, rips]);
+  const swappable = drives.filter((d) => !d.virtual && ripInDrive.get(d.index) && discFreed(ripInDrive.get(d.index)!));
+  const waitingByBatch = useMemo(() => {
+    const m = new Map<string, number[]>();
+    for (const d of drives) if (d.awaiting) m.set(d.awaiting.batchId, [...(m.get(d.awaiting.batchId) ?? []), d.awaiting.discNumber]);
+    return m;
+  }, [drives]);
   // A box set shows up once, where its first disc would have, with the rest of its discs inside it.
   const groups = useMemo(() => {
     const out: { key: string; batch: boolean; rips: DiscRip[] }[] = [];
@@ -1547,6 +1679,23 @@ export function DiscsPage() {
           <ToolbarButton icon={<Icon.Disc />} label="Detect disc" wide disabled={busy || !makemkv?.available} onClick={() => api.detectDiscs().then((r) => toast('info', r.created.length ? `Found ${r.created.length} disc(s)` : 'No new disc in any drive')).catch((e) => toast('error', e.message))} />
           <ToolbarButton icon={<Icon.DriveAdd />} label="Add drive" wide onClick={() => setAddDrive(true)} title="Add a real optical drive by device path (/dev/sr0)" />
           <ToolbarButton icon={<Icon.Plus />} label="Virtual drive" wide disabled={!makemkv?.available} onClick={() => setOpenImage(true)} title="Link an .iso / .img or a BDMV / VIDEO_TS folder as a virtual drive" />
+          <ToolbarButton
+            icon={<Icon.Eject />}
+            label="Swap all finished"
+            wide
+            disabled={busy || swappable.length === 0}
+            title={swappable.length ? `Eject ${swappable.length} drive(s) whose disc has been copied, and wait for the next disc of each set` : 'No drive has finished copying its disc yet'}
+            onClick={() =>
+              api
+                .swapAllDrives()
+                .then((r) => {
+                  const told = r.swapped.filter((x) => x.waitingFor !== undefined);
+                  toast('info', r.swapped.length ? `Ejected ${r.swapped.length} drive(s)${told.length ? `. Next: ${told.map((x) => `Disc ${x.waitingFor}`).join(', ')}` : ''}` : 'No drive had finished');
+                })
+                .then(() => refresh(true))
+                .catch((e) => toast('error', e.message))
+            }
+          />
           <ToolbarButton icon={<Icon.Refresh />} label="Refresh" busy={busy} onClick={() => refresh(true)} title="Re-detect drives" />
         </>
       }
@@ -1579,7 +1728,15 @@ export function DiscsPage() {
           <DriveRow
             key={d.index}
             d={d}
+            rip={ripInDrive.get(d.index)}
             busy={busy}
+            onSwap={() =>
+              api
+                .swapDrive(d.index)
+                .then((r) => toast('info', r.waitingFor !== undefined ? `Ejected – put Disc ${r.waitingFor} of ${r.batch} in this drive` : 'Ejected'))
+                .then(() => refresh(true))
+                .catch((e) => toast('error', e.message))
+            }
             onReadCd={() =>
               api.readCd(d.index)
                 .then((r) => toast('info', (r.cd?.selected ?? -1) >= 0 ? `Audio CD: ${r.media.artist} – ${r.media.title}` : 'Audio CD read – nothing identifies it yet, pick a release on the Discs page'))
@@ -1626,7 +1783,7 @@ export function DiscsPage() {
       )}
       {groups.map((g) =>
         g.batch ? (
-          <BatchCard key={g.key} rips={g.rips} onLog={setLogRip} onChanged={() => refresh(false)} />
+          <BatchCard key={g.key} rips={g.rips} onLog={setLogRip} onChanged={() => refresh(false)} waitingFor={waitingByBatch.get(g.key) ?? []} />
         ) : (
           <RipCard key={g.key} rip={g.rips[0]} onLog={setLogRip} />
         ),

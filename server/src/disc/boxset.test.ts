@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { batchProgress, boxSetName, discPhase, episodeNumbers, episodeRange, sameSet, sortDiscs } from '../../../shared/boxset.js';
+import { batchProgress, boxSetName, discFreed, discPhase, driveBusy, episodeNumbers, episodeRange, expectedDiscCount, missingDiscs, nextWantedDisc, sameSet, sortDiscs } from '../../../shared/boxset.js';
 import type { DiscRip, RipMedia } from '../../../shared/types.js';
 
 const media = (m: Partial<RipMedia> = {}): RipMedia => ({ kind: 'series', title: 'Naruto', seasonNumber: 1, ...m });
@@ -94,4 +94,48 @@ test('discs are ordered by disc number, and an unnumbered one is not hidden', ()
   const d1 = rip({ id: 'd1', media: media({ discNumber: 1 }) });
   const dx = rip({ id: 'dx', media: media({ discNumber: undefined }) });
   assert.deepEqual(sortDiscs([d2, dx, d1]).map((r) => r.id), ['d1', 'd2', 'dx']);
+});
+
+test('a disc is free to come out once its copy is made, not once it is encoded', () => {
+  // the rip is the only part that needs the disc; waiting for the encode idles the drive for nothing
+  assert.equal(discFreed(rip({ status: 'transcoding' })), true);
+  assert.equal(discFreed(rip({ status: 'delivering' })), true);
+  assert.equal(discFreed(rip({ status: 'done' })), true);
+  assert.equal(discFreed(rip({ status: 'ripping' })), false);
+  assert.equal(discFreed(rip({ status: 'ready' })), false);
+
+  // and nothing comes out of a drive that is still reading
+  assert.equal(driveBusy(rip({ status: 'scanning' })), true);
+  assert.equal(driveBusy(rip({ status: 'ripping' })), true);
+  assert.equal(driveBusy(rip({ status: 'transcoding' })), false);
+  assert.equal(driveBusy(undefined), false);
+});
+
+test('how many discs a set holds is arithmetic, and a pinned count wins', () => {
+  const d1 = rip({ id: 'a', media: media({ discNumber: 1 }), episodeMap: { 0: 1, 1: 2, 2: 3, 3: 4, 4: 5 }, selectedTitleIds: [0, 1, 2, 3, 4] });
+  const d2 = rip({ id: 'b', media: media({ discNumber: 2 }), episodeMap: { 0: 6, 1: 7, 2: 8, 3: 9 }, selectedTitleIds: [0, 1, 2, 3] });
+
+  // 35 episodes at 4.5 a disc is 8 discs - the real Naruto season this was built against
+  assert.equal(expectedDiscCount([d1, d2], 35), 8);
+
+  // with nothing to divide, all that is known is the discs in hand
+  assert.equal(expectedDiscCount([d1, d2], 0), 2);
+  assert.equal(expectedDiscCount([], 35), undefined);
+
+  // a count set by hand is not second-guessed
+  const pinned = rip({ id: 'c', media: media({ discNumber: 1 }), episodeMap: { 0: 1 }, selectedTitleIds: [0], batch: { id: 'x', name: 'Set', expectedDiscs: 4, discsPinned: true } });
+  assert.equal(expectedDiscCount([pinned], 35), 4);
+});
+
+test('a set knows which discs are still missing, and which to ask for next', () => {
+  const d1 = rip({ id: 'a', media: media({ discNumber: 1 }) });
+  const d3 = rip({ id: 'c', media: media({ discNumber: 3 }) });
+  assert.deepEqual(missingDiscs([d1, d3], 4), [2, 4]);
+  assert.deepEqual(missingDiscs([d1, d3], undefined), [], 'nothing is missing from a set of unknown size');
+
+  // two drives emptied at once must not both be told to wait for disc 2
+  assert.equal(nextWantedDisc([d1, d3], 4), 2);
+  assert.equal(nextWantedDisc([d1, d3], 4, [2]), 4);
+  // and past the end of the set, the next disc is simply the one after the last
+  assert.equal(nextWantedDisc([d1, d3], 3, [2]), 4);
 });

@@ -177,12 +177,35 @@ export default async function discRoutes(app: FastifyInstance) {
   });
 
   app.patch<{ Params: { id: string }; Body: unknown }>('/api/disc/batches/:id', async (req, reply) => {
-    const body = z.object({ name: z.string().trim().min(1).max(200) }).safeParse(req.body);
-    if (!body.success) return reply.code(400).send({ error: 'name required' });
-    const n = discs.renameBatch(req.params.id, body.data.name);
+    const body = z
+      .object({ name: z.string().trim().min(1).max(200).optional(), expectedDiscs: z.number().int().min(1).max(60).optional() })
+      .refine((b) => b.name !== undefined || b.expectedDiscs !== undefined, 'name or expectedDiscs required')
+      .safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: 'name or expectedDiscs required' });
+    const n = discs.updateBatch(req.params.id, body.data);
     if (!n) return reply.code(404).send({ error: 'box set not found' });
     return { ok: true, discs: n };
   });
+
+  /** A disc that turned up in a drive waiting for a different one: file it, or leave it out of the set. */
+  app.post<{ Params: { id: string }; Body: unknown }>('/api/disc/rips/:id/slot', async (req, reply) => {
+    const body = z.object({ disc: z.number().int().min(1).max(99).optional(), reject: z.boolean().optional() }).safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: 'disc or reject required' });
+    if (!discs.get(req.params.id)) return reply.code(404).send({ error: 'rip not found' });
+    return discs.resolveSlot(req.params.id, body.data);
+  });
+
+  /** Eject a drive and have it wait for the next disc of its set. */
+  app.post<{ Params: { index: string } }>('/api/disc/drives/:index/swap', async (req, reply) => {
+    try {
+      return await discs.swapDrive(Number(req.params.index));
+    } catch (err) {
+      return reply.code(400).send({ error: (err as Error).message });
+    }
+  });
+
+  /** The same for every drive whose disc has been copied, so a whole stack swaps in one pass. */
+  app.post('/api/disc/drives/swap-all', async () => ({ swapped: await discs.swapAllFinished() }));
 
   app.post<{ Params: { id: string } }>('/api/disc/rips/:id/scan', async (req, reply) => {
     if (!discs.get(req.params.id)) return reply.code(404).send({ error: 'rip not found' });
