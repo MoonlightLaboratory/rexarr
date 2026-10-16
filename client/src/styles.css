@@ -1483,7 +1483,3 @@ table.metaTags td.mono { word-break: break-word; }
   .batch-row > :nth-child(3) { display: none; }
   .batch-row > :nth-child(7) { width: 72px; }
 }
-
-/* A rule between groups of toolbar buttons: the drive ones set a drive up, the ones after act on the discs in
-   them, and without a break they read as one undifferentiated row of icons. */
-.toolbarDivider { align-self: center; width: 1px; height: 26px; margin: 0 8px; background: var(--borderColor); flex: 0 0 1px; }
