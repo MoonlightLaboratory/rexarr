@@ -1459,7 +1459,7 @@ table.metaTags td.mono { word-break: break-word; }
 
 /* The expanded disc is set in from the row it belongs to, so a card inside a row still reads as part of it. */
 .batch-open { background: var(--insetBackgroundColor, rgba(127, 127, 127, 0.05)); border-top: 1px solid var(--borderColor); }
-.batch-open > .card { margin: 0; border-left: 0; border-right: 0; border-radius: 0; }
+.batch-open > .card { margin: 0; border-left: 0; border-right: 0; border-radius: 0; box-shadow: none; }
 /* a long disc runs to columns rather than a tall thin list */
 .batch-eps { padding: 10px 12px 12px 38px; columns: 280px; column-gap: 24px; }
 .batch-eps > span { display: block; break-inside: avoid; padding: 1px 0; }
