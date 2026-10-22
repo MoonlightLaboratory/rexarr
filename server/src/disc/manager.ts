@@ -83,6 +83,16 @@ export class DiscManager {
    */
   private awaiting = new Map<string, { batchId: string; batchName: string; discNumber: number }>();
 
+  /**
+   * What each drive last looked like, and the drives whose tray has been open since their last disc.
+   *
+   * The guard below says a disc is not ripped again "until it is swapped", but it was a six-hour timer and
+   * nothing ever watched for the swap: put the same disc back after a failure and it sat there ignored, while a
+   * disc left in a tray overnight was picked up again as if it were new. A tray that empties is the swap.
+   */
+  private lastDriveState = new Map<string, DiscDrive['state']>();
+  private trayCycled = new Set<string>();
+
 
   drives: DiscDrive[] = [];
   private lastDriveError = '';
@@ -294,7 +304,9 @@ export class DiscManager {
         out.push(d);
         continue;
       }
-      out.push({ ...d, path: c.path, state: 'loaded', discLabel: probed.discLabel });
+      // the source must follow the device: a tray that has been opened can come back as a different node, and
+      // keeping the old one here would have the scan open a device the disc is no longer in
+      out.push({ ...d, path: probed.path, source: probed.source, state: 'loaded', discLabel: probed.discLabel });
     }
     return out;
   }
@@ -516,6 +528,11 @@ export class DiscManager {
     try {
       const drives = await this.refreshDrives();
       for (const d of drives) {
+        const key = driveKey(d);
+        if (this.lastDriveState.get(key) === 'loaded' && d.state !== 'loaded') this.trayCycled.add(key);
+        this.lastDriveState.set(key, d.state);
+      }
+      for (const d of drives) {
         if (d.state !== 'loaded') continue;
         const label = d.discLabel ?? '';
         // One drive can reach the list under two names – MakeMKV reports /dev/rdisk5 where Rexarr's own detection
@@ -527,9 +544,13 @@ export class DiscManager {
         // same disc, not a new one – and a disc that is still being scanned or ripped must not get a second entry.
         const busy = store.rips.find((r) => sameDrive(r) && ['inserted', 'scanning', 'ripping'].includes(r.status));
         if (busy || !label) continue;
-        // A disc that already finished (or failed) and is still in the tray is not ripped again until it is swapped.
-        const recent = store.rips.find((r) => sameDrive(r) && r.label === label && r.finishedAt && Date.now() - new Date(r.finishedAt).getTime() < 6 * 3600_000);
+        // A disc that already finished (or failed) and is still in the tray is not ripped again until it is
+        // swapped - and a tray that has been open since is a swap, even if the same disc went back in. The six
+        // hours remain only as a backstop for a swap nobody saw, such as one made while a rip held the list still.
+        const swapped = this.trayCycled.has(driveKey(d));
+        const recent = swapped ? undefined : store.rips.find((r) => sameDrive(r) && r.label === label && r.finishedAt && Date.now() - new Date(r.finishedAt).getTime() < 6 * 3600_000);
         if (recent) continue;
+        this.trayCycled.delete(driveKey(d));
         const rip = this.createRip(d);
         void this.scan(rip.id).then(async () => {
           const r = this.get(rip.id);
@@ -1954,7 +1975,10 @@ export class DiscManager {
     const created: DiscRip[] = [];
     for (const d of drives) {
       if (d.state !== 'loaded') continue;
-      if (store.rips.some((r) => r.drivePath === d.path && ACTIVE.includes(r.status))) continue;
+      // the same drive can be listed as /dev/rdisk5 or /dev/disk5; compared literally, "Detect disc" made a
+      // second entry for a disc that was already being read
+      const here = d.path ? canonicalDevice(d.path) : '';
+      if (store.rips.some((r) => r.drivePath && here && canonicalDevice(r.drivePath) === here && ACTIVE.includes(r.status))) continue;
       const rip = this.createRip(d);
       created.push(rip);
       void this.scan(rip.id);
