@@ -1503,7 +1503,10 @@ function BatchCard({ rips, onLog, onChanged, waitingFor = [] }: { rips: DiscRip[
   const ripping = discs.filter((d) => ['ripping', 'remuxing'].includes(discPhase(d.status)));
   // how many discs the set holds: arithmetic on the season's episodes and what a disc of this set actually has
   const expected = seasonKnown ? expectedDiscCount(discs, episodes?.length ?? 0) : undefined;
-  const incoming = missingDiscs(discs, expected);
+  // Nothing is coming to a set that is finished with. In History it had six rows saying "not inserted yet" about
+  // discs that are not on their way anywhere - and if one is put in, the set comes back to Current and says so.
+  const live = discs.some((d) => ACTIVE.includes(d.status));
+  const incoming = live ? missingDiscs(discs, expected) : [];
   return (
     <div className="card mb">
       <div className="card-h">
@@ -1511,7 +1514,7 @@ function BatchCard({ rips, onLog, onChanged, waitingFor = [] }: { rips: DiscRip[
           <Icon.Disc />
         </span>
         <strong>{batch.name}</strong>
-        <span className="badge sm">{expected ? `${prog.total} of ${expected} discs` : `${prog.total} disc${prog.total === 1 ? '' : 's'}`}</span>
+        <span className="badge sm">{live && expected ? `${prog.total} of ${expected} discs` : `${prog.total} disc${prog.total === 1 ? '' : 's'}`}</span>
         {prog.done === prog.total && !incoming.length ? <span className="badge sm green">Complete</span> : <span className="badge sm">{prog.done} of {prog.total} done</span>}
         <span className="spacer" />
         {ripping.length > 0 && <span className="small dim">{ripping.map((d) => `Disc ${d.media.discNumber ?? '?'} ${PHASE[discPhase(d.status)].label.toLowerCase()}`).join(', ')}</span>}
