@@ -207,6 +207,9 @@ export function SmartGraphPage() {
   const [view, setView] = useState({ x: 0, y: 0, z: 1 });
   const [ports, setPorts] = useState<Record<string, Pos>>({});
   const surface = useRef<HTMLDivElement>(null);
+  // the ref alone cannot drive an effect: the surface is not in the tree until the profile has loaded, so an
+  // effect keyed on mount found nothing and never looked again
+  const [surfaceEl, setSurfaceEl] = useState<HTMLDivElement | null>(null);
   const layer = useRef<HTMLDivElement>(null);
   const drag = useRef<{ node?: string; startPos: Pos; origin: Pos; panning?: boolean; group?: Record<string, Pos>; marquee?: Pos } | null>(null);
   const nodeSizes = useRef<Record<string, { w: number; h: number }>>({});
@@ -454,17 +457,41 @@ export function SmartGraphPage() {
     });
   };
 
-  const onWheel = (e: React.WheelEvent) => {
-    touched.current = true;
-    const rect = surface.current!.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    setView((v) => {
-      const z = Math.min(2, Math.max(0.3, v.z * (e.deltaY < 0 ? 1.1 : 1 / 1.1)));
-      // keep the point under the cursor still
-      return { z, x: mx - ((mx - v.x) / v.z) * z, y: my - ((my - v.y) / v.z) * z };
-    });
-  };
+  /**
+   * The wheel, as a trackpad actually uses it.
+   *
+   * Every wheel event used to zoom by a fixed step, which a mouse survives and a trackpad does not: two fingers
+   * on a trackpad are a scroll, so panning the canvas zoomed it instead, and a pinch arrives as a burst of small
+   * events that each zoomed a full step - the canvas shot in and out. A pinch is a wheel event with ctrlKey set,
+   * which is the only thing that separates the two, so that zooms and everything else pans.
+   *
+   * The listener is attached by hand because React's onWheel is passive: preventDefault does nothing there, and
+   * without it a pinch zooms the whole page behind the canvas as well.
+   */
+  useEffect(() => {
+    const el = surfaceEl;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      const rect = el.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      touched.current = true;
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        setView((v) => {
+          // scaled by how far the pinch moved, so a trackpad is smooth and a mouse notch still steps
+          const z = Math.min(2, Math.max(0.3, v.z * Math.exp(-e.deltaY / 240)));
+          // keep the point under the cursor still
+          return { z, x: mx - ((mx - v.x) / v.z) * z, y: my - ((my - v.y) / v.z) * z };
+        });
+        return;
+      }
+      e.preventDefault();
+      setView((v) => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [surfaceEl]);
 
   const fit = useCallback(() => {
     touched.current = false;
@@ -718,7 +745,7 @@ export function SmartGraphPage() {
         </div>
       )}
 
-      <div className="graphSurface" ref={surface} onMouseDown={onSurfaceDown} onWheel={onWheel} style={{ backgroundSize: `${22 * view.z}px ${22 * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` }}>
+      <div className="graphSurface" ref={(el) => { surface.current = el; setSurfaceEl(el); }} onMouseDown={onSurfaceDown} style={{ backgroundSize: `${22 * view.z}px ${22 * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` }}>
         <div className="graphLayer" ref={layer} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})` }}>
           <svg className="graphWires">{wires.map(wire)}</svg>
 
