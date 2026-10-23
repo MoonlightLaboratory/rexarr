@@ -108,6 +108,7 @@ nav:
       - Auto transcode: guide/auto-transcode.md
       - Disc ripping: guide/disc-ripping.md
       - Rip farm: guide/rip-farm.md
+      - Command line: guide/cli.md
       - MakeMKV and Docker: guide/makemkv-in-docker.md
       - Music: guide/music.md
       - Local media: guide/local-media.md

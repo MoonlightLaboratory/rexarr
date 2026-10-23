@@ -81,12 +81,6 @@ between a disc going in and the subtitles being there.
 
 *Today:* Bazarr finds it on its next scan.
 
-### A command line
-
-`rexarr rip --drive 1 --profile anime`, for scripting and for a headless box. The API is already there and the
-server already does all of this; a CLI is a thin client over it, plus the decisions about what it prints and what
-it returns when something is still running.
-
 ### Keyboard shortcuts and a command palette
 
 The search box already answers `/` and `Ctrl/Cmd + K`. A palette that goes further — jump to a page, start a rip,

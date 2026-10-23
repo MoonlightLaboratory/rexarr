@@ -24,7 +24,8 @@
     "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
     "test": "npm test -w server",
     "test-media": "node scripts/make-test-media.mjs test-media",
-    "agent": "node server/dist/server/src/agent/main.js"
+    "agent": "node server/dist/server/src/agent/main.js",
+    "cli": "node server/dist/server/src/cli/main.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
