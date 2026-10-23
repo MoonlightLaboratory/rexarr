@@ -51,9 +51,22 @@ Everything on these pages is also available as JSON: `GET /api/settings`, `PUT /
 
 ### Notifications
 
-Rexarr can tell you when an **encode finished or failed**, when a **disc finished or failed**, and when an
-**update is available**. **Add notification** opens a picker of the kinds below; add as many as you like, and each
-one chooses its own events, so the phone can get failures only while a channel gets everything.
+**Add notification** opens a picker of the kinds below; add as many as you like, and each one chooses its own
+events, so the phone can get failures only while a channel gets everything.
+
+| Event | Sent when |
+| --- | --- |
+| `disc.inserted` | a disc is found in a drive, before it has been read |
+| `rip.started` | MakeMKV has begun copying it |
+| `rip.done` · `rip.failed` | the disc finished, or did not |
+| `encode.done` · `encode.failed` | an encode finished, or did not |
+| `import.done` | the files reached Radarr or Sonarr |
+| `update.available` | a newer Rexarr is out |
+
+`import.done` is not the same as `rip.done`: a rip with **Hand to Radarr / Sonarr** turned off finishes without
+importing anything, and only the rips that were actually delivered send it. The first two are the ones something
+else can act on while the disc is still in the drive — a light that says the drive is busy, a flow that starts
+when a disc goes in — rather than only reporting afterwards.
 
 | Target | What it needs |
 | --- | --- |

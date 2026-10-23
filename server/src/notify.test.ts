@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { NotificationTarget } from '../../shared/types.js';
-import { buildRequest, jobEvent, ripEvent, scriptEnv } from './notify.js';
+import { buildRequest, jobEvent, ripEvent, ripEvents, scriptEnv } from './notify.js';
 
 const target = (over: Partial<NotificationTarget>): NotificationTarget => ({
   id: 't', name: 'Test', kind: 'discord', enabled: true, url: '', events: ['encode.done'], ...over,
@@ -84,4 +84,24 @@ test('a custom script is not an HTTP target, and gets the event in its environme
   assert.match(env.REXARR_AT, /^\d{4}-\d{2}-\d{2}T/);
   assert.ok(env.REXARR_VERSION.length > 0);
   assert.equal(scriptEnv(payload).REXARR_FAILED, 'false');
+});
+
+test('a disc is worth reporting while it is still in the drive, not only afterwards', () => {
+  // the events something else can act on as it happens
+  assert.deepEqual(ripEvents(undefined, 'inserted'), ['disc.inserted']);
+  assert.deepEqual(ripEvents('ready', 'ripping'), ['rip.started']);
+  assert.deepEqual(ripEvents('ripping', 'failed'), ['rip.failed']);
+
+  // reaching done through delivery both finished the rip and imported it: two different things to react to
+  assert.deepEqual(ripEvents('delivering', 'done'), ['rip.done', 'import.done']);
+  // a rip with delivery turned off finishes without importing anything, so it must not claim it did
+  assert.deepEqual(ripEvents('transcoding', 'done'), ['rip.done']);
+
+  // the same status twice is not news, and the steps in between are not events of their own
+  assert.deepEqual(ripEvents('done', 'done'), []);
+  assert.deepEqual(ripEvents('ripping', 'transcoding'), []);
+  assert.deepEqual(ripEvents('ready', 'cancelled'), [], 'cancelling is the user doing it');
+
+  // the single-event helper still answers for the one caller that wants one
+  assert.equal(ripEvent('delivering', 'done'), 'rip.done');
 });

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { testTarget } from '../notify.js';
-import type { ArrStatus, Settings } from '../../../shared/types.js';
+import type { ArrStatus, NotificationEvent, Settings } from '../../../shared/types.js';
 import { store } from '../store.js';
 import { clearOmdbCache, testOmdb } from '../omdb.js';
 import { DEFAULT_SETTINGS } from '../../../shared/presets.js';
@@ -19,6 +19,14 @@ import net from 'node:net';
 import type { GeneralSettings } from '../../../shared/types.js';
 import { effectiveHost, hashPassword, newApiKey, normalizeUrlBase, redactGeneral } from '../general.js';
 import { applyLogLevel, hostRuntime, restart, shutdown } from '../runtime.js';
+
+/**
+ * The events a target can subscribe to, as one list.
+ *
+ * This was written out twice here and a third time in the shared type, so adding an event compiled fine and was
+ * then rejected at the door: the type knew about it and the schema did not. The type is derived from this.
+ */
+const NOTIFICATION_EVENTS = ['encode.done', 'encode.failed', 'rip.done', 'rip.failed', 'disc.inserted', 'rip.started', 'import.done', 'update.available'] as const satisfies readonly NotificationEvent[];
 
 const conn = z.object({ enabled: z.boolean(), url: z.string(), apiKey: z.string() });
 
@@ -69,7 +77,7 @@ const notificationTargetSchema = z.object({
   url: z.string().max(500).default(''),
   token: z.string().max(300).optional(),
   target: z.string().max(300).optional(),
-  events: z.array(z.enum(['encode.done', 'encode.failed', 'rip.done', 'rip.failed', 'update.available'])).optional(),
+  events: z.array(z.enum(NOTIFICATION_EVENTS)).optional(),
 });
 
 export const settingsSchema = z.object({
@@ -152,7 +160,7 @@ export const settingsSchema = z.object({
           notificationTargetSchema.extend({
             id: z.string().min(1).max(60),
             enabled: z.boolean(),
-            events: z.array(z.enum(['encode.done', 'encode.failed', 'rip.done', 'rip.failed', 'update.available'])).default([]),
+            events: z.array(z.enum(NOTIFICATION_EVENTS)).default([]),
           }),
         )
         .max(20)

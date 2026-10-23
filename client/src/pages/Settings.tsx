@@ -560,11 +560,14 @@ const NOTIFY_KINDS: { kind: NotificationKind; label: string; info: string; url?:
 ];
 
 
-const NOTIFY_EVENTS: { event: NotificationEvent; label: string }[] = [
+const NOTIFY_EVENTS: { event: NotificationEvent; label: string; hint?: string }[] = [
+  { event: 'disc.inserted', label: 'Disc inserted', hint: 'A disc was found in a drive, before it has been read' },
+  { event: 'rip.started', label: 'Rip started', hint: 'MakeMKV has begun copying the disc' },
   { event: 'encode.done', label: 'Encode finished' },
   { event: 'encode.failed', label: 'Encode failed' },
   { event: 'rip.done', label: 'Disc finished' },
   { event: 'rip.failed', label: 'Disc failed' },
+  { event: 'import.done', label: 'Import finished', hint: 'The files reached Radarr or Sonarr. A rip with delivery off finishes without this' },
   { event: 'update.available', label: 'Update available' },
 ];
 
@@ -651,7 +654,7 @@ function NotificationCard({ value, onChange }: { value: NotificationSettings; on
               )}
               <div className="inline wrap">
                 {NOTIFY_EVENTS.map((e) => (
-                  <label key={e.event} className="check">
+                  <label key={e.event} className="check" title={e.hint}>
                     <input
                       type="checkbox"
                       checked={t.events?.includes(e.event) ?? false}

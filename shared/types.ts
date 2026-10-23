@@ -1386,8 +1386,23 @@ export interface ScheduledTask {
 /** Where a notification goes. */
 export type NotificationKind = 'discord' | 'slack' | 'telegram' | 'ntfy' | 'gotify' | 'pushbullet' | 'apprise' | 'webhook' | 'script';
 
-/** What is worth telling you about. */
-export type NotificationEvent = 'encode.done' | 'encode.failed' | 'rip.done' | 'rip.failed' | 'update.available';
+/**
+ * What is worth telling you about.
+ *
+ * The `disc.*` and `rip.started` events are the ones something else can act on while a disc is still in the
+ * drive - a light that says the drive is busy, a flow that starts when a disc goes in - rather than only
+ * reporting afterwards. `import.done` is sent only when a rip was actually handed to the *arr apps, which is
+ * not the same as the rip finishing: a rip with delivery turned off finishes without importing anything.
+ */
+export type NotificationEvent =
+  | 'encode.done'
+  | 'encode.failed'
+  | 'rip.done'
+  | 'rip.failed'
+  | 'disc.inserted'
+  | 'rip.started'
+  | 'import.done'
+  | 'update.available';
 
 export interface NotificationTarget {
   id: string;

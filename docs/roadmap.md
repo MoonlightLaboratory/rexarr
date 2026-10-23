@@ -108,13 +108,6 @@ Most drives cannot read a UHD Blu-ray at all, and the ones that can usually need
 the drive's model, so it could say so when a UHD disc goes into a drive that will not read it, instead of letting
 the read fail and leaving you to work out why — with a link to the drive list MakeMKV's forum keeps.
 
-### More to send a webhook about
-
-Notifications already go to Discord, Slack, Telegram, ntfy, Gotify, Pushbullet, Apprise or a plain webhook — but
-only on `encode.done`, `encode.failed`, `rip.done`, `rip.failed` and `update.available`. Home Assistant or n8n
-reacting to a disc going in, a rip starting or an import completing needs those events too, with a payload stable
-enough to write a flow against. The events exist inside Rexarr already; what is missing is letting them out.
-
 ### Naming that suits Plex and Jellyfin better
 
 Ripped files are named one fixed way — `Naruto - S01E05 - DVD.mkv`, with extras in an `Extras` folder beside the

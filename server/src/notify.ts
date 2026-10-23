@@ -147,13 +147,32 @@ export function jobEvent(previous: Job['status'] | undefined, status: Job['statu
   return null;
 }
 
-/** The same for a disc rip. */
-export function ripEvent(previous: DiscRip['status'] | undefined, status: DiscRip['status']): NotificationEvent | null {
-  if (previous === status) return null;
-  if (status === 'done') return 'rip.done';
-  if (status === 'failed') return 'rip.failed';
-  return null;
+/**
+ * The same for a disc rip, except that one change can be worth more than one event: a rip that reaches `done`
+ * from `delivering` both finished and was imported, and those are different things to react to.
+ */
+export function ripEvents(previous: DiscRip['status'] | undefined, status: DiscRip['status']): NotificationEvent[] {
+  if (previous === status) return [];
+  if (status === 'inserted') return ['disc.inserted'];
+  if (status === 'ripping') return ['rip.started'];
+  if (status === 'failed') return ['rip.failed'];
+  // only a rip that went through delivery imported anything; with delivery off it finishes without doing so
+  if (status === 'done') return previous === 'delivering' ? ['rip.done', 'import.done'] : ['rip.done'];
+  return [];
 }
+
+/** Kept for the one event a caller still asks about directly. */
+export function ripEvent(previous: DiscRip['status'] | undefined, status: DiscRip['status']): NotificationEvent | null {
+  return ripEvents(previous, status)[0] ?? null;
+}
+
+const ripTitles: Partial<Record<NotificationEvent, string>> = {
+  'disc.inserted': 'Disc inserted',
+  'rip.started': 'Rip started',
+  'rip.done': 'Disc finished',
+  'rip.failed': 'Disc failed',
+  'import.done': 'Import finished',
+};
 
 const jobStatus = new Map<string, Job['status']>();
 const ripStatus = new Map<string, DiscRip['status']>();
@@ -178,15 +197,25 @@ export function startNotifications(): void {
     }
     if (e.type === 'rip' && e.rip) {
       const rip = e.rip;
-      const event = ripEvent(ripStatus.get(rip.id), rip.status);
+      const events = ripEvents(ripStatus.get(rip.id), rip.status);
       ripStatus.set(rip.id, rip.status);
       if (ripStatus.size > 500) for (const id of [...ripStatus.keys()].slice(0, 100)) ripStatus.delete(id);
-      if (event) {
+      for (const event of events) {
         const what = rip.media?.title || rip.label || rip.volumeName || 'Disc';
+        const where = rip.driveName ? ` in ${rip.driveName}` : '';
         void notify({
           event,
-          title: event === 'rip.done' ? 'Disc finished' : 'Disc failed',
-          message: event === 'rip.done' ? `${what} was ripped and handed to the *arr apps` : `${what}: ${rip.error ?? 'no reason given'}`,
+          title: ripTitles[event] ?? 'Disc',
+          message:
+            event === 'rip.failed'
+              ? `${what}: ${rip.error ?? 'no reason given'}`
+              : event === 'disc.inserted'
+                ? `${what}${where}`
+                : event === 'rip.started'
+                  ? `${what}${where}${rip.titles?.length ? ` · ${rip.selectedTitleIds?.length || rip.titles.length} title(s)` : ''}`
+                  : event === 'import.done'
+                    ? `${what} was handed to the *arr apps`
+                    : `${what} was ripped and handed to the *arr apps`,
           failed: event === 'rip.failed',
         });
       }
