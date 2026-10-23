@@ -234,6 +234,9 @@ export function assign(profile: Profile, a: SmartAssignment): void {
     case 'video.maxHeight':
       profile.video.maxHeight = Number(a.value);
       break;
+    case 'video.crop':
+      profile.video.crop = String(a.value) as Profile['video']['crop'];
+      break;
     case 'video.pixelFormat':
       profile.video.pixelFormat = a.value as Profile['video']['pixelFormat'];
       break;
@@ -399,6 +402,7 @@ export const SMART_SETTINGS: SmartSettingInfo[] = [
   { path: 'video.preset', group: 'Video', label: 'Video preset', kind: 'select', options: [...new Set(Object.values(VIDEO_ENCODER_INFO).flatMap((v) => v.presets))].map((value) => ({ value, label: value })) },
   { path: 'video.tune', group: 'Video', label: 'Video tune', kind: 'select', options: ['none', 'animation', 'film', 'grain', 'fastdecode', 'zerolatency'].map((value) => ({ value, label: value })) },
   { path: 'video.maxHeight', group: 'Video', label: 'Downscale to at most', kind: 'number', min: 0, max: 4320, unit: 'px' },
+  { path: 'video.crop', group: 'Video', label: 'Letterbox bars', kind: 'select', options: [{ value: 'off', label: 'Keep them' }, { value: 'auto', label: 'Remove automatically' }] },
   { path: 'video.pixelFormat', group: 'Video', label: 'Pixel format', kind: 'select', options: ['auto', 'yuv420p', 'yuv420p10le', 'p010le', 'nv12'].map((value) => ({ value, label: value })) },
   { path: 'video.hdrPassthrough', group: 'Video', label: 'Keep HDR metadata', kind: 'boolean' },
   { path: 'video.bitrate', group: 'Video', label: 'Video bitrate', kind: 'number', min: 0, max: 200000, unit: 'kbps' },

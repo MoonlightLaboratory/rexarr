@@ -58,15 +58,6 @@ are still hoping to improve and what kind of disc would improve it.
 
 ## Medium
 
-### Crop detection
-
-Letterboxed transfers carry black bars in the picture. FFmpeg can measure them (`cropdetect`), so a profile could
-remove them during the encode and save the bitrate spent on black.
-
-The hard part is knowing when not to. A film with a variable aspect ratio — IMAX sequences, an open-matte insert —
-will measure differently in different scenes, and cropping to the first measurement ruins it. So: sample across the
-file rather than the first minute, do nothing when the samples disagree, and always allow a manual override.
-
 ### 3D, IMAX and open-matte
 
 A Blu-ray's MVC stream, and a transfer whose aspect ratio changes partway through, are both things worth knowing

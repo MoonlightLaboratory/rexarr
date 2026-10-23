@@ -5,6 +5,7 @@ import { CONTAINER_INFO, VIDEO_ENCODER_INFO } from '../../../shared/presets.js';
 import { isTextSubtitle, streamLanguage, streamTitle, type ProbeResult, type ProbeStream } from './probe.js';
 import { audioQuality } from '../disc/audio.js';
 import { isBitmapSubtitle } from './ocr.js';
+import { cropFilter, type CropBox } from './crop.js';
 import { audioTrackTitle, describeEncode, languageName, planAudio, renameForEncode, videoTrackTitle, type EncodeDescription, type MetadataContext } from './naming.js';
 
 export interface BuildResult {
@@ -38,6 +39,8 @@ export interface BuildOptions {
   previewPath?: string;
   /** File title etc. for clean metadata. */
   metadata?: MetadataContext;
+  /** Letterbox bars to remove, already measured or typed in. */
+  crop?: CropBox;
   /**
    * Picture subtitles already read into SRT files, in the order the tracks appear. Each becomes an extra input
    * and a text track in the output; see `ocr.ts` for why this cannot happen inside the one ffmpeg command.
@@ -362,7 +365,14 @@ export function buildFfmpegArgs(requested: Profile, probe: ProbeResult, input: s
     summary.push('Video: copied');
     if (burn) warnings.push('Cannot burn subtitles when copying video; burn-in skipped');
   } else {
-    const downscale = v.maxHeight > 0 && (probe.video.height ?? 0) > v.maxHeight;
+    // the bars come off before anything else: everything after this is working on the real picture, and a
+    // downscale measured against a letterboxed height would be scaling the black as well
+    if (opts.crop) {
+      filters.push(cropFilter(opts.crop));
+      summary.push(`Crop to ${opts.crop.width}×${opts.crop.height}`);
+    }
+    const croppedHeight = opts.crop?.height ?? probe.video.height ?? 0;
+    const downscale = v.maxHeight > 0 && croppedHeight > v.maxHeight;
     if (downscale && !vaapiSurfaces) filters.push(`scale=-2:${v.maxHeight}:flags=lanczos`);
     if (downscale) summary.push(`Downscale to ${v.maxHeight}p`);
     if (burn && isTextSubtitle(burn)) {
@@ -491,7 +501,9 @@ export function buildFfmpegArgs(requested: Profile, probe: ProbeResult, input: s
     });
     if (opts.metadata?.title) args.push('-metadata', `title=${opts.metadata.title}`);
     const sourceQuality = /remux/i.test(input) ? 'Blu-ray remux' : 'source';
-    args.push('-metadata', `comment=Encoded by Rexarr from ${sourceQuality}: ${videoTrackTitle(description)}${description.audio ? `, ${description.audio.codec} ${description.audio.channels}` : ''} (${profile.name})`);
+    // a file that is to say nothing about itself says nothing here either
+    if (opts.metadata?.comment !== false)
+      args.push('-metadata', `comment=Encoded by Rexarr from ${sourceQuality}: ${videoTrackTitle(description)}${description.audio ? `, ${description.audio.codec} ${description.audio.channels}` : ''} (${profile.name})`);
   }
   if (profile.container === 'mp4' || profile.container === 'mov') args.push('-movflags', '+faststart');
   args.push('-max_muxing_queue_size', '2048');

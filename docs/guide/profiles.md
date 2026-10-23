@@ -20,6 +20,29 @@ uses exactly one profile. The built-in presets cannot be edited — **clone** on
 | **Extra args** | raw ffmpeg arguments appended after the video options |
 | **Software only (CPU)** | ignore the hardware acceleration set in Settings for this profile |
 
+### Letterbox bars
+
+**Letterbox bars** in a profile's Video section removes the black above and below a 2.39:1 film, so the bitrate
+goes on picture instead of black.
+
+| | |
+| --- | --- |
+| **Keep them** | nothing is cropped (the default) |
+| **Remove automatically** | the file is measured and cropped only if the samples agree |
+| **Crop exactly…** | `width:height:x:y`, on every file the profile encodes |
+
+Automatic measures a few seconds in five places spread across the file, skipping the logos at the start and the
+credits at the end, and crops only when at least four fifths of what it saw agrees. **A film whose shape changes
+partway through — an IMAX sequence, an open-matte insert — is left alone**, and the disc's log says so rather
+than quietly cropping into the taller scenes. A handful of pixels is not letterboxing either, so a few stray
+black lines are left as they are.
+
+The crop happens before anything else, so a downscale is measured against the real picture rather than against
+the black.
+
+*Crop exactly* is the override when the measurement is wrong, or when you already know the numbers: it is applied
+as typed and nothing is measured. `ffmpeg -i file -vf cropdetect -f null -` prints them in that form.
+
 ## Audio
 
 | Field | What it does |

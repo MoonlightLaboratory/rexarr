@@ -26,6 +26,12 @@ import { byTitle, omdbConfigured } from '../omdb.js';
 import { ocrSubtitleStream, tesseractInfo, tesseractLanguage, toSrt } from '../ffmpeg/ocr.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 import { initialProgress, runFfmpeg, type RunHandle } from '../ffmpeg/runner.js';
+import { embeddedTitle } from './metadata.js';
+import { detectCrop, parseManualCrop, type CropBox, type CropDecision } from '../ffmpeg/crop.js';
+import { promisify } from 'node:util';
+import { execFile } from 'node:child_process';
+
+const execFileAsync = promisify(execFile);
 
 export interface CreateJobInput {
   title: string;
@@ -844,7 +850,30 @@ class JobQueue {
       const caps = await ffmpegCapabilities(settings.ffmpegPath).catch(() => undefined);
       const previewPath = this.previewPath(job.id);
       // "Frieren - S01E05 - Phantoms of the Dead" / "Blade Runner 2049 (2017)" for the file's title tag
-      const metadata = { title: job.subtitle && /^S\d+E\d+/i.test(job.subtitle) ? `${job.title} - ${job.subtitle.replace(/\s+·\s+/, ' - ')}` : job.title };
+      // Letterbox bars: measured here, where the file is, so the encode is told a crop rather than working it out.
+      const cropSetting = profile.video.crop ?? 'off';
+      let crop: CropBox | undefined;
+      if (cropSetting !== 'off') {
+        const manual = cropSetting === 'auto' ? null : parseManualCrop(cropSetting);
+        if (manual) {
+          crop = manual;
+          this.log(job, `Cropping to ${manual.width}×${manual.height} as the profile says`);
+        } else if (cropSetting === 'auto' && info.video?.width && info.video?.height) {
+          const decision = await detectCrop(
+            settings.ffmpegPath,
+            input,
+            { width: info.video.width, height: info.video.height, durationSeconds: info.durationSeconds ?? 0 },
+            async (a) => {
+              const r = await execFileAsync(settings.ffmpegPath, a, { maxBuffer: 8 * 1024 * 1024 }).catch((e: { stderr?: string }) => ({ stderr: e.stderr ?? '' }));
+              return r.stderr ?? '';
+            },
+          ).catch((e: Error) => ({ reason: `could not be measured: ${e.message}` }) as CropDecision);
+          crop = decision.crop;
+          this.log(job, decision.crop ? `Letterboxing: ${decision.reason}` : `Letterboxing: left alone – ${decision.reason}`);
+        }
+      }
+      const fm = settings.fileMetadata ?? { title: 'clean' as const, comment: true };
+      const metadata = { title: embeddedTitle(job.title, job.subtitle, fm.title), comment: fm.comment };
       // Picture subtitles the profile wants as text: read before the encode, since OCR cannot happen inside it.
       let ocrDisabled = false;
       if (settings.ocr?.enabled === false && subtitlesToOcr(info, profile).length) {
@@ -853,7 +882,7 @@ class JobQueue {
         ocrDisabled = true;
       }
       const ocrSubtitles = await this.readBitmapSubtitles(job, profile, info, input, settings);
-      let buildOpts: BuildOptions = { hardware: settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, previewPath, metadata, ocrSubtitles, ocrDisabled };
+      let buildOpts: BuildOptions = { hardware: settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, previewPath, metadata, ocrSubtitles, ocrDisabled, crop };
       let lastBuilt: ReturnType<typeof buildFfmpegArgs> | undefined;
       this.partials.set(job.id, { path: tmpOutput, container: profile.container });
       job.preview = profile.video.encoder !== 'copy';
@@ -938,7 +967,7 @@ class JobQueue {
         }
         if (built.hardware && !triedSoftware && settings.transcoding.fallbackToSoftware) {
           triedSoftware = true;
-          buildOpts = { forceSoftware: true, previewPath, metadata };
+          buildOpts = { forceSoftware: true, previewPath, metadata, crop };
           this.log(job, `Hardware encode (${built.hardware}, ${built.videoEncoder}) failed with code ${code}; retrying on the CPU`);
           appEvents.add('warning', 'Transcoding', `Hardware encode failed for ${job.title}; retried in software. Check Settings → Transcoding → Test.`);
           this.safeUnlink(tmpOutput);

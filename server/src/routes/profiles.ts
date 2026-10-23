@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { PreviewEstimate, Profile, SmartProfile } from '../../../shared/types.js';
 import { store } from '../store.js';
 import { buildFfmpegArgs, outputPathFor, subtitlesToOcr, withoutOcr } from '../ffmpeg/args.js';
+import { parseManualCrop } from '../ffmpeg/crop.js';
 import { ffmpegCapabilities } from '../ffmpeg/capabilities.js';
 import { probe, streamLanguage, type ProbeResult } from '../ffmpeg/probe.js';
 import { tesseractInfo } from '../ffmpeg/ocr.js';
@@ -27,6 +28,8 @@ const profileSchema = z.object({
     pixelFormat: z.enum(['auto', 'yuv420p', 'yuv420p10le', 'p010le', 'nv12']).default('auto'),
     tune: z.enum(['none', 'animation', 'film', 'grain', 'fastdecode', 'zerolatency']).default('none'),
     maxHeight: z.number().int().min(0).default(0),
+    // 'off', 'auto', or a crop of your own as width:height:x:y
+    crop: z.union([z.enum(['off', 'auto']), z.string().regex(/^\d+:\d+:\d+:\d+$/, 'a crop is width:height:x:y')]).default('off'),
     hdrPassthrough: z.boolean().default(true),
     bitrate: z.number().int().min(0).default(0),
     extraArgs: z.string().default(''),
@@ -117,7 +120,7 @@ const smartConditionSchema = z.object({
 const smartAssignmentSchema = z.object({
   path: z.enum([
     'container',
-    'video.encoder', 'video.quality', 'video.preset', 'video.tune', 'video.maxHeight', 'video.pixelFormat', 'video.hdrPassthrough', 'video.bitrate', 'video.hwMode', 'video.extraArgs',
+    'video.encoder', 'video.quality', 'video.preset', 'video.tune', 'video.maxHeight', 'video.crop', 'video.pixelFormat', 'video.hdrPassthrough', 'video.bitrate', 'video.hwMode', 'video.extraArgs',
     'audio.encoder', 'audio.bitrate', 'audio.channels', 'audio.languages', 'audio.perLanguage', 'audio.firstMatchOnly', 'audio.dropCommentary',
     'subtitles.mode', 'subtitles.languages', 'subtitles.burnLanguage', 'subtitles.burnForcedOnly', 'subtitles.keepFonts', 'subtitles.bitmapMode',
     'output.suffix', 'output.directory', 'output.replaceOriginal', 'output.renameTokens', 'output.cleanMetadata', 'output.notifyArr',
@@ -295,14 +298,19 @@ export default async function profileRoutes(app: FastifyInstance) {
     if (ocrOff) profile = withoutOcr(profile);
     try {
       const caps = await ffmpegCapabilities(store.settings.ffmpegPath).catch(() => undefined);
-      const draft = buildFfmpegArgs(profile, info, input, outputPathFor(profile, input), { hardware: store.settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, metadata: { title: body.data.path ? undefined : 'Example (2024)' }, ocrDisabled: ocrOff && asked > 0 });
+      // A crop typed in by hand is shown here, because the preview is where someone checks it. "auto" cannot be
+      // shown: it is measured from the file at encode time, so the preview says that rather than guessing a box.
+      const cropSetting = profile.video.crop ?? 'off';
+      const crop = cropSetting === 'off' || cropSetting === 'auto' ? undefined : (parseManualCrop(cropSetting) ?? undefined);
+      const draft = buildFfmpegArgs(profile, info, input, outputPathFor(profile, input), { hardware: store.settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, metadata: { title: body.data.path ? undefined : 'Example (2024)' }, ocrDisabled: ocrOff && asked > 0, crop });
       // the real name depends on what the encode produces (codec after hardware mapping, resolution, audio)
       const output = outputPathFor(profile, input, draft.description, { replacingInput: profile.output.replaceOriginal });
-      const built = buildFfmpegArgs(profile, info, input, output, { hardware: store.settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, metadata: { title: body.data.path ? undefined : 'Example (2024)' }, ocrDisabled: ocrOff && asked > 0 });
+      const built = buildFfmpegArgs(profile, info, input, output, { hardware: store.settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, metadata: { title: body.data.path ? undefined : 'Example (2024)' }, ocrDisabled: ocrOff && asked > 0, crop });
       // OCR runs before the encode and takes minutes, so the preview says it will happen rather than doing it
       const toRead = subtitlesToOcr(info, profile);
       const summary = [...built.summary];
       const warnings = [...built.warnings];
+      if (cropSetting === 'auto') summary.push('Letterbox bars: measured when the file is encoded, and removed only if the samples agree');
       if (ocrOff && asked) {
         warnings.push(`${asked} picture subtitle track(s) would be read into text, but that is switched off in Settings – this profile is treated as "Keep as pictures"`);
       } else if (toRead.length) {

@@ -349,6 +349,7 @@ export const DEFAULT_SETTINGS = {
   },
   transcoding: { hardwareAcceleration: 'none' as 'none' | 'amf' | 'nvenc' | 'qsv' | 'vaapi' | 'rkmpp' | 'videotoolbox' | 'v4l2', device: '', hardwareDecoding: true, fallbackToSoftware: true },
   transcodeTemp: 'transcodes' as 'transcodes' | 'output',
+  fileMetadata: { title: 'clean', comment: true },
   auto: {
     enabled: false,
     includeExisting: false,

@@ -1269,6 +1269,28 @@ export function SettingsPage() {
               <div className="help">The Transcodes folder keeps partial files in one place and cleans up after crashes, but needs room for a whole encode and a copy when it is on a different disk than your media. Paths are listed on System → Status.</div>
             </div>
             <div className="field">
+              <label>Title inside the file</label>
+              <select
+                value={s.fileMetadata?.title ?? 'clean'}
+                onChange={(e) => setS({ ...s, fileMetadata: { ...(s.fileMetadata ?? { title: 'clean', comment: true }), title: e.target.value as 'clean' | 'none' } })}
+              >
+                <option value="clean">The show and episode, or the film</option>
+                <option value="none">Nothing</option>
+              </select>
+              <div className="help">
+                Plex and Jellyfin both read the title tag inside the file, and Jellyfin can be told to prefer it over the name it matched. <strong>Nothing</strong> leaves them to use what they
+                matched, which is the safer answer when the two disagree.
+              </div>
+            </div>
+            <label className="check mb">
+              <input
+                type="checkbox"
+                checked={s.fileMetadata?.comment ?? true}
+                onChange={(e) => setS({ ...s, fileMetadata: { ...(s.fileMetadata ?? { title: 'clean', comment: true }), comment: e.target.checked } })}
+              />{' '}
+              Write an “Encoded by Rexarr…” comment in the file
+            </label>
+            <div className="field">
               <label>Stop stalled encodes after</label>
               <div className="inline" style={{ flexWrap: 'nowrap', gap: 8 }}>
                 <input type="number" min={0} max={1440} style={{ width: 90 }} value={s.stallTimeoutMinutes ?? 10} onChange={(e) => setS({ ...s, stallTimeoutMinutes: Number(e.target.value) })} />

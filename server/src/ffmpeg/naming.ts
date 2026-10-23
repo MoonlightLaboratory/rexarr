@@ -277,6 +277,8 @@ export function languageName(code: string) {
 export interface MetadataContext {
   /** File title, e.g. "Blade Runner 2049 (2017)" or "Frieren - S01E05 - Phantoms of the Dead". */
   title?: string;
+  /** False writes no "Encoded by Rexarr…" comment, for a file that is to say nothing about itself. */
+  comment?: boolean;
 }
 
 /** Stream title for an audio track: "English · Opus 5.1", keeping commentary / descriptive names from the source. */

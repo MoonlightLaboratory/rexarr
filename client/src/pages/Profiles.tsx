@@ -323,6 +323,27 @@ function ProfileEditor({ initial, caps, onClose, onSaved }: { initial: Profile; 
                     <label>Bitrate (kbps, 0 = quality mode)</label>
                     <input type="number" min={0} value={p.video.bitrate} onChange={(e) => updV('bitrate', Number(e.target.value))} />
                   </div>
+                  <div className="field">
+                    <label>Letterbox bars</label>
+                    <select
+                      value={!p.video.crop || p.video.crop === 'off' ? 'off' : p.video.crop === 'auto' ? 'auto' : 'manual'}
+                      onChange={(e) => updV('crop', e.target.value === 'manual' ? '1920:800:0:140' : (e.target.value as 'off' | 'auto'))}
+                    >
+                      <option value="off">Keep them</option>
+                      <option value="auto">Remove automatically</option>
+                      <option value="manual">Crop exactly…</option>
+                    </select>
+                    <div className="small dim">
+                      Measures a few seconds in several places and crops only when they agree, so a film whose shape changes partway through is left alone.
+                    </div>
+                  </div>
+                  {p.video.crop && p.video.crop !== 'off' && p.video.crop !== 'auto' && (
+                    <div className="field">
+                      <label>Crop (width:height:x:y)</label>
+                      <input value={p.video.crop} onChange={(e) => updV('crop', e.target.value)} placeholder="1920:800:0:140" />
+                      <div className="small dim">Exactly this, on every file the profile encodes – no measuring.</div>
+                    </div>
+                  )}
                 </div>
                 <label className="check mb">
                   <input type="checkbox" checked={p.video.hdrPassthrough} onChange={(e) => updV('hdrPassthrough', e.target.checked)} /> Keep HDR10 metadata when the source is HDR
@@ -734,10 +755,11 @@ export function ProfilesPage() {
                   <div><span className="muted">Subtitles</span><br />{p.subtitles.mode}{p.subtitles.keepFonts && p.container === 'mkv' ? ' + fonts' : ''}</div>
                 </div>
                 )}
-                {(p.video.tune !== 'none' || p.video.maxHeight > 0 || p.output.replaceOriginal) && (
+                {(p.video.tune !== 'none' || p.video.maxHeight > 0 || (p.video.crop && p.video.crop !== 'off') || p.output.replaceOriginal) && (
                   <div className="chips mt">
                     {p.video.tune !== 'none' && <span className="chip on">tune {p.video.tune}</span>}
                     {p.video.maxHeight > 0 && <span className="chip on">≤{p.video.maxHeight}p</span>}
+                    {p.video.crop && p.video.crop !== 'off' && <span className="chip on">{p.video.crop === 'auto' ? 'auto-crop' : 'crop'}</span>}
                     {p.output.replaceOriginal && <span className="chip on">replaces original</span>}
                   </div>
                 )}

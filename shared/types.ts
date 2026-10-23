@@ -84,6 +84,11 @@ export interface VideoSettings {
   tune: VideoTune;
   /** Downscale so height <= maxHeight (0 = keep source resolution). */
   maxHeight: number;
+  /**
+   * Letterbox bars. `off` leaves them; `auto` measures the file and crops only when the samples agree, so a
+   * picture that changes shape partway through is left alone; `w:h:x:y` crops exactly that, measured by you.
+   */
+  crop?: 'off' | 'auto' | string;
   /** Keep HDR10 / colour metadata when the source is HDR. */
   hdrPassthrough: boolean;
   /** Bitrate in kbps; only used by encoders/modes that need it (0 = quality based). */
@@ -258,6 +263,7 @@ export type SmartSettingPath =
   | 'video.preset'
   | 'video.tune'
   | 'video.maxHeight'
+  | 'video.crop'
   | 'video.pixelFormat'
   | 'video.hdrPassthrough'
   | 'video.bitrate'
@@ -548,6 +554,17 @@ export interface PathMapping {
   local: string;
   /** Only apply to one app (needed when two apps map different remote paths onto the same local folder). */
   app?: 'all' | 'radarr' | 'sonarr' | 'lidarr' | 'slskd';
+}
+
+/** What goes inside the file, as opposed to on it. */
+export interface FileMetadataSettings {
+  /**
+   * The container's title tag. `clean` writes the show and episode ("Naruto - S01E01"); `none` writes nothing,
+   * which leaves Plex and Jellyfin to use the name they matched and is the safer answer when they disagree.
+   */
+  title: 'clean' | 'none';
+  /** The "Encoded by Rexarr…" comment. Useful for telling your own encodes apart; off for a file that says nothing. */
+  comment: boolean;
 }
 
 export interface DiscSettings {
@@ -908,6 +925,8 @@ export interface Settings {
   preventSleep?: boolean;
   /** Where ffmpeg writes while encoding: the Transcodes folder (default) or next to the final output. */
   transcodeTemp: 'transcodes' | 'output';
+  /** What Rexarr writes inside the file: Plex and Jellyfin can show an embedded title instead of the one they matched. */
+  fileMetadata: FileMetadataSettings;
   auto: AutoTranscodeSettings;
   anidb: AnidbSettings;
   disc: DiscSettings;
