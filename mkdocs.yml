@@ -109,6 +109,7 @@ nav:
       - Disc ripping: guide/disc-ripping.md
       - Rip farm: guide/rip-farm.md
       - Command line: guide/cli.md
+      - Keyboard shortcuts: guide/shortcuts.md
       - MakeMKV and Docker: guide/makemkv-in-docker.md
       - Music: guide/music.md
       - Local media: guide/local-media.md

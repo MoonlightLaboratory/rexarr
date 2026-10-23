@@ -915,6 +915,8 @@ export interface Settings {
   sonarr: ArrConnection;
   prowlarr: ArrConnection;
   lidarr: LidarrConnection;
+  /** Bazarr: told about a disc once it has been imported, so subtitles are searched for straight away. */
+  bazarr: ArrConnection;
   localMedia: LocalMediaSettings;
   slskd: SlskdConnection;
   /** MusicBrainz / Cover Art Archive lookups (CDs, music metadata). */
@@ -1343,7 +1345,7 @@ export interface SetupTools {
 }
 
 export interface ArrStatus {
-  name: 'radarr' | 'sonarr' | 'prowlarr' | 'lidarr' | 'slskd';
+  name: 'radarr' | 'sonarr' | 'prowlarr' | 'lidarr' | 'slskd' | 'bazarr';
   configured: boolean;
   ok: boolean;
   version?: string;

@@ -21,6 +21,7 @@ import { appEvents } from '../system.js';
 import { ejectDrive, emptyScanNote, isOpenFailure, openFailureReason, labelToTitle, listDrives, listVirtualDrives, readDisc, readScanOutput, resolveMakemkv, ripArgs, ripTitle, scanArgs, unmountForDirectAccess, virtualDriveForPath, type RipHandle } from './makemkv.js';
 import { isOnline, listAgents } from '../agents/registry.js';
 import { readOnAgent, runOnAgent } from '../agents/remote.js';
+import { configured as bazarrConfigured, handOff as bazarrHandOff } from '../arr/bazarr.js';
 import { applyEntry, buildEntry, fingerprintOf, lookupDisc as lookupInRexDb, rexdbSettings, submitEntry } from './rexdb.js';
 import { boxSetName, discFreed, driveBusy, driveKey, expectedDiscCount, nextWantedDisc, sameSet, sortDiscs } from '../../../shared/boxset.js';
 import { byTitle, omdbConfigured } from '../omdb.js';
@@ -1664,6 +1665,27 @@ export class DiscManager {
     if (ok.length) this.log(rip, `Sonarr imported ${ok.length} file(s)`);
     for (const f of failed) this.log(rip, `Not imported: ${f.file} – ${f.detail}`);
     if (failed.length) appEvents.add('warning', 'Disc ripping', `${failed.length} ripped file(s) of ${rip.media.title || rip.label} were not imported by Sonarr`, failed.map((f) => `${f.file}: ${f.detail}`).join('\n'));
+    if (ok.length) void this.tellBazarr(rip);
+  }
+
+  /**
+   * A disc has been imported, so Bazarr can go and find its subtitles now rather than when its own schedule next
+   * comes round. It is told, not asked: a Bazarr that is down or misconfigured is written to the disc's log and
+   * to System → Events, and the rip carries on. A missing subtitle does not make a good rip a bad one.
+   */
+  private async tellBazarr(rip: DiscRip) {
+    const conn = store.settings.bazarr;
+    if (!bazarrConfigured(conn)) return;
+    const kind = rip.media.kind === 'movie' ? 'movie' : rip.media.kind === 'series' ? 'series' : undefined;
+    if (!kind || rip.media.arrId === undefined) return;
+    try {
+      const did = await bazarrHandOff(conn, kind, rip.media.arrId);
+      this.log(rip, `Bazarr told to ${did.join(' then ')} for ${rip.media.title}`);
+    } catch (err) {
+      const why = (err as Error).message;
+      this.log(rip, `Bazarr was not told: ${why}`);
+      appEvents.add('warning', 'Disc ripping', `Bazarr could not be told about ${rip.media.title || rip.label}`, why);
+    }
   }
 
   /**

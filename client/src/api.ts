@@ -88,7 +88,7 @@ export const api = {
   shutdown: () => req<{ shuttingDown: boolean }>('POST', '/api/system/shutdown'),
   restart: () => req<{ restarting: boolean; port: number; urlBase: string }>('POST', '/api/system/restart'),
   authStatus: () => req<{ authentication: 'none' | 'basic' | 'forms'; username?: string }>('GET', '/api/auth/status'),
-  testConnection: (app: 'radarr' | 'sonarr' | 'prowlarr' | 'lidarr' | 'slskd', conn: { url: string; apiKey: string }) => req<{ ok: boolean; version?: string; appName?: string; error?: string }>('POST', `/api/settings/test/${app}`, conn),
+  testConnection: (app: 'radarr' | 'sonarr' | 'prowlarr' | 'lidarr' | 'slskd' | 'bazarr', conn: { url: string; apiKey: string }) => req<{ ok: boolean; version?: string; appName?: string; error?: string }>('POST', `/api/settings/test/${app}`, conn),
   arrOptions: () => req<Record<string, { qualityProfiles: { id: number; name: string }[]; rootFolders: { id: number; path: string }[] }>>('GET', '/api/settings/arr-options'),
 
   profiles: () => req<Profile[]>('GET', '/api/profiles'),

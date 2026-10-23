@@ -695,7 +695,7 @@ function NotificationCard({ value, onChange }: { value: NotificationSettings; on
   );
 }
 
-function ArrCard({ name, label, hint, conn, onChange, placeholder, keyHint, children }: { name: 'radarr' | 'sonarr' | 'prowlarr' | 'lidarr' | 'slskd'; label: string; hint: string; conn: ArrConnection; onChange: (c: ArrConnection) => void; placeholder?: string; keyHint?: string; children?: React.ReactNode }) {
+function ArrCard({ name, label, hint, conn, onChange, placeholder, keyHint, children }: { name: 'radarr' | 'sonarr' | 'prowlarr' | 'lidarr' | 'slskd' | 'bazarr'; label: string; hint: string; conn: ArrConnection; onChange: (c: ArrConnection) => void; placeholder?: string; keyHint?: string; children?: React.ReactNode }) {
   const [test, setTest] = useState<{ ok: boolean; msg: string } | null>(null);
   const [testing, setTesting] = useState(false);
   const [show, setShow] = useState(false);
@@ -1217,6 +1217,20 @@ export function SettingsPage() {
         <ArrCard name="radarr" label="Radarr" hint="movies" conn={s.radarr} onChange={(c) => setS({ ...s, radarr: c })} />
         <ArrCard name="sonarr" label="Sonarr" hint="series & anime" conn={s.sonarr} onChange={(c) => setS({ ...s, sonarr: c })} />
         <ArrCard name="prowlarr" label="Prowlarr" hint="optional raw search" conn={s.prowlarr} onChange={(c) => setS({ ...s, prowlarr: c })} />
+        <ArrCard
+          name="bazarr"
+          label="Bazarr"
+          hint="optional subtitles"
+          conn={s.bazarr}
+          onChange={(c) => setS({ ...s, bazarr: c })}
+          placeholder="http://localhost:6767"
+          keyHint="Bazarr → Settings → General → API Key"
+        >
+          <div className="small dim">
+            When a disc has been imported, Bazarr is told to look at the disk again and search for whatever subtitles are still missing — rather than waiting for its
+            own schedule. It is told, not asked: if Bazarr is down the disc carries on and the reason goes to System → Events.
+          </div>
+        </ArrCard>
         <ArrCard name="lidarr" label="Lidarr" hint="music" conn={s.lidarr} onChange={(c) => setS({ ...s, lidarr: { ...s.lidarr, ...c } })} placeholder="http://localhost:8686">
           <label className="check mt">
             <input type="checkbox" checked={s.lidarr.splitCueImages !== false} onChange={(e) => setS({ ...s, lidarr: { ...s.lidarr, splitCueImages: e.target.checked } })} /> Split “image + cue” downloads for Lidarr

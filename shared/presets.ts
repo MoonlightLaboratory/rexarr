@@ -385,6 +385,7 @@ export const DEFAULT_SETTINGS = {
   radarr: { enabled: false, url: 'http://localhost:7878', apiKey: '' },
   sonarr: { enabled: false, url: 'http://localhost:8989', apiKey: '' },
   prowlarr: { enabled: false, url: 'http://localhost:9696', apiKey: '' },
+  bazarr: { enabled: false, url: 'http://localhost:6767', apiKey: '' },
   lidarr: { enabled: false, url: 'http://localhost:8686', apiKey: '', splitCueImages: true },
   stallTimeoutMinutes: 10,
   preventSleep: true,

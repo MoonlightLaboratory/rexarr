@@ -36,6 +36,7 @@ Everything on these pages is also available as JSON: `GET /api/settings`, `PUT /
 | Radarr | URL, API key | API v3. *Test* verifies it |
 | Sonarr | URL, API key | API v3 |
 | Prowlarr | URL, API key | optional, for raw indexer search |
+| Bazarr | `bazarr` | optional. Told to look at the disk and search for missing subtitles once a disc has been imported, rather than waiting for its own schedule. See [the guide](../guide/disc-ripping.md#subtitles-with-bazarr) |
 | Lidarr | URL, API key, split image + cue downloads | API v1, enables the Music page |
 | slskd | URL, API key, download folder, max peer queue | Soulseek album search |
 | fre:ac | `freaccmd` path | empty = auto-detect |

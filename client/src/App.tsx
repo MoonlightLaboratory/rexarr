@@ -5,6 +5,7 @@ import type { DiscDrive, DiscRip, HealthCheck, Job, Profile, Settings, SmartProf
 import { api } from './api';
 import { useJobs, type Toast } from './hooks/useEvents';
 import { Layout } from './components/Layout';
+import { Shortcuts } from './components/Shortcuts';
 const MoviesPage = lazy(() => import('./pages/Movies').then((m) => ({ default: m.MoviesPage })));
 const MovieDetailPage = lazy(() => import('./pages/MovieDetail').then((m) => ({ default: m.MovieDetailPage })));
 const SeriesPage = lazy(() => import('./pages/Series').then((m) => ({ default: m.SeriesPage })));
@@ -81,6 +82,8 @@ export default function App() {
     <Ctx.Provider value={{ jobs, rips, drives, queuePaused, profiles, smartProfiles, reloadSmartProfiles, settings, health, healthLoaded, reloadHealth, reloadProfiles, reloadSettings, toast }}>
       <BrowserRouter basename={URL_BASE || undefined}>
         <Layout jobs={jobs} rips={rips} drives={drives} health={health} connected={connected} toasts={toasts} toastControls={toastControls}>
+          {/* inside the router, because going somewhere is most of what a shortcut does */}
+          <Shortcuts />
           <Suspense fallback={<div className="pageToolbar" />}>
           <Routes>
             <Route path="/scan" element={<ScanPage />} />

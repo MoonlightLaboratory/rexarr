@@ -73,19 +73,6 @@ A Blu-ray's MVC stream, and a transfer whose aspect ratio changes partway throug
 about and neither is in a filename today. Detecting them and keeping them there — so a player and a human can both
 tell what they have — is mostly a naming and metadata job once the detection is right.
 
-### Bazarr
-
-Rexarr knows a rip has landed and which episode or film it is, which is exactly what Bazarr needs to go looking for
-subtitles. Handing the finished file over, rather than waiting for Bazarr's own scan to notice it, closes the gap
-between a disc going in and the subtitles being there.
-
-*Today:* Bazarr finds it on its next scan.
-
-### Keyboard shortcuts and a command palette
-
-The search box already answers `/` and `Ctrl/Cmd + K`. A palette that goes further — jump to a page, start a rip,
-pause the queue — and shortcuts for what a power user does repeatedly.
-
 ### Data discs as ISO backups
 
 A disc that is neither video nor audio is currently ignored. Copying it to an `.iso` next to the rips — the way

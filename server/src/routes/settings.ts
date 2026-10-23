@@ -8,6 +8,7 @@ import { DEFAULT_SETTINGS } from '../../../shared/presets.js';
 import { Radarr } from '../arr/radarr.js';
 import { Sonarr } from '../arr/sonarr.js';
 import { Prowlarr } from '../arr/prowlarr.js';
+import { testBazarr } from '../arr/bazarr.js';
 import { Lidarr } from '../arr/lidarr.js';
 import { scan as scanLocal } from '../library/local.js';
 import { Slskd } from '../arr/slskd.js';
@@ -132,6 +133,7 @@ export const settingsSchema = z.object({
   radarr: conn,
   sonarr: conn,
   prowlarr: conn,
+  bazarr: conn,
   lidarr: conn.extend({ splitCueImages: z.boolean().optional() }).default({ enabled: false, url: 'http://localhost:8686', apiKey: '', splitCueImages: true }),
   slskd: z
     .object({ enabled: z.boolean(), url: z.string(), apiKey: z.string(), downloadsPath: z.string().default(''), maxQueueLength: z.number().int().min(0).max(10000).default(50), searchTimeoutSeconds: z.number().int().min(5).max(60).default(15) })
@@ -201,9 +203,14 @@ export const settingsSchema = z.object({
   searchDiscReleases: z.boolean().default(true),
 });
 
-export async function testConnection(name: 'radarr' | 'sonarr' | 'prowlarr' | 'lidarr' | 'slskd', c: { url: string; apiKey: string; enabled: boolean }): Promise<ArrStatus> {
+export async function testConnection(name: 'radarr' | 'sonarr' | 'prowlarr' | 'lidarr' | 'slskd' | 'bazarr', c: { url: string; apiKey: string; enabled: boolean }): Promise<ArrStatus> {
   const configured = Boolean(c.url && c.apiKey);
   if (!configured) return { name, configured: false, ok: false, error: 'URL or API key missing' };
+  // Bazarr is not an *arr: it has its own API shape, so it answers for itself rather than through ArrHttp
+  if (name === 'bazarr') {
+    const r = await testBazarr({ ...c, enabled: true });
+    return { name, configured: true, ok: r.ok, version: r.version, error: r.error };
+  }
   try {
     const on = { ...c, enabled: true };
     const client = name === 'radarr' ? new Radarr(on) : name === 'sonarr' ? new Sonarr(on) : name === 'lidarr' ? new Lidarr(on) : name === 'slskd' ? new Slskd({ ...store.settings.slskd, ...on }) : new Prowlarr(on);
@@ -291,9 +298,9 @@ export default async function settingsRoutes(app: FastifyInstance) {
     return { restarting: true, port: h.port, urlBase: h.urlBase };
   });
 
-  app.post<{ Params: { app: 'radarr' | 'sonarr' | 'prowlarr' | 'lidarr' | 'slskd' } }>('/api/settings/test/:app', async (req, reply) => {
+  app.post<{ Params: { app: 'radarr' | 'sonarr' | 'prowlarr' | 'lidarr' | 'slskd' | 'bazarr' } }>('/api/settings/test/:app', async (req, reply) => {
     const name = req.params.app;
-    if (!['radarr', 'sonarr', 'prowlarr', 'lidarr', 'slskd'].includes(name)) return reply.code(404).send({ error: 'unknown app' });
+    if (!['radarr', 'sonarr', 'prowlarr', 'lidarr', 'slskd', 'bazarr'].includes(name)) return reply.code(404).send({ error: 'unknown app' });
     const body = conn.partial().safeParse(req.body ?? {});
     const c = { ...store.settings[name], ...(body.success ? body.data : {}) };
     return testConnection(name, c);

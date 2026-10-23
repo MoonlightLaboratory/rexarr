@@ -371,6 +371,19 @@ When a rip finishes, Rexarr:
 
     Fix the mapping and the files can still be imported — the rip then goes back to *done*.
 
+### Subtitles with Bazarr
+
+With **Settings → Connections → Bazarr** filled in, a disc that has just been imported is handed straight to
+Bazarr: look at the disk again, because the file is new, then search for whatever subtitles are still missing.
+Without it, Bazarr finds the file when its own schedule next comes round.
+
+Rexarr already knows the two things Bazarr needs — whether this was a film or a series, and its Radarr or Sonarr
+id — because that is what it just handed the files to.
+
+Bazarr is told, not asked. One that is down, misconfigured or answering something unexpected is written to the
+disc's log and to **System → Events**, and the rip carries on: a missing subtitle does not make a good rip a bad
+one.
+
 ### Importing what is left in the rip folder
 
 **Import finished rips automatically** (on by default) hands anything still sitting in the rip folder to Radarr and

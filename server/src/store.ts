@@ -61,6 +61,7 @@ settingsP.value = {
   radarr: { ...DEFAULT_SETTINGS.radarr, ...(settingsP.value.radarr ?? {}) },
   sonarr: { ...DEFAULT_SETTINGS.sonarr, ...(settingsP.value.sonarr ?? {}) },
   prowlarr: { ...DEFAULT_SETTINGS.prowlarr, ...(settingsP.value.prowlarr ?? {}) },
+  bazarr: { ...DEFAULT_SETTINGS.bazarr, ...(settingsP.value.bazarr ?? {}) },
   lidarr: { ...DEFAULT_SETTINGS.lidarr, ...(settingsP.value.lidarr ?? {}) },
   slskd: { ...DEFAULT_SETTINGS.slskd, ...(settingsP.value.slskd ?? {}) },
   localMedia: { ...DEFAULT_SETTINGS.localMedia, ...(settingsP.value.localMedia ?? {}) },

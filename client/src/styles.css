@@ -1483,3 +1483,9 @@ table.metaTags td.mono { word-break: break-word; }
   .batch-row > :nth-child(3) { display: none; }
   .batch-row > :nth-child(7) { width: 72px; }
 }
+
+/* The keyboard shortcut list: two columns so the keys line up down the page rather than sitting against labels
+   of every width. */
+.shortcutList { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; align-items: center; }
+.shortcutRow { display: contents; }
+.shortcutRow > kbd { justify-self: start; padding: 2px 7px; border: 1px solid var(--borderColor); border-bottom-width: 2px; border-radius: 4px; background: var(--inputBackgroundColor, rgba(127, 127, 127, 0.12)); font-family: inherit; font-size: 12px; white-space: nowrap; }
