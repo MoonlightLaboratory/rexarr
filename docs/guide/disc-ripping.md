@@ -177,6 +177,23 @@ and the match says what it ignored; dropping words always loses to a match on th
 words have to survive, so *Anime Limited* on its own matches nothing. Rexarr cannot tell how many episodes were on the earlier discs of a set, so the page says so and asks you
 to set **First ep.** rather than quietly numbering from 1.
 
+### Labels that are not English
+
+A volume label cannot hold much: no accents, no spaces, often only capitals. So a disc of *Für immer* is pressed
+as `FUER_IMMER` or `FUR_IMMER` depending on the plant, and *Das weiße Band* as `DAS_WEISSE_BAND`. Both spellings
+are tried against the library — the one with the umlaut written out and the one with it dropped — so either kind
+of disc finds its title. Contracting runs only in that direction on purpose: turning `ue` back into `ü` would
+make *Queen* into *Qun*.
+
+Japanese, Korean and Chinese labels are matched as themselves. They were not matched at all before — the
+matching kept only `a-z0-9` and everything else fell on the floor, so two identical Japanese titles scored
+nothing against each other. Romaji with macrons (*Jūjutsu Kaisen* against `JUJUTSU_KAISEN`) already worked and
+still does.
+
+A trailing bare number is left in the title rather than read as a disc — `NARUTO_01` is *Naruto 01* — because it
+is as often a sequel as a volume. `D1`, `DISC_1`, `PART_2`, `VOL_01` and `S2_P1` are all read as the disc and
+season they are.
+
 ### RexDB
 
 Before any of that, Rexarr asks [RexDB](https://moonlightlaboratory.github.io/rexarr/rexdb/) — a shared, public

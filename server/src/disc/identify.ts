@@ -10,14 +10,45 @@ const STOP = new Set(['the', 'a', 'an', 'of', 'and', 'wa', 'no', 'ga', 'wo', 'to
 /** Words a disc label can consist of without saying anything about the title ("MOVIE_DISC", "SEASON 1 BOX"). */
 const GENERIC = new Set(['movie', 'movies', 'film', 'video', 'season', 'series', 'show', 'volume', 'vol', 'box', 'set', 'collection', 'complete', 'special', 'specials', 'bonus', 'extra', 'extras', 'sample', 'title', 'untitled', 'new', 'part', 'side']);
 
+/**
+ * Japanese, Korean and Chinese write without spaces, so a run of them is one token. Without this they were not
+ * tokens at all: the split below keeps a-z0-9, and everything else fell on the floor - two identical Japanese
+ * titles scored zero against each other.
+ *
+ * The Jamo ranges are here because NFKD takes Korean apart: 기 becomes three conjoining letters in U+1100, not
+ * the syllable in U+AC00 that it started as. Both sides come apart the same way, so they still match.
+ */
+const SCRIPT = /[\u1100-\u11ff\u3040-\u30ff\u3130-\u318f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]+/g;
+
+/** The German sharp s has no decomposition, so NFKD leaves it and the split then drops it: "Straße" → stra, e. */
+const SHARP_S = /ß/g;
+
+function split(folded: string): string[] {
+  const scripts = folded.match(SCRIPT) ?? [];
+  const latin = folded.replace(SCRIPT, ' ').split(/[^a-z0-9]+/);
+  return [...latin, ...scripts].filter((t) => t && !STOP.has(t));
+}
+
 export function tokens(s: string): string[] {
-  return s
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
+  return split(s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(SHARP_S, 'ss').replace(/&/g, ' and '));
+}
+
+/**
+ * The same words, with German umlauts written out.
+ *
+ * A disc label cannot hold an umlaut, so the pressing plant either dropped it ("FUR IMMER") or wrote the digraph
+ * ("FUER IMMER"). Folding, which is what `tokens` does, matches the first and not the second. Expanding matches
+ * the second and not the first, so both forms are produced and the better match counts - rather than contracting
+ * "ue" back to "u" on the label, which would turn Queen into Qun.
+ */
+export function tokensExpanded(s: string): string[] {
+  const expanded = s
     .toLowerCase()
-    .replace(/&/g, ' and ')
-    .split(/[^a-z0-9]+/)
-    .filter((t) => t && !STOP.has(t));
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(SHARP_S, 'ss');
+  return split(expanded.normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, ' and '));
 }
 
 /**
@@ -25,8 +56,15 @@ export function tokens(s: string): string[] {
  * usually a shortened title), with a small penalty for names that are much longer.
  */
 export function nameScore(term: string, name: string): number {
-  const a = tokens(term);
-  const b = tokens(name);
+  const folded = score(tokens(term), tokens(name));
+  // only worth a second look when writing the umlauts out changes anything
+  const ea = tokensExpanded(term);
+  const eb = tokensExpanded(name);
+  const expanded = ea.join(' ') === tokens(term).join(' ') && eb.join(' ') === tokens(name).join(' ') ? 0 : score(ea, eb);
+  return Math.max(folded, expanded);
+}
+
+function score(a: string[], b: string[]): number {
   if (!a.length || !b.length) return 0;
   // a label that is only generic words ("MOVIE DISC") says nothing about which title it is
   if (a.every((t) => GENERIC.has(t))) return 0;

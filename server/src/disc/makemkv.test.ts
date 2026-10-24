@@ -603,3 +603,34 @@ test('a Blu-ray that gave nothing says what the drive can read', () => {
   assert.match(plain, /MakeMKV key/);
   assert.doesNotMatch(plain, /reads DVDs only/);
 });
+
+test('a disc label that is not English still matches its title', () => {
+  // A pressing plant cannot put an umlaut on a volume label, so it either drops it or writes the digraph.
+  // Folding matches the first; expanding matches the second; both are tried so both kinds of disc work.
+  assert.equal(nameScore('FUR_IMMER', 'Für immer'), 1);
+  assert.equal(nameScore('FUER_IMMER', 'Für immer'), 1);
+  assert.equal(nameScore('OEDIPUS', 'Ödipus'), 1);
+
+  // ß has no decomposition, so NFKD left it and the split then threw it away: "Straße" became stra + e
+  assert.equal(nameScore('STRASSE', 'Straße'), 1);
+  assert.equal(nameScore('DAS_WEISSE_BAND', 'Das weiße Band'), 1);
+
+  // expanding must not run the other way: contracting "ue" back to "u" would turn Queen into Qun
+  assert.equal(nameScore('QUEEN', 'Queen'), 1);
+  assert.equal(nameScore('QUEEN', 'Qun'), 0);
+
+  // Japanese, Korean and Chinese were not tokens at all - the split keeps a-z0-9 and dropped the rest, so two
+  // identical titles scored nothing against each other
+  assert.equal(nameScore('新世紀エヴァンゲリオン', '新世紀エヴァンゲリオン'), 1);
+  assert.equal(nameScore('기생충', '기생충'), 1);
+  assert.equal(nameScore('오징어_게임', '오징어 게임'), 1, 'a label separates with underscores where the title has a space');
+  assert.equal(nameScore('千と千尋の神隠し', '千と千尋の神隠し'), 1);
+
+  // and different titles still do not match, in any script
+  assert.equal(nameScore('기생충', '寄生虫'), 0);
+  assert.equal(nameScore('新世紀エヴァンゲリオン', '千と千尋の神隠し'), 0);
+
+  // romaji with macrons already worked through NFKD, and must keep working
+  assert.equal(nameScore('JUJUTSU_KAISEN', 'Jūjutsu Kaisen'), 1);
+  assert.equal(nameScore('TOKYO_GODFATHERS', 'Tōkyō Godfathers'), 1);
+});
