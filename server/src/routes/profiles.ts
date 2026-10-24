@@ -69,6 +69,7 @@ const profileSchema = z.object({
     notifyArr: z.boolean().default(true),
     renameTokens: z.boolean().default(true),
     cleanMetadata: z.boolean().default(true),
+    multiVersion: z.boolean().default(false),
   }),
 });
 
@@ -123,7 +124,7 @@ const smartAssignmentSchema = z.object({
     'video.encoder', 'video.quality', 'video.preset', 'video.tune', 'video.maxHeight', 'video.crop', 'video.pixelFormat', 'video.hdrPassthrough', 'video.bitrate', 'video.hwMode', 'video.extraArgs',
     'audio.encoder', 'audio.bitrate', 'audio.channels', 'audio.languages', 'audio.perLanguage', 'audio.firstMatchOnly', 'audio.dropCommentary',
     'subtitles.mode', 'subtitles.languages', 'subtitles.burnLanguage', 'subtitles.burnForcedOnly', 'subtitles.keepFonts', 'subtitles.bitmapMode',
-    'output.suffix', 'output.directory', 'output.replaceOriginal', 'output.renameTokens', 'output.cleanMetadata', 'output.notifyArr',
+    'output.suffix', 'output.directory', 'output.replaceOriginal', 'output.renameTokens', 'output.cleanMetadata', 'output.multiVersion', 'output.notifyArr',
   ]),
   value: z.union([z.string().max(400), z.number(), z.boolean(), z.array(z.string().max(20)).max(40)]),
 });

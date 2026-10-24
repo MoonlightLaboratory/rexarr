@@ -183,6 +183,12 @@ export interface OutputSettings {
   renameTokens: boolean;
   /** Write clean metadata: file title, track titles ("English · Opus 5.1"), default track, no stale source tags. */
   cleanMetadata: boolean;
+  /**
+   * Name the output so Plex and Jellyfin show it as one of several versions of the same item rather than as a
+   * film of its own: a folder named after the title, and inside it "Title - 2160p HEVC.mkv". Off by default,
+   * because it moves the file somewhere other than where the rest of your naming expects it.
+   */
+  multiVersion?: boolean;
 }
 
 export interface Profile {
@@ -287,6 +293,7 @@ export type SmartSettingPath =
   | 'output.replaceOriginal'
   | 'output.renameTokens'
   | 'output.cleanMetadata'
+  | 'output.multiVersion'
   | 'output.notifyArr';
 
 export interface SmartRule {

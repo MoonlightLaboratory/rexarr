@@ -37,6 +37,7 @@ const baseOutput: OutputSettings = {
   suffix: '',
   renameTokens: true,
   cleanMetadata: true,
+  multiVersion: false,
   replaceOriginal: false,
   notifyArr: true,
 };

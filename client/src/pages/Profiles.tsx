@@ -510,6 +510,14 @@ function ProfileEditor({ initial, caps, onClose, onSaved }: { initial: Profile; 
           <label className="check mb">
             <input type="checkbox" checked={p.output.cleanMetadata !== false} onChange={(e) => updO('cleanMetadata', e.target.checked)} /> Write clean metadata: <span className="dim">file title, “English · Opus 5.1” track names, default track, no stale source tags</span>
           </label>
+          <label className="check">
+            <input type="checkbox" checked={p.output.multiVersion === true} onChange={(e) => updO('multiVersion', e.target.checked)} /> Name as a version of the same item{' '}
+            <span className="dim">for Plex and Jellyfin</span>
+          </label>
+          <div className="small dim mb" style={{ marginLeft: 24 }}>
+            Writes <code>Blade Runner 2049 (2017)/Blade Runner 2049 (2017) - 2160p HEVC.mkv</code>, so a 4K and a 1080p encode show as two versions of one film instead of two films. Off by default: it
+            puts the file somewhere other than the rest of your naming expects.
+          </div>
           <label className="check mb">
             <input type="checkbox" checked={p.output.replaceOriginal} onChange={(e) => updO('replaceOriginal', e.target.checked)} /> Replace the original remux after a successful encode (deletes the source file)
           </label>
@@ -567,7 +575,7 @@ function blankProfile(): Profile {
     video: { encoder: 'libx265', quality: 20, preset: 'slow', pixelFormat: 'yuv420p10le', tune: 'none', maxHeight: 0, hdrPassthrough: true, bitrate: 0, extraArgs: '', hwMode: 'auto' },
     audio: { encoder: 'copy', bitrate: 0, channels: 0, languages: [], perLanguage: 'all', dropCommentary: true },
     subtitles: { mode: 'copy', languages: [], burnLanguage: '', burnForcedOnly: false, keepFonts: true, bitmapMode: 'keep' },
-    output: { directory: '', suffix: '', renameTokens: true, cleanMetadata: true, replaceOriginal: false, notifyArr: true },
+    output: { directory: '', suffix: '', renameTokens: true, cleanMetadata: true, multiVersion: false, replaceOriginal: false, notifyArr: true },
     createdAt: '',
     updatedAt: '',
   };

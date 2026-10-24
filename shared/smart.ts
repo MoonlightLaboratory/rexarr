@@ -307,6 +307,9 @@ export function assign(profile: Profile, a: SmartAssignment): void {
     case 'output.cleanMetadata':
       profile.output.cleanMetadata = Boolean(a.value);
       break;
+    case 'output.multiVersion':
+      profile.output.multiVersion = Boolean(a.value);
+      break;
     case 'output.notifyArr':
       profile.output.notifyArr = Boolean(a.value);
       break;
@@ -448,6 +451,7 @@ export const SMART_SETTINGS: SmartSettingInfo[] = [
   { path: 'output.replaceOriginal', group: 'Output', label: 'Replace the original', kind: 'boolean' },
   { path: 'output.renameTokens', group: 'Output', label: 'Rename from the profile tokens', kind: 'boolean' },
   { path: 'output.cleanMetadata', group: 'Output', label: 'Clean metadata', kind: 'boolean' },
+  { path: 'output.multiVersion', group: 'Output', label: 'Name as a version (Plex/Jellyfin)', kind: 'boolean' },
   { path: 'output.notifyArr', group: 'Output', label: 'Tell Radarr / Sonarr', kind: 'boolean' },
 ];
 

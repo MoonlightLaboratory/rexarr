@@ -6,6 +6,7 @@ import { isTextSubtitle, streamLanguage, streamTitle, type ProbeResult, type Pro
 import { audioQuality } from '../disc/audio.js';
 import { isBitmapSubtitle } from './ocr.js';
 import { cropFilter, type CropBox } from './crop.js';
+import { versionPath } from './versions.js';
 import { audioTrackTitle, describeEncode, languageName, planAudio, renameForEncode, videoTrackTitle, type EncodeDescription, type MetadataContext } from './naming.js';
 
 export interface BuildResult {
@@ -530,6 +531,16 @@ export function outputPathFor(profile: Profile, input: string, description?: Enc
   const original = path.basename(input, path.extname(input));
   const base = description && profile.output.renameTokens !== false ? renameForEncode(original, description) || original : original;
   const suffix = profile.output.suffix ?? '';
+  // Versions of one film live in a folder named after it, one file each. Only with a description: without one
+  // there is nothing to tell the versions apart by, and two encodes would land on the same name.
+  if (profile.output.multiVersion && description) {
+    const v = versionPath(original, description);
+    if (v) {
+      const folder = path.join(dir, v.folder);
+      const candidate = path.join(folder, `${v.name}${suffix}.${ext}`);
+      if (opts.replacingInput || path.resolve(candidate) !== path.resolve(input)) return candidate;
+    }
+  }
   let candidate = path.join(dir, `${base}${suffix}.${ext}`);
   // Never write over the input file directly; we swap after success when replaceOriginal is set.
   if (!opts.replacingInput && path.resolve(candidate) === path.resolve(input)) candidate = path.join(dir, `${base}${suffix || '.rexarr'}.${ext}`);

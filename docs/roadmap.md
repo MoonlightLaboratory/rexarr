@@ -72,6 +72,36 @@ detect that there are no titles, read the disc, verify the copy, and name it som
 
 *Today:* back it up with MakeMKV's own backup mode, `dd`, or ARM.
 
+### Disc menus
+
+Keeping a disc's menu — as a looping video or a few stills — so the shelf has something of the object on it, not
+only the film.
+
+What makes this hard is the discs themselves. MakeMKV does not rip menus at all, so a DVD's would have to be read
+straight out of `VIDEO_TS` with something else; and a Blu-ray's menu is not video but a BD-J application — a Java
+program drawing itself — which cannot be archived as a loop in any meaningful sense. So the honest version of
+this is DVD-only and still only a picture of a menu, with the "virtual disc" part of it a page of its own in the
+UI. Worth doing one day; worth being clear that it is not the same thing as the menu working.
+
+*Today:* MakeMKV's backup mode keeps the whole disc, menus and all, and a player that reads the folder will play
+them properly.
+
+### Subtitles when the disc has none
+
+Pulling a missing language from OpenSubtitles and shifting it onto the disc's timing with ffsubsync or alass.
+
+The reason this has not been built is that **[Bazarr](guide/disc-ripping.md#subtitles-with-bazarr) already does
+exactly this, properly** — several providers rather than one, scoring, upgrades, per-language rules — and Rexarr
+now tells it about a disc the moment the disc is imported. A second subtitle sourcer inside Rexarr would be a
+worse one, and would need its own OpenSubtitles account, its own rate limiting, and ffsubsync or alass installed
+besides.
+
+Where it might still earn a place: the disc knows things Bazarr does not. Which languages were on it, which are
+forced, and the exact runtime of the title that was ripped are all better sync anchors than a file on disk. Handing
+*that* to Bazarr, rather than duplicating it, is the version of this idea worth building.
+
+*Today:* set up Bazarr and fill in **Settings → Connections → Bazarr**.
+
 ## Small
 
 ### A warning when a drive cannot read UHD discs

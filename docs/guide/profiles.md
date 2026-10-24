@@ -115,6 +115,27 @@ came from.
 | **Rename for the encode** | rewrite release tokens in the name so it no longer claims to be a remux |
 | **Write clean metadata** | file title, track titles, default track, no stale source tags |
 
+### Two versions of one film
+
+**Name as a version of the same item**, in a profile's Output section, writes the encode where Plex and Jellyfin
+both look for alternate versions:
+
+```
+Blade Runner 2049 (2017)/
+  Blade Runner 2049 (2017) - 2160p HEVC.mkv
+  Blade Runner 2049 (2017) - 1080p HEVC.mkv
+```
+
+A folder named after the film, one file per version, the version after a dash. Both servers then show one film
+with two versions to choose from, rather than two films that happen to share a name.
+
+**It is off by default**, because it puts the file somewhere other than the rest of your naming expects — in
+particular, Radarr and Sonarr do their own renaming on import and will move it again.
+
+The title is read back out of the file name: a year in brackets is where a title reliably ends, and without one
+the recognised release tokens are removed. A name that is nothing but tokens is left alone rather than guessed
+at, because a wrong title here files the encode under a heading of its own, which is the opposite of the point.
+
 ## Built-in presets
 
 | Video | Music |
