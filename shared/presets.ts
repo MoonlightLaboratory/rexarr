@@ -9,6 +9,7 @@ const baseVideo: VideoSettings = {
   pixelFormat: 'yuv420p10le',
   tune: 'none',
   maxHeight: 0,
+  crop: 'off',
   hdrPassthrough: true,
   bitrate: 0,
   extraArgs: '',

@@ -572,7 +572,7 @@ function blankProfile(): Profile {
     builtin: false,
     mediaType: 'any',
     container: 'mkv',
-    video: { encoder: 'libx265', quality: 20, preset: 'slow', pixelFormat: 'yuv420p10le', tune: 'none', maxHeight: 0, hdrPassthrough: true, bitrate: 0, extraArgs: '', hwMode: 'auto' },
+    video: { encoder: 'libx265', quality: 20, preset: 'slow', pixelFormat: 'yuv420p10le', tune: 'none', maxHeight: 0, crop: 'off', hdrPassthrough: true, bitrate: 0, extraArgs: '', hwMode: 'auto' },
     audio: { encoder: 'copy', bitrate: 0, channels: 0, languages: [], perLanguage: 'all', dropCommentary: true },
     subtitles: { mode: 'copy', languages: [], burnLanguage: '', burnForcedOnly: false, keepFonts: true, bitmapMode: 'keep' },
     output: { directory: '', suffix: '', renameTokens: true, cleanMetadata: true, multiVersion: false, replaceOriginal: false, notifyArr: true },
