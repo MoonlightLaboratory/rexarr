@@ -215,6 +215,16 @@ function DriveRow({ d, rip, onEject, onRemove, onReadCd, onSwap, busy }: { d: Di
         </span>
       )}
       {d.available === false && !d.auto && <span className="badge red">{d.manualId ? 'device not found' : 'file missing'}</span>}
+      {d.reads === 'dvd' && (
+        <span className="badge" title="MakeMKV names this drive after the best format it writes, and there is no Blu-ray in it – so it cannot read a Blu-ray or a 4K UHD disc at all.">
+          DVD only
+        </span>
+      )}
+      {d.reads === 'bluray' && (
+        <span className="badge" title="Reads Blu-ray. Whether it also reads 4K UHD depends on its firmware, which cannot be told from here – forum.makemkv.com keeps the list of drives that do.">
+          Blu-ray
+        </span>
+      )}
       {d.awaiting && (
         <span className="badge blue" title={`Put disc ${d.awaiting.discNumber} of ${d.awaiting.batchName} in this drive`}>
           Waiting for Disc {d.awaiting.discNumber} of {d.awaiting.batchName}

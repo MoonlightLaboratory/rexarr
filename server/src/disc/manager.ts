@@ -667,6 +667,7 @@ export class DiscManager {
           rip.scanMinSeconds,
           plain ? { count: plain.titles.length, longestSeconds: Math.max(0, ...plain.titles.map((t) => t.durationSeconds)) } : null,
           [...(info.messages ?? []), ...(plain?.messages ?? [])],
+          { driveName: rip.driveName, discType: info.type },
         );
         this.log(rip, rip.scanNote);
       }

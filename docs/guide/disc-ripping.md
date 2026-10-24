@@ -104,6 +104,22 @@ In Docker, pass **both nodes of each drive**: `--device /dev/sr0 --device /dev/s
 /dev/sg1`. Drives on the same USB bus share its bandwidth, so two rips from one hub are slower than two from
 separate ports.
 
+### What a drive can read
+
+Each drive is labelled with the best format it reads — **DVD only** or **Blu-ray** — taken from the name MakeMKV
+gives it, which is the format the drive writes.
+
+That settles one question and not another:
+
+- **A drive with no Blu-ray in its name cannot read a Blu-ray at all**, never mind a 4K UHD one. When a Blu-ray
+  gives no titles in a DVD drive, Rexarr says so outright rather than listing the usual causes — no MakeMKV key
+  or firmware will make a DVD drive read a Blu-ray.
+- **Whether a Blu-ray drive also reads 4K UHD depends on its firmware**, and nothing in the drive's name says.
+  Most cannot; the ones that can are usually on a deliberately older version. So Rexarr names UHD as the likely
+  reason when a Blu-ray gives nothing and points at [MakeMKV's forum](https://forum.makemkv.com/), which keeps
+  the list of which drives work — it does not guess from the model, because a wrong "your drive cannot do this"
+  stops you trying the thing that would have worked.
+
 ### Drives that come and go
 
 Two USB optical drives are more than a bus-powered hub can feed. A drive short of power does not fail cleanly: it

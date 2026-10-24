@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import { promisify } from 'node:util';
 import { toolError } from '../spawnError.js';
 import { codecRank } from './audio.js';
+import { driveNote, driveReads } from './capability.js';
 import type { DiscAudioTrack, DiscDrive, DiscTitle, DriveState, MakemkvInfo } from '../../../shared/types.js';
 
 const run = promisify(execFile);
@@ -108,7 +109,7 @@ export function parseDrives(stdout: string): DiscDrive[] {
     // move. Only a POSIX node is usable this way: Windows has drive letters here, where the index is all there is.
     const source = device.startsWith('/') ? `dev:${device}` : `disc:${index}`;
     if (!device && !f[4]) continue; // no device and no model: not a drive worth showing
-    drives.push({ index, state: driveState(state), name: f[4], discLabel: f[5] || undefined, path: device, source });
+    drives.push({ index, state: driveState(state), name: f[4], discLabel: f[5] || undefined, path: device, source, reads: driveReads(f[4] ?? '') });
   }
   // One drive can appear twice in a listing - once with its disc and device, once as an empty slot of the same
   // model - while MakeMKV is still working out what it has. The entry that names a device is the real one.
@@ -303,7 +304,13 @@ export async function readDisc(makemkv: string, source: string, minLengthSeconds
  * What to tell the user when a scan comes back with nothing. "All shorter than the minimum?" was a guess;
  * re-reading the disc with no minimum says which of the two it actually is.
  */
-export function emptyScanNote(source: string, minSeconds: number, withoutMinimum: { count: number; longestSeconds: number } | null, messages: string[] = []): string {
+export function emptyScanNote(
+  source: string,
+  minSeconds: number,
+  withoutMinimum: { count: number; longestSeconds: number } | null,
+  messages: string[] = [],
+  disc?: { driveName?: string; discType?: 'bluray' | 'dvd' | 'cd' | 'unknown' },
+): string {
   const where = `MakeMKV read ${source}`;
   // MakeMKV's own words beat anything we can guess - a drive that cannot decrypt says so here
   const said = lastRealMessage(messages);
@@ -313,9 +320,18 @@ export function emptyScanNote(source: string, minSeconds: number, withoutMinimum
     const longest = withoutMinimum.longestSeconds >= 60 ? `${Math.round(withoutMinimum.longestSeconds / 60)} min` : `${withoutMinimum.longestSeconds}s`;
     return `${where} and found ${withoutMinimum.count} title(s), but none reached the ${minSeconds}s minimum – the longest is ${longest}. Lower “Minimum title length” in Settings → Disc ripping, or tick “Include extras and specials”.`;
   }
+  // What the drive itself can read comes first when it explains the whole thing: a Blu-ray in a DVD drive is not
+  // a key problem, and sending someone to buy a key for it wastes their evening.
+  const aboutTheDrive = driveNote({ name: disc?.driveName ?? '' }, disc?.discType ?? 'unknown');
+  const head = `${where} and found no titles at all, even with no minimum length.${quote}`;
+  // A decisive answer stands alone: listing the other causes after "no key will help" only sends someone after
+  // one of them. With nothing known about the drive, the general answer stands as it always has.
+  if (aboutTheDrive?.decisive) return `${head} ${aboutTheDrive.text}`;
+  const firmware = aboutTheDrive ? '' : `a drive whose firmware cannot decrypt the disc (makemkv.com's forum keeps a list), `;
   return (
-    `${where} and found no titles at all, even with no minimum length.${quote} Usually that is the MakeMKV key (Blu-ray needs a registered or current beta key), ` +
-    `a drive whose firmware cannot decrypt the disc (makemkv.com's forum keeps a list), or – in Docker – the drive's own /dev/sg node not being passed through alongside /dev/sr0.`
+    `${head} ` +
+    (aboutTheDrive ? `${aboutTheDrive.text} Otherwise: ` : 'Usually that is ') +
+    `the MakeMKV key (Blu-ray needs a registered or current beta key), ${firmware}or – in Docker – the drive's own /dev/sg node not being passed through alongside /dev/sr0.`
   );
 }
 

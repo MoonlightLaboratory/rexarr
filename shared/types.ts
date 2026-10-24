@@ -1623,6 +1623,11 @@ export interface DiscDrive {
    * than saved: a drive that is waiting is waiting for someone standing at it, not across a restart.
    */
   awaiting?: { batchId: string; batchName: string; discNumber: number };
+  /**
+   * The best format the drive reads, from the name MakeMKV gives it. Whether a Blu-ray drive also reads UHD is
+   * a matter of firmware and is not knowable from here.
+   */
+  reads?: 'bluray' | 'dvd' | 'cd' | 'unknown';
 }
 
 /** A real optical drive added by device path. */

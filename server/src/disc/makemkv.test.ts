@@ -30,7 +30,7 @@ test('parseDrives maps states and skips absent drives', () => {
   assert.equal(out.length, 2);
   // the source is the device node, not disc:0 - MakeMKV's index is a slot in this one listing, and a drive missing
   // from the next listing shifts the slots, so a stored index can open a different drive (see the test below)
-  assert.deepEqual(out[0], { index: 0, state: 'loaded', name: 'BD-RE HL-DT-ST BD-RE  WH16NS40 1.02', discLabel: 'BLADE_RUNNER_2049', path: '/dev/rdisk4', source: 'dev:/dev/rdisk4' });
+  assert.deepEqual(out[0], { index: 0, state: 'loaded', name: 'BD-RE HL-DT-ST BD-RE  WH16NS40 1.02', discLabel: 'BLADE_RUNNER_2049', path: '/dev/rdisk4', source: 'dev:/dev/rdisk4', reads: 'bluray' });
   assert.equal(out[1].state, 'empty');
   assert.equal(out[1].discLabel, undefined);
 });
@@ -580,4 +580,26 @@ test('one drive listed twice is one drive', () => {
     ['DRV:0,0,999,0,"DVD+R-DL HL-DT-ST DVDRAM GT50N","",""', 'DRV:1,0,999,0,"DVD+R-DL TSSTcorp TS-L633J","",""'].join('\n'),
   );
   assert.equal(empties.length, 2);
+});
+
+test('a Blu-ray that gave nothing says what the drive can read', () => {
+  // a Blu-ray in a DVD drive: no key will fix it, and saying "buy a key" wastes someone's evening
+  const dvdDrive = emptyScanNote('disc:0', 600, { count: 0, longestSeconds: 0 }, [], {
+    driveName: 'DVD+R-DL HL-DT-ST DVDRAM GT50N',
+    discType: 'bluray',
+  });
+  assert.match(dvdDrive, /reads DVDs only/);
+
+  // a Blu-ray drive that still gave nothing: UHD is the usual reason and it is a firmware matter, not a claim
+  const bdDrive = emptyScanNote('disc:0', 600, { count: 0, longestSeconds: 0 }, [], {
+    driveName: 'BD-RE HL-DT-ST WH16NS40',
+    discType: 'bluray',
+  });
+  assert.match(bdDrive, /4K UHD/);
+  assert.match(bdDrive, /forum\.makemkv\.com/);
+
+  // and with no drive to go on it reads as it always did
+  const plain = emptyScanNote('disc:0', 600, { count: 0, longestSeconds: 0 });
+  assert.match(plain, /MakeMKV key/);
+  assert.doesNotMatch(plain, /reads DVDs only/);
 });

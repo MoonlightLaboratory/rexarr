@@ -104,12 +104,6 @@ forced, and the exact runtime of the title that was ripped are all better sync a
 
 ## Small
 
-### A warning when a drive cannot read UHD discs
-
-Most drives cannot read a UHD Blu-ray at all, and the ones that can usually need particular firmware. Rexarr knows
-the drive's model, so it could say so when a UHD disc goes into a drive that will not read it, instead of letting
-the read fail and leaving you to work out why — with a link to the drive list MakeMKV's forum keeps.
-
 ### Naming that suits Plex and Jellyfin better
 
 Ripped files are named one fixed way — `Naruto - S01E05 - DVD.mkv`, with extras in an `Extras` folder beside the
