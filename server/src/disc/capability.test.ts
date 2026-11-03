@@ -37,3 +37,16 @@ test('the drive is only blamed when it is the likely reason', () => {
   assert.equal(driveNote({ name: 'BD-RE HL-DT-ST' }, 'dvd'), undefined);
   assert.equal(driveNote(undefined, 'bluray'), undefined, 'an unknown drive is not evidence');
 });
+
+test('a drive Rexarr found itself is classified too', () => {
+  // These come from drutil rather than MakeMKV, so they are named differently - and they are the drives where
+  // this matters most, because MakeMKV not listing one is exactly when nothing else will say what it is.
+  assert.equal(driveReads('HL-DT-ST DVDRAM GT50N'), 'dvd');
+  assert.equal(driveReads('TSSTcorp DVD+-RW TS-L633J'), 'dvd');
+  assert.equal(driveReads('HL-DT-ST BD-RE WH16NS40'), 'bluray');
+
+  // a model with no format in its name says nothing rather than guessing: ASUS calls its Blu-ray writers BW-,
+  // and inferring from a prefix like that is how you end up telling someone their drive cannot do what it can
+  assert.equal(driveReads('ASUS BW-16D1HT'), 'unknown');
+  assert.equal(driveReads('sr0'), 'unknown');
+});

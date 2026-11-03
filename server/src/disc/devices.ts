@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import type { DiscDrive, DriveCandidate, PhysicalDrive } from '../../../shared/types.js';
+import { driveReads } from './capability.js';
 
 const run = promisify(execFile);
 
@@ -60,11 +61,16 @@ async function macState(dev: string): Promise<Pick<DiscDrive, 'state' | 'discLab
 export async function probePhysicalDrive(d: PhysicalDrive, index: number): Promise<DiscDrive> {
   const dev = d.path.trim();
   const exists = process.platform === 'win32' ? true : fs.existsSync(dev);
-  const base: DiscDrive = { index, name: d.label || path.basename(dev), path: dev, state: 'unknown', source: `dev:${dev}`, manualId: d.id, detected: false, available: exists };
+  const named = (name: string): DiscDrive['reads'] => driveReads(name);
+  const base: DiscDrive = { index, name: d.label || path.basename(dev), path: dev, state: 'unknown', source: `dev:${dev}`, manualId: d.id, detected: false, available: exists, reads: named(d.label || '') };
   if (!exists) return base;
   try {
     const s = process.platform === 'linux' ? await linuxState(canonicalDevice(dev)) : process.platform === 'darwin' ? await macState(canonicalDevice(dev)) : { state: 'unknown' as const, name: '' };
-    return { ...base, state: s.state, discLabel: s.discLabel, name: d.label || s.name || base.name };
+    const name = d.label || s.name || base.name;
+    // the model is what says whether this reads Blu-ray, and it only arrives here - a drive added by hand or
+    // found by Rexarr had no capability at all, which is the drive where it matters most: MakeMKV not listing
+    // it is exactly the case where nothing else will say what it is
+    return { ...base, state: s.state, discLabel: s.discLabel, name, reads: named(name) };
   } catch {
     return base;
   }
@@ -112,11 +118,12 @@ export async function autoDetectedDrives(taken: string[], startIndex = 2000, tak
     const index = startIndex + out.length;
     if (!dev) {
       // macOS names the device only once a disc is in, and drutil has already said whether one is
-      out.push({ index, name: c.name, path: '', state: c.state ?? 'unknown', source: '', detected: false, auto: true, available: false });
+      out.push({ index, name: c.name, path: '', state: c.state ?? 'unknown', source: '', detected: false, auto: true, available: false, reads: driveReads(c.name) });
       continue;
     }
     const probed = await probePhysicalDrive({ id: `auto:${dev}`, path: dev, label: c.name, addedAt: '' }, index);
-    out.push({ ...probed, manualId: undefined, auto: true, name: c.name || probed.name });
+    const name = c.name || probed.name;
+    out.push({ ...probed, manualId: undefined, auto: true, name, reads: driveReads(name) });
   }
   return out;
 }

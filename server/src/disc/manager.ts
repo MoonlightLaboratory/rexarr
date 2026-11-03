@@ -1700,7 +1700,19 @@ export class DiscManager {
     if (!fs.existsSync(root)) return [];
     const busy = new Set(store.rips.filter((r) => ['ripping', 'transcoding', 'delivering'].includes(r.status)).flatMap((r) => [r.outputDir, r.deliveryDir].filter((d): d is string => Boolean(d)).map((d) => path.resolve(d))));
     const results: { folder: string; outcomes: ImportOutcome[] }[] = [];
-    for (const e of fs.readdirSync(root, { withFileTypes: true })) {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(root, { withFileTypes: true });
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      // A disconnected share on macOS leaves its mount point behind, so the folder is there and reading it is
+      // refused - which arrives as "EPERM: operation not permitted, scandir", a sentence that says nothing
+      // about the share being gone. Every ten minutes, in the event log.
+      if ((code === 'EPERM' || code === 'EACCES') && root.startsWith(`${path.sep}Volumes${path.sep}`))
+        throw new Error(`${root} could not be read – the volume looks disconnected. Reconnect it, or point the rip folder somewhere local.`);
+      throw new Error(`${root} could not be read: ${(err as Error).message}`);
+    }
+    for (const e of entries) {
       if (!e.isDirectory() || e.name.startsWith('.')) continue;
       const dir = path.join(root, e.name);
       if (busy.has(path.resolve(dir)) || !folderIsSettled(dir)) continue;

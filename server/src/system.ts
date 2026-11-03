@@ -100,10 +100,17 @@ export const tasks = {
     const t0 = Date.now();
     try {
       const result = await def.run();
+      // a task that was failing and now is not is worth one line, so the error above it does not read as current
+      const recovered = Boolean(st.lastError);
       this.markRun(id, Date.now() - t0, result ?? undefined, undefined);
+      if (recovered) appEvents.add('info', 'Tasks', `${def.name} is working again`);
     } catch (err) {
-      this.markRun(id, Date.now() - t0, undefined, (err as Error).message);
-      appEvents.add('error', 'Tasks', `${def.name} failed: ${(err as Error).message}`);
+      const message = (err as Error).message;
+      // The same failure every ten minutes is one problem, not twenty-six of them. System → Tasks always shows
+      // the current error; repeating it in the log buries everything that only happened once.
+      const repeat = st.lastError === message;
+      this.markRun(id, Date.now() - t0, undefined, message);
+      if (!repeat) appEvents.add('error', 'Tasks', `${def.name} failed: ${message}`);
     } finally {
       st.running = false;
     }
