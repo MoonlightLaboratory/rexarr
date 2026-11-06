@@ -150,6 +150,7 @@ export function Onboarding({ mode, onClose }: { mode: 'setup' | 'tools'; onClose
       {step === 'tools' && <ToolsStep tools={tools} checking={checking} onCheck={() => load(true)} showCheck={setup} />}
       {step === 'apps' && <AppsStep draft={draft} onChange={setDraft} />}
       {step === 'folders' && <FoldersStep draft={draft} onChange={setDraft} />}
+      {step === 'metadata' && <MetadataStep draft={draft} onChange={setDraft} />}
     </Modal>
   );
 }
@@ -307,6 +308,41 @@ function FoldersStep({ draft, onChange }: { draft: OnboardingDraft | null; onCha
               Leaving it empty keeps rips beside Rexarr's own data, which is fine to start with. Once it is saved you can confirm the other apps can
               reach it with <strong>Check import access</strong> under <Link to="/settings">Settings → Connections</Link>.
             </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function MetadataStep({ draft, onChange }: { draft: OnboardingDraft | null; onChange: (d: OnboardingDraft) => void }) {
+  if (!draft) return <Waiting />;
+  const fm = draft.fileMetadata;
+  return (
+    <>
+      <p className="obIntro">
+        What Rexarr writes inside the file, as opposed to in its name. Plex and Jellyfin both read this, and Jellyfin can be told to prefer it over
+        the name it matched — which is why it is worth a moment now rather than after a library full of encodes.
+      </p>
+      <div className="card mb">
+        <div className="card-h">Metadata</div>
+        <div className="card-b">
+          <div className="field stack">
+            <label>Title inside the file</label>
+            <select value={fm.title} onChange={(e) => onChange({ ...draft, fileMetadata: { ...fm, title: e.target.value as 'clean' | 'none' } })}>
+              <option value="clean">The show and episode, or the film</option>
+              <option value="none">Nothing</option>
+            </select>
+            <div className="help">
+              <strong>Nothing</strong> leaves Plex and Jellyfin to use the name they matched, which is the safer answer when the two disagree.
+            </div>
+          </div>
+          <div className="field stack">
+            <label className="check">
+              <input type="checkbox" checked={fm.comment} onChange={(e) => onChange({ ...draft, fileMetadata: { ...fm, comment: e.target.checked } })} /> Write an
+              “Encoded by Rexarr…” comment in the file
+            </label>
+            <div className="help">Useful for telling your own encodes apart later; off for a file that says nothing about where it came from.</div>
           </div>
         </div>
       </div>

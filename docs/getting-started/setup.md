@@ -1,8 +1,8 @@
 # First-time setup
 
-0. On first launch a **setup window** opens over the page and walks three things: the **tools** Rexarr calls
+0. On first launch a **setup window** opens over the page and walks four things: the **tools** Rexarr calls
    (FFmpeg required, plus fre:ac, MakeMKV and slskd, with install steps for your platform), **Sonarr and
-   Radarr**, and the **rip folder**. Nothing in it is compulsory — *Skip setup* closes it and it does not come
+   Radarr**, the **rip folder**, and the **metadata** written inside each file. Nothing in it is compulsory — *Skip setup* closes it and it does not come
    back. The tools check stays available as **Check tools** on System → Status.
 1. Whatever you skipped is under **Settings → Connections**: enable Radarr and/or Sonarr, paste the URL and API
    key, click **Test**, save. Add Prowlarr for raw indexer search, Lidarr and slskd for

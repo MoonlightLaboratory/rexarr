@@ -19,12 +19,12 @@ const changes = (a: unknown, b: unknown, p = ''): string[] => {
 };
 
 test('the steps go forwards and backwards and then stop', () => {
-  assert.deepEqual(ONBOARDING_STEPS, ['tools', 'apps', 'folders']);
+  assert.deepEqual(ONBOARDING_STEPS, ['tools', 'apps', 'folders', 'metadata']);
   assert.equal(stepAfter('tools'), 'apps');
-  assert.equal(stepAfter('apps'), 'folders');
-  assert.equal(stepAfter('folders'), null, 'the last step has no next - that is what makes the button say Finish');
+  assert.equal(stepAfter('folders'), 'metadata');
+  assert.equal(stepAfter('metadata'), null, 'the last step has no next - that is what makes the button say Finish');
   assert.equal(stepBefore('tools'), null);
-  assert.equal(stepBefore('folders'), 'apps');
+  assert.equal(stepBefore('metadata'), 'folders');
 });
 
 test('the window opens once, on an install that has not seen it', () => {
@@ -34,11 +34,19 @@ test('the window opens once, on an install that has not seen it', () => {
   assert.equal(shouldOpenOnboarding(null), false);
 });
 
-test('finishing writes the three things it asked about and nothing else', () => {
+test('finishing writes the things it asked about and nothing else', () => {
   const before = settings();
-  const draft = { ...draftFrom(before), sonarr: { url: 'http://nas:8989', apiKey: 'k1' }, radarr: { url: 'http://nas:7878', apiKey: 'k2' }, ripDirectory: '/mnt/rips' };
+  const draft = {
+    ...draftFrom(before),
+    sonarr: { url: 'http://nas:8989', apiKey: 'k1' },
+    radarr: { url: 'http://nas:7878', apiKey: 'k2' },
+    ripDirectory: '/mnt/rips',
+    fileMetadata: { title: 'none' as const, comment: false },
+  };
   assert.deepEqual(changes(before, applyDraft(before, draft)).sort(), [
     'disc.ripDirectory: "" -> "/mnt/rips"',
+    'fileMetadata.comment: true -> false',
+    'fileMetadata.title: "clean" -> "none"',
     'radarr.apiKey: "" -> "k2"',
     'radarr.enabled: false -> true',
     'radarr.url: "http://localhost:7878" -> "http://nas:7878"',
@@ -46,6 +54,12 @@ test('finishing writes the three things it asked about and nothing else', () => 
     'sonarr.enabled: false -> true',
     'sonarr.url: "http://localhost:8989" -> "http://nas:8989"',
   ]);
+});
+
+test('the metadata step alone does not drag anything else with it', () => {
+  const before = settings();
+  const draft = { ...draftFrom(before), fileMetadata: { title: 'none' as const, comment: true } };
+  assert.deepEqual(changes(before, applyDraft(before, draft)), ['fileMetadata.title: "clean" -> "none"']);
 });
 
 test('an app left blank is left alone rather than switched on empty', () => {

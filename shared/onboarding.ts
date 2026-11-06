@@ -6,19 +6,20 @@
  * window happened to be holding. `applyDraft` is the one place that decides what a trip through the window may
  * change - three fields - and a test diffs the whole object to prove nothing else moved.
  */
-import type { Settings } from './types.js';
+import type { FileMetadataSettings, Settings } from './types.js';
 
-export type OnboardingStep = 'tools' | 'apps' | 'folders';
+export type OnboardingStep = 'tools' | 'apps' | 'folders' | 'metadata';
 
-export const ONBOARDING_STEPS: OnboardingStep[] = ['tools', 'apps', 'folders'];
+export const ONBOARDING_STEPS: OnboardingStep[] = ['tools', 'apps', 'folders', 'metadata'];
 
-export const STEP_LABEL: Record<OnboardingStep, string> = { tools: 'Tools', apps: 'Apps', folders: 'Folders' };
+export const STEP_LABEL: Record<OnboardingStep, string> = { tools: 'Tools', apps: 'Apps', folders: 'Folders', metadata: 'Metadata' };
 
-/** What the window is holding: the apps it asks about, and where rips land. */
+/** What the window is holding: the apps it asks about, where rips land, and what goes inside the file. */
 export interface OnboardingDraft {
   sonarr: { url: string; apiKey: string };
   radarr: { url: string; apiKey: string };
   ripDirectory: string;
+  fileMetadata: FileMetadataSettings;
 }
 
 export function stepAfter(s: OnboardingStep): OnboardingStep | null {
@@ -44,6 +45,7 @@ export function draftFrom(s: Settings): OnboardingDraft {
     sonarr: { url: s.sonarr.url, apiKey: s.sonarr.apiKey },
     radarr: { url: s.radarr.url, apiKey: s.radarr.apiKey },
     ripDirectory: s.disc.ripDirectory,
+    fileMetadata: { ...s.fileMetadata },
   };
 }
 
@@ -62,5 +64,6 @@ export function applyDraft(s: Settings, draft: OnboardingDraft): Settings {
     sonarr: app(s.sonarr, draft.sonarr),
     radarr: app(s.radarr, draft.radarr),
     disc: { ...s.disc, ripDirectory: draft.ripDirectory },
+    fileMetadata: { ...s.fileMetadata, ...draft.fileMetadata },
   };
 }
