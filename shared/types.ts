@@ -589,6 +589,12 @@ export interface FileMetadataSettings {
   title: 'clean' | 'none';
   /** The "Encoded by Rexarr…" comment. Useful for telling your own encodes apart; off for a file that says nothing. */
   comment: boolean;
+  /**
+   * Attach the poster as the file's cover. Matroska only - it is the one container Rexarr writes that takes
+   * attachments. Off by default: Plex and Jellyfin fetch their own artwork, so this earns its keep for files
+   * that travel, and for players with no metadata agent behind them.
+   */
+  cover: boolean;
 }
 
 export interface DiscSettings {

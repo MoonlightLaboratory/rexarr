@@ -380,3 +380,40 @@ test('with OCR switched off the profile keeps its pictures rather than losing th
   const keep = dvdProfile('keep');
   assert.equal(withoutOcr(keep), keep);
 });
+
+// ---- cover art -------------------------------------------------------------------------------------------
+
+/** The index an -attach lands on matters: the fonts copied from the source occupy the ones before it. */
+test('cover art is attached to Matroska as cover.jpg, after any fonts kept from the source', () => {
+  const p = byId('builtin-movie-1080p');
+  const r = buildFfmpegArgs(p, probe(), '/in/movie.mkv', '/out/movie.mkv', { coverPath: '/cache/poster.jpg' });
+  const a = r.args;
+  assert.equal(argAfter(a, '-attach'), '/cache/poster.jpg');
+  // the source has one font attachment, so the cover is attachment 1 - tagging :t would hit the font too
+  assert.ok(a.includes('-metadata:s:t:1'), `expected the cover to be tagged as attachment 1, got ${a.join(' ')}`);
+  const tags = a.filter((x, i) => a[i - 1] === '-metadata:s:t:1');
+  assert.deepEqual(tags.sort(), ['filename=cover.jpg', 'mimetype=image/jpeg'].sort());
+  assert.ok(r.summary.some((s) => /[Cc]over/.test(s)), 'the log should say the cover went in');
+});
+
+test('with no fonts to keep, the cover is the first attachment', () => {
+  const r = buildFfmpegArgs(byId('builtin-movie-1080p'), { ...probe(), attachments: [] }, '/in/movie.mkv', '/out/movie.mkv', { coverPath: '/cache/poster.jpg' });
+  assert.ok(r.args.includes('-metadata:s:t:0'), 'with nothing else attached the cover is index 0');
+});
+
+test('a png cover is declared as a png', () => {
+  const r = buildFfmpegArgs(byId('builtin-movie-1080p'), probe(), '/in/movie.mkv', '/out/movie.mkv', { coverPath: '/cache/poster.png' });
+  assert.ok(r.args.some((x, i) => r.args[i - 1] === '-metadata:s:t:1' && x === 'mimetype=image/png'));
+});
+
+test('a container that cannot hold an attachment is left alone and says so', () => {
+  const r = buildFfmpegArgs(byId('builtin-web-mp4'), probe(), '/in/movie.mkv', '/out/movie.mp4', { coverPath: '/cache/poster.jpg' });
+  assert.ok(!r.args.includes('-attach'), 'mp4 takes no attachments');
+  assert.ok(r.summary.some((s) => /cover/i.test(s)), 'and the log should explain why none was written');
+});
+
+test('no cover means no attach arguments at all', () => {
+  const r = buildFfmpegArgs(byId('builtin-movie-1080p'), probe(), '/in/movie.mkv', '/out/movie.mkv');
+  assert.ok(!r.args.includes('-attach'));
+  assert.ok(!r.args.some((x) => x.startsWith('-metadata:s:t')));
+});

@@ -344,6 +344,16 @@ function MetadataStep({ draft, onChange }: { draft: OnboardingDraft | null; onCh
             </label>
             <div className="help">Useful for telling your own encodes apart later; off for a file that says nothing about where it came from.</div>
           </div>
+          <div className="field stack">
+            <label className="check">
+              <input type="checkbox" checked={fm.cover} onChange={(e) => onChange({ ...draft, fileMetadata: { ...fm, cover: e.target.checked } })} /> Embed the
+              poster as cover art
+            </label>
+            <div className="help">
+              Attaches the poster Rexarr already has as <code>cover.jpg</code>. <strong>Matroska only</strong> — an MP4 cannot hold an attachment.
+              Plex and Jellyfin fetch their own artwork, so leave it off unless your files travel.
+            </div>
+          </div>
         </div>
       </div>
       <p className="small dim">That is everything. Finish saves what you have filled in; the rest is under Settings whenever you want it.</p>

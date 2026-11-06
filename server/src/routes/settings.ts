@@ -132,8 +132,8 @@ export const settingsSchema = z.object({
       .default({ enabled: true, ripperPath: '', readOffset: 0, musicbrainz: true, detectMqa: true, compressionLevel: 8, deliverToLidarr: true }),
   }),
   fileMetadata: z
-    .object({ title: z.enum(['clean', 'none']).default('clean'), comment: z.boolean().default(true) })
-    .default({ title: 'clean', comment: true }),
+    .object({ title: z.enum(['clean', 'none']).default('clean'), comment: z.boolean().default(true), cover: z.boolean().default(false) })
+    .default({ title: 'clean', comment: true, cover: false }),
   radarr: conn,
   sonarr: conn,
   prowlarr: conn,

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { DATA_DIR } from './config.js';
 import type { Agent, DiscRip, ExpectedDisc, Job, Profile, Settings, SmartProfile } from '../../shared/types.js';
 import { BUILTIN_PROFILES, BUILTIN_SMART_PROFILES, DEFAULT_SETTINGS } from '../../shared/presets.js';
+import { withDefaults } from './settingsDefaults.js';
 
 interface Persisted<T> {
   file: string;
@@ -54,37 +55,7 @@ const ripsP = load<DiscRip[]>('rips.json', []);
 const expectedP = load<ExpectedDisc[]>('expected-discs.json', []);
 const agentsP = load<Agent[]>('agents.json', []);
 
-// Merge defaults for settings keys added in later versions.
-settingsP.value = {
-  ...structuredClone(DEFAULT_SETTINGS),
-  ...settingsP.value,
-  radarr: { ...DEFAULT_SETTINGS.radarr, ...(settingsP.value.radarr ?? {}) },
-  sonarr: { ...DEFAULT_SETTINGS.sonarr, ...(settingsP.value.sonarr ?? {}) },
-  prowlarr: { ...DEFAULT_SETTINGS.prowlarr, ...(settingsP.value.prowlarr ?? {}) },
-  bazarr: { ...DEFAULT_SETTINGS.bazarr, ...(settingsP.value.bazarr ?? {}) },
-  lidarr: { ...DEFAULT_SETTINGS.lidarr, ...(settingsP.value.lidarr ?? {}) },
-  slskd: { ...DEFAULT_SETTINGS.slskd, ...(settingsP.value.slskd ?? {}) },
-  localMedia: { ...DEFAULT_SETTINGS.localMedia, ...(settingsP.value.localMedia ?? {}) },
-  musicbrainz: { ...DEFAULT_SETTINGS.musicbrainz, ...(settingsP.value.musicbrainz ?? {}) },
-  thediscdb: { ...DEFAULT_SETTINGS.thediscdb, ...(settingsP.value.thediscdb ?? {}) },
-  omdb: { ...DEFAULT_SETTINGS.omdb, ...(settingsP.value.omdb ?? {}) },
-  rexdb: { ...DEFAULT_SETTINGS.rexdb, ...(settingsP.value.rexdb ?? {}) },
-  cddb: { ...DEFAULT_SETTINGS.cddb, ...(settingsP.value.cddb ?? {}) },
-  ocr: { ...DEFAULT_SETTINGS.ocr, ...(settingsP.value.ocr ?? {}) },
-  agents: { ...DEFAULT_SETTINGS.agents, ...(settingsP.value.agents ?? {}) },
-  notifications: { targets: settingsP.value.notifications?.targets ?? [] },
-  experiments: { ...DEFAULT_SETTINGS.experiments, ...(settingsP.value.experiments ?? {}) },
-  disc: { ...DEFAULT_SETTINGS.disc, ...(settingsP.value.disc ?? {}), cd: { ...DEFAULT_SETTINGS.disc.cd, ...(settingsP.value.disc?.cd ?? {}) } },
-  anidb: { ...DEFAULT_SETTINGS.anidb, ...(settingsP.value.anidb ?? {}) },
-  transcoding: { ...DEFAULT_SETTINGS.transcoding, ...(settingsP.value.transcoding ?? {}) },
-  auto: {
-    ...DEFAULT_SETTINGS.auto,
-    ...(settingsP.value.auto ?? {}),
-    sources: { ...DEFAULT_SETTINGS.auto.sources, ...(settingsP.value.auto?.sources ?? {}) },
-    profiles: { ...DEFAULT_SETTINGS.auto.profiles, ...(settingsP.value.auto?.profiles ?? {}) },
-  },
-  defaultProfiles: { ...DEFAULT_SETTINGS.defaultProfiles, ...(settingsP.value.defaultProfiles ?? {}) },
-} as Settings;
+settingsP.value = withDefaults(settingsP.value);
 /**
  * `audio.firstMatchOnly` became `audio.perLanguage`, which can also keep the best or the smallest track rather
  * than whichever the file listed first. The old value says exactly one of the new ones, so it is rewritten once.

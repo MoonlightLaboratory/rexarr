@@ -1290,6 +1290,19 @@ export function SettingsPage() {
               />{' '}
               Write an “Encoded by Rexarr…” comment in the file
             </label>
+            <label className="check mb">
+              <input
+                type="checkbox"
+                checked={s.fileMetadata?.cover ?? false}
+                onChange={(e) => setS({ ...s, fileMetadata: { ...(s.fileMetadata ?? { title: 'clean', comment: true, cover: false }), cover: e.target.checked } })}
+              />{' '}
+              Embed the poster as cover art
+            </label>
+            <div className="help mb">
+              Attaches the poster Rexarr already has as <code>cover.jpg</code>, which is what players look for.{' '}
+              <strong>Matroska only</strong> – an MP4 cannot hold an attachment, and those encodes say so in the log and carry on. Plex and Jellyfin
+              fetch their own artwork, so this is for files that travel and for players with nothing behind them.
+            </div>
             <div className="field">
               <label>Stop stalled encodes after</label>
               <div className="inline" style={{ flexWrap: 'nowrap', gap: 8 }}>

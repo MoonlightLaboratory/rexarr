@@ -103,3 +103,4 @@ an encode or a rip.
 | Write encodes to | `transcodeTemp` | `transcodes` (then move) or `output` (next to the final file) |
 | Title inside the file | `fileMetadata.title` | `clean` writes "Naruto - S01E01"; `none` writes no title at all. Plex and Jellyfin both read this tag and Jellyfin can be told to prefer it over the name it matched |
 | Encoded-by comment | `fileMetadata.comment` | the "Encoded by Rexarr…" note inside the file |
+| Embed cover art | `fileMetadata.cover` | attaches the poster as `cover.jpg`. **Matroska only** — other containers take no attachment and say so in the log. Off by default |

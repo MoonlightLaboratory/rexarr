@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { SmartProfile, SourceFacts, Job, JobProgress, JobSource, JobStatus, MqaInfo, Profile, RipMedia, Settings } from '../../../shared/types.js';
+import { posterFile } from '../routes/images.js';
 import { CONTAINER_INFO } from '../../../shared/presets.js';
 import { encodeMusic, freacEncoderArgs, freacInfo, probeAudio } from '../music/freac.js';
 import { estimateSize } from '../ffmpeg/estimate.js';
@@ -872,8 +873,11 @@ class JobQueue {
           this.log(job, decision.crop ? `Letterboxing: ${decision.reason}` : `Letterboxing: left alone – ${decision.reason}`);
         }
       }
-      const fm = settings.fileMetadata ?? { title: 'clean' as const, comment: true };
+      const fm = settings.fileMetadata ?? { title: 'clean' as const, comment: true, cover: false };
       const metadata = { title: embeddedTitle(job.title, job.subtitle, fm.title), comment: fm.comment };
+      // the poster the UI already cached; a missing one is not worth failing an encode over
+      const coverPath = fm.cover ? await posterFile(job.poster) : undefined;
+      if (fm.cover && !coverPath) this.log(job, 'Cover art: no poster available for this one, so none was written');
       // Picture subtitles the profile wants as text: read before the encode, since OCR cannot happen inside it.
       let ocrDisabled = false;
       if (settings.ocr?.enabled === false && subtitlesToOcr(info, profile).length) {
@@ -882,7 +886,7 @@ class JobQueue {
         ocrDisabled = true;
       }
       const ocrSubtitles = await this.readBitmapSubtitles(job, profile, info, input, settings);
-      let buildOpts: BuildOptions = { hardware: settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, previewPath, metadata, ocrSubtitles, ocrDisabled, crop };
+      let buildOpts: BuildOptions = { hardware: settings.transcoding, availableEncoders: caps?.available ? caps.videoEncoders : undefined, previewPath, metadata, ocrSubtitles, ocrDisabled, crop, coverPath };
       let lastBuilt: ReturnType<typeof buildFfmpegArgs> | undefined;
       this.partials.set(job.id, { path: tmpOutput, container: profile.container });
       job.preview = profile.video.encoder !== 'copy';

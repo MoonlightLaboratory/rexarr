@@ -110,6 +110,42 @@ async function resolve(arr: 'radarr' | 'sonarr' | 'lidarr' | undefined, local: s
   return job;
 }
 
+/**
+ * The poster a job carries, as a file on disk - for embedding it in the encode.
+ *
+ * A job's `poster` is the proxied URL built for the browser ("api/image?arr=radarr&local=…&remote=…"), so this
+ * takes it apart and reuses the same cache the UI filled when it drew the poster. Usually that means no
+ * download at all, and never a second copy. Returns nothing when there is no art or it cannot be fetched -
+ * a missing cover is not a reason to fail an encode.
+ */
+export async function posterFile(poster: string | undefined): Promise<string | undefined> {
+  const ref = posterRef(poster);
+  if (!ref) return undefined;
+  try {
+    return (await resolve(ref.arr, ref.local, ref.remote))?.file;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The three parts of a proxied poster URL, or nothing when it is not one we can fetch. */
+export function posterRef(poster: string | undefined): { arr?: 'radarr' | 'sonarr' | 'lidarr'; local?: string; remote?: string } | null {
+  if (!poster || !poster.includes('?')) return null;
+  let q: URLSearchParams;
+  try {
+    q = new URLSearchParams(poster.slice(poster.indexOf('?') + 1));
+  } catch {
+    return null;
+  }
+  const raw = q.get('arr');
+  const arr = raw === 'radarr' || raw === 'sonarr' || raw === 'lidarr' ? raw : undefined;
+  // the same two shapes the /api/image route accepts, and for the same reason: a poster string is just a URL,
+  // and one that arrived from somewhere unexpected must not become an arbitrary fetch
+  const local = q.get('local')?.startsWith('/MediaCover/') ? q.get('local')! : undefined;
+  const remote = q.get('remote')?.startsWith('https://') ? q.get('remote')! : undefined;
+  return local || remote ? { arr, local, remote } : null;
+}
+
 /** Build a proxied image URL for the client. Prefers the arr's resized variant when one exists. */
 export function proxiedImage(arr: 'radarr' | 'sonarr' | 'lidarr', img: { remoteUrl?: string; url?: string } | undefined, size: 'poster' | 'fanart'): string | undefined {
   if (!img) return undefined;

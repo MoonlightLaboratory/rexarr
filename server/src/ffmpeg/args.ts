@@ -43,6 +43,11 @@ export interface BuildOptions {
   /** Letterbox bars to remove, already measured or typed in. */
   crop?: CropBox;
   /**
+   * A poster to attach as the file's cover, already downloaded. Matroska only - it is the one container here
+   * that takes attachments, and an mp4 would need a second video stream marked attached_pic instead.
+   */
+  coverPath?: string;
+  /**
    * Picture subtitles already read into SRT files, in the order the tracks appear. Each becomes an extra input
    * and a text track in the output; see `ocr.ts` for why this cannot happen inside the one ffmpeg command.
    */
@@ -485,9 +490,23 @@ export function buildFfmpegArgs(requested: Profile, probe: ProbeResult, input: s
   }
 
   // ---------- attachments / metadata ----------
-  if (container.attachments && profile.subtitles.keepFonts && probe.attachments.length) {
+  const fontsKept = container.attachments && profile.subtitles.keepFonts && probe.attachments.length ? probe.attachments.length : 0;
+  if (fontsKept) {
     args.push('-map', '0:t?', '-c:t', 'copy');
     summary.push(`Fonts: ${probe.attachments.length} attachment(s) kept`);
+  }
+  if (opts.coverPath) {
+    if (!container.attachments) {
+      summary.push(`Cover art: ${profile.container} cannot hold an attachment, so none was written`);
+    } else {
+      // the fonts copied above take the first attachment slots, so the cover lands after them - tagging a bare
+      // ':t' would relabel every attachment, which would tell the player the fonts are JPEGs
+      const i = fontsKept;
+      const mime = opts.coverPath.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+      const name = mime === 'image/png' ? 'cover.png' : 'cover.jpg';
+      args.push('-attach', opts.coverPath, `-metadata:s:t:${i}`, `mimetype=${mime}`, `-metadata:s:t:${i}`, `filename=${name}`);
+      summary.push(`Cover art: attached as ${name}`);
+    }
   }
   const description = describeEncode(profile, probe, v.encoder, audioPlan);
   args.push('-map_metadata', '0', '-map_chapters', '0');
