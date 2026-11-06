@@ -1,9 +1,12 @@
 # First-time setup
 
-0. On first launch, **System → Tools** lists FFmpeg (required), fre:ac, MakeMKV and slskd with install steps for
-   your platform. Close it with *Skip for now* / *Continue*; it stays available in the System menu.
-1. Open **Settings → Connections**, enable Radarr and/or Sonarr, paste the URL and API key, click **Test**, save.
-   Add Prowlarr for raw indexer search, Lidarr and slskd for [music](../guide/music.md).
+0. On first launch a **setup window** opens over the page and walks three things: the **tools** Rexarr calls
+   (FFmpeg required, plus fre:ac, MakeMKV and slskd, with install steps for your platform), **Sonarr and
+   Radarr**, and the **rip folder**. Nothing in it is compulsory — *Skip setup* closes it and it does not come
+   back. The tools check stays available as **Check tools** on System → Status.
+1. Whatever you skipped is under **Settings → Connections**: enable Radarr and/or Sonarr, paste the URL and API
+   key, click **Test**, save. Add Prowlarr for raw indexer search, Lidarr and slskd for
+   [music](../guide/music.md).
 2. Check **System → Status** — it lists the ffmpeg version and which encoders are actually available, and flags
    anything missing (ffmpeg, MakeMKV, fre:ac, a drive that disappeared, a path an \*arr app reports that Rexarr
    cannot see).

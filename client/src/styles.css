@@ -1039,9 +1039,16 @@ table.metaTags td.mono { word-break: break-word; }
 @media (max-width: 768px) { .headerLink.hideOnPhone { display: none; } }
 .field.row a svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 3px; }
 
-/* ---- System → Recommended tools */
-.toolsWelcome { margin: 0 0 8px; font-size: 22px; font-weight: 400; }
-.toolsIntro { margin: 0 0 10px; line-height: 1.5; }
+/* ---- The first-run window, and the tools check inside it */
+.obSteps { display: flex; align-items: center; gap: 8px; margin: 0 0 18px; padding: 0; list-style: none; }
+.obStep { display: flex; align-items: center; gap: 7px; color: var(--helpTextColor); }
+.obStep + .obStep::before { content: ''; width: 28px; height: 1px; background: var(--defaultBorderColor); margin-right: 8px; }
+.obDot { width: 24px; height: 24px; flex-shrink: 0; padding: 0; border-radius: 50%; cursor: pointer; font-size: 12px; line-height: 1; color: inherit; background: transparent; border: 1px solid var(--defaultBorderColor); }
+.obStep.on .obDot { background: var(--themeDarkColor, var(--primaryColor)); border-color: transparent; color: #fff; }
+.obStep.done .obDot { border-color: var(--themeDarkColor, var(--primaryColor)); color: var(--themeDarkColor, var(--primaryColor)); }
+.obStep.on .obStepLabel { color: var(--textColor); }
+.obStepLabel { font-size: 13px; }
+.obIntro { margin: 0 0 14px; line-height: 1.5; color: var(--helpTextColor); }
 .toolCard .toolHead { cursor: pointer; user-select: none; }
 .toolCard .toolIcon { display: inline-flex; color: var(--helpTextColor); }
 .toolCard .toolIcon svg { width: 18px; height: 18px; }
@@ -1060,8 +1067,6 @@ table.metaTags td.mono { word-break: break-word; }
 .toolLink { text-decoration: none; }
 .toolCard .help { margin-top: 12px; color: var(--helpTextColor); font-size: 13px; line-height: 20px; }
 .toolCard .toolError { word-break: break-word; }
-.toolsFooter { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 5px 0 20px; }
-.toolsFooter .check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 
 /* ---- Discs: audio picker and the compact size estimate */
 .audioPick { max-width: 210px; height: 26px; padding: 0 6px; font-size: var(--smallFontSize); }

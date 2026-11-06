@@ -65,5 +65,6 @@ Notes:
   [makemkv.com](https://www.makemkv.com/). Rexarr finds the MakeMKV app bundle automatically.
 - **Hardware encoding** needs the matching driver and an ffmpeg built for it — see
   [Transcoding](../guide/transcoding.md).
-- On first launch, **System → Tools** checks for FFmpeg, fre:ac, MakeMKV and slskd and shows the install command
-  for your platform (winget / Homebrew / apt) or the official download page.
+- On first launch the **setup window** checks for FFmpeg, fre:ac, MakeMKV and slskd and shows the install command
+  for your platform (winget / Homebrew / apt) or the official download page. Later it is **Check tools** on
+  System → Status.

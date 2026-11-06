@@ -41,7 +41,7 @@ function PathRow({ p }: { p: StoragePath }) {
 }
 
 export function SystemPage() {
-  const { health, healthLoaded, reloadHealth, toast } = useApp();
+  const { health, healthLoaded, reloadHealth, openTools, toast } = useApp();
   const [info, setInfo] = useState<SystemInfo | null>(null);
   const [paths, setPaths] = useState<StoragePath[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +69,7 @@ export function SystemPage() {
       toolbarLeft={
         <>
           <ToolbarButton icon={<Icon.Refresh />} label="Re-detect" onClick={() => load(true)} busy={busy} />
+          <ToolbarButton icon={<Icon.Download />} label="Check tools" onClick={openTools} />
           <ToolbarButton icon={<Icon.Power />} label="Shutdown" onClick={shutdown} />
         </>
       }

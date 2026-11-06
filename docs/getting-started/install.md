@@ -14,10 +14,11 @@ separately (see [Requirements](requirements.md)).
 
 Then open **http://localhost:3939**.
 
-On first launch Rexarr opens **System → Tools**, which checks for FFmpeg, fre:ac, MakeMKV and slskd and shows how to
-install whichever is missing on your platform (winget / Homebrew / apt commands and the official download pages).
-The Windows installer has the same list as a *Recommended tools* page: tick a tool and its download page opens when
-setup finishes.
+On first launch Rexarr opens a **setup window** over the page: it checks for FFmpeg, fre:ac, MakeMKV and slskd and
+shows how to install whichever is missing on your platform (winget / Homebrew / apt commands and the official
+download pages), then asks for Sonarr and Radarr and the rip folder. *Skip setup* closes it for good, and the tools
+check is **Check tools** on System → Status afterwards. The Windows installer has the same tool list as a
+*Recommended tools* page: tick a tool and its download page opens when setup finishes.
 
 ## Where your data lives
 

@@ -6,6 +6,7 @@ import { api } from './api';
 import { useJobs, type Toast } from './hooks/useEvents';
 import { Layout } from './components/Layout';
 import { Shortcuts } from './components/Shortcuts';
+import { shouldOpenOnboarding } from '@shared/onboarding';
 const MoviesPage = lazy(() => import('./pages/Movies').then((m) => ({ default: m.MoviesPage })));
 const MovieDetailPage = lazy(() => import('./pages/MovieDetail').then((m) => ({ default: m.MovieDetailPage })));
 const SeriesPage = lazy(() => import('./pages/Series').then((m) => ({ default: m.SeriesPage })));
@@ -23,11 +24,11 @@ const DiscsPage = lazy(() => import('./pages/Discs').then((m) => ({ default: m.D
 const TasksPage = lazy(() => import('./pages/SystemPages').then((m) => ({ default: m.TasksPage })));
 const BackupPage = lazy(() => import('./pages/SystemPages').then((m) => ({ default: m.BackupPage })));
 const EventsPage = lazy(() => import('./pages/SystemPages').then((m) => ({ default: m.EventsPage })));
-const ToolsPage = lazy(() => import('./pages/Tools').then((m) => ({ default: m.ToolsPage })));
 const LogsPage = lazy(() => import('./pages/SystemPages').then((m) => ({ default: m.LogsPage })));
 const UpdatesPage = lazy(() => import('./pages/Updates').then((m) => ({ default: m.UpdatesPage })));
 const ExperimentsPage = lazy(() => import('./pages/Experiments').then((m) => ({ default: m.ExperimentsPage })));
 const ScanPage = lazy(() => import('./pages/Scan').then((m) => ({ default: m.ScanPage })));
+const Onboarding = lazy(() => import('./components/Onboarding').then((m) => ({ default: m.Onboarding })));
 
 export interface AppState {
   jobs: Job[];
@@ -45,6 +46,8 @@ export interface AppState {
   reloadHealth: () => Promise<void>;
   reloadProfiles: () => Promise<void>;
   reloadSettings: () => Promise<void>;
+  /** Open the recommended-tools window (System → Status). */
+  openTools: () => void;
   toast: (level: Toast['level'], message: string) => void;
 }
 
@@ -58,6 +61,7 @@ export default function App() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [health, setHealth] = useState<HealthCheck[]>([]);
   const [healthLoaded, setHealthLoaded] = useState(false);
+  const [onboarding, setOnboarding] = useState<'setup' | 'tools' | null>(null);
   const reloadHealth = async () => {
     setHealth(await api.health());
     setHealthLoaded(true);
@@ -73,17 +77,24 @@ export default function App() {
     reloadSettings().catch((e) => toast('error', `Could not load settings: ${e.message}`));
     reloadHealth().catch(() => {});
     api.discStatus().catch(() => {}); // pushes a 'drives' event so the sidebar knows the drive state
+    // first run: the window goes over the page rather than sending you to one of its own
+    api.setupTools().then((t) => shouldOpenOnboarding(t) && setOnboarding('setup')).catch(() => {});
     const t = setInterval(() => reloadHealth().catch(() => {}), 5 * 60_000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <Ctx.Provider value={{ jobs, rips, drives, queuePaused, profiles, smartProfiles, reloadSmartProfiles, settings, health, healthLoaded, reloadHealth, reloadProfiles, reloadSettings, toast }}>
+    <Ctx.Provider value={{ jobs, rips, drives, queuePaused, profiles, smartProfiles, reloadSmartProfiles, settings, health, healthLoaded, reloadHealth, reloadProfiles, reloadSettings, openTools: () => setOnboarding('tools'), toast }}>
       <BrowserRouter basename={URL_BASE || undefined}>
         <Layout jobs={jobs} rips={rips} drives={drives} health={health} connected={connected} toasts={toasts} toastControls={toastControls}>
           {/* inside the router, because going somewhere is most of what a shortcut does */}
           <Shortcuts />
+          {onboarding && (
+            <Suspense fallback={null}>
+              <Onboarding mode={onboarding} onClose={() => setOnboarding(null)} />
+            </Suspense>
+          )}
           <Suspense fallback={<div className="pageToolbar" />}>
           <Routes>
             <Route path="/scan" element={<ScanPage />} />
@@ -110,7 +121,6 @@ export default function App() {
             <Route path="/system/updates" element={<UpdatesPage />} />
             <Route path="/system/events" element={<EventsPage />} />
             <Route path="/system/logs" element={<LogsPage />} />
-            <Route path="/system/tools" element={<ToolsPage />} />
             <Route path="*" element={<Navigate to="/movies" replace />} />
           </Routes>
           </Suspense>
@@ -120,14 +130,7 @@ export default function App() {
   );
 }
 
-/** Landing page: the recommended tools page on first launch while something is missing, Movies otherwise. */
+/** Landing page. First-run setup is a window over it now, so there is nowhere else to go. */
 function Home() {
-  const [to, setTo] = useState<string | null>(null);
-  useEffect(() => {
-    api
-      .setupTools()
-      .then((t) => setTo(!t.dismissed && t.tools.some((x) => !x.available) ? '/system/tools?welcome=1' : '/movies'))
-      .catch(() => setTo('/movies'));
-  }, []);
-  return to ? <Navigate to={to} replace /> : <div className="pageToolbar" />;
+  return <Navigate to="/movies" replace />;
 }
