@@ -22,6 +22,7 @@ import { ejectDrive, emptyScanNote, isOpenFailure, openFailureReason, labelToTit
 import { isOnline, listAgents } from '../agents/registry.js';
 import { readOnAgent, runOnAgent } from '../agents/remote.js';
 import { configured as bazarrConfigured, handOff as bazarrHandOff } from '../arr/bazarr.js';
+import { lookupDisc as discDbLookup } from './thediscdb.js';
 import { applyEntry, buildEntry, fingerprintOf, lookupDisc as lookupInRexDb, rexdbSettings, submitEntry } from './rexdb.js';
 import { boxSetName, discFreed, driveBusy, driveKey, expectedDiscCount, nextWantedDisc, sameSet, sortDiscs } from '../../../shared/boxset.js';
 import { byTitle, omdbConfigured } from '../omdb.js';
@@ -677,7 +678,7 @@ export class DiscManager {
       }
       await this.identify(rip);
       this.applyDefaultSelection(rip);
-      await this.applyRexDb(rip);
+      await this.applyDiscMapping(rip);
       // now the series, season and episodes are known, which is what a set is matched on
       const key = driveKey({ name: rip.driveName, path: rip.drivePath });
       const want = this.awaiting.get(key);
@@ -1125,7 +1126,7 @@ export class DiscManager {
     await this.identify(rip);
     if (rip.titles.length) {
       this.applyDefaultSelection(rip);
-      await this.applyRexDb(rip);
+      await this.applyDiscMapping(rip);
     }
     store.saveRips();
     this.emit(rip);
@@ -1200,6 +1201,51 @@ export class DiscManager {
    *
    * Nothing is sent anywhere by this. It reads one cached JSON file.
    */
+  /**
+   * Which title is which episode, from TheDiscDB first and RexDB after it.
+   *
+   * TheDiscDB leads because its entries are read off the disc by someone who had it in a drive, where RexDB's
+   * are corrections people sent back - the first is a description, the second a fix. Either way the disc has to
+   * match by shape, and a disc neither knows falls through to the ordered guess, flagged as one, as before.
+   */
+  private async applyDiscMapping(rip: DiscRip) {
+    if (rip.media.kind !== 'series' || !rip.titles.length) return;
+    if (await this.applyTheDiscDb(rip)) return;
+    await this.applyRexDb(rip);
+  }
+
+  /** TheDiscDB, matched on the playlists the disc holds and how long each one runs. */
+  private async applyTheDiscDb(rip: DiscRip): Promise<boolean> {
+    const s = store.settings.thediscdb;
+    if (!s?.enabled || s.episodeMapping === false || !rip.media.title) return false;
+    let hit;
+    try {
+      hit = await discDbLookup({ title: rip.media.title, year: rip.media.year }, rip.titles);
+    } catch (err) {
+      this.log(rip, `TheDiscDB could not be read: ${(err as Error).message}`);
+      return false;
+    }
+    if (!hit) {
+      // recorded so the page can offer to contribute it, and so the log says why it fell through
+      rip.media.thediscdbMissing = true;
+      this.log(rip, 'TheDiscDB does not have this disc yet');
+      return false;
+    }
+    const mapping = applyEntry({ titles: hit.titles } as never, rip.titles);
+    if (!Object.keys(mapping.episodeMap).length && !Object.keys(mapping.titleRoles).length) return false;
+    rip.episodeMap = { ...rip.episodeMap, ...mapping.episodeMap };
+    rip.titleRoles = { ...rip.titleRoles, ...mapping.titleRoles };
+    if (mapping.skip.length) rip.selectedTitleIds = rip.selectedTitleIds.filter((id) => !mapping.skip.includes(id));
+    if (mapping.seasonNumber !== undefined) rip.media.seasonNumber = mapping.seasonNumber;
+    if (mapping.episodeStart !== undefined) rip.media.episodeStart = mapping.episodeStart;
+    rip.media.episodeStartGuessed = false;
+    rip.media.episodeSource = 'thediscdb';
+    rip.media.thediscdbMissing = false;
+    rip.media.thediscdb = { folder: hit.folder, release: hit.release, disc: hit.disc, url: hit.url };
+    this.log(rip, `TheDiscDB knows this disc (${hit.folder} · ${hit.release} · ${hit.disc}): ${mapping.summary}`);
+    return true;
+  }
+
   private async applyRexDb(rip: DiscRip) {
     if (rip.media.kind !== 'series' || !rip.titles.length) return;
     let match;

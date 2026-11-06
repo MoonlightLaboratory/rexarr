@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { THEDISCDB_CONTRIBUTE } from '@shared/types';
 import type { MusicBrainzRelease, DriveCandidate, DiscAudioTrack, DiscDrive, DiscEstimate, DiscRip, DiscTitle, Episode, ExtraType, LookupResult, MakemkvInfo, RipMedia, RipOptions, RipStatus, TitleRole, WantedDisc } from '@shared/types';
 import { api, fmtAge, fmtBytes, fmtDuration, ripOverallPercent } from '../api';
 import { batchProgress, discFreed, driveBusy, episodeNumbers, episodeRange, expectedDiscCount, missingDiscs, discPhase, sortDiscs } from '@shared/boxset';
@@ -856,6 +857,23 @@ function RipCard({ rip, onLog, nested }: { rip: DiscRip; onLog: (r: DiscRip) => 
           {isSeries && (
             <div className="small dim mt">
               Titles are numbered in disc order from “First ep.”{media.discNumber ? ` (disc ${media.discNumber} of the set)` : ''}; adjust any episode above if the disc order differs.
+              {media.episodeSource === 'thediscdb' && media.thediscdb && (
+                <strong className="fromRexdb">
+                  {' '}
+                  These episode numbers came from{' '}
+                  <a href={media.thediscdb.url} target="_blank" rel="noreferrer">TheDiscDB</a> — this exact disc
+                  ({media.thediscdb.release} · {media.thediscdb.disc}), matched on the playlists it holds and how long
+                  each one runs, not on its name. Change anything that is wrong; what you set wins.
+                </strong>
+              )}
+              {media.thediscdbMissing && settings?.thediscdb?.offerToContribute !== false && settings?.thediscdb?.enabled !== false && (
+                <span>
+                  {' '}
+                  <a href={THEDISCDB_CONTRIBUTE} target="_blank" rel="noreferrer">TheDiscDB</a> does not have this disc
+                  yet, so the numbers below are not from it. If you add it, the next person with this disc gets it
+                  right without asking anyone.
+                </span>
+              )}
               {media.episodeSource === 'rexdb' && media.rexdb && (
                 <strong className="fromRexdb">
                   {' '}
@@ -872,7 +890,7 @@ function RipCard({ rip, onLog, nested }: { rip: DiscRip; onLog: (r: DiscRip) => 
                   set the episodes yourself.
                 </strong>
               )}
-              {media.episodeSource !== 'rexdb' && (media.discNumber ?? 1) > 1 && (media.episodeStartGuessed || (media.episodeStart ?? 1) === 1) && (
+              {media.episodeSource !== 'rexdb' && media.episodeSource !== 'thediscdb' && (media.discNumber ?? 1) > 1 && (media.episodeStartGuessed || (media.episodeStart ?? 1) === 1) && (
                 <strong>
                   {' '}
                   This is disc {media.discNumber} of the set and nothing on it says where it starts, so{' '}

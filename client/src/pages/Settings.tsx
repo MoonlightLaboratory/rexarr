@@ -1376,7 +1376,7 @@ export function SettingsPage() {
       <div className="card mb">
         <div className="card-h">
           <label className="check">
-            <input type="checkbox" checked={s.thediscdb?.enabled !== false} onChange={(e) => setS({ ...s, thediscdb: { enabled: e.target.checked } })} /> TheDiscDB
+            <input type="checkbox" checked={s.thediscdb?.enabled !== false} onChange={(e) => setS({ ...s, thediscdb: { ...s.thediscdb, enabled: e.target.checked } })} /> TheDiscDB
           </label>
           <span className="spacer" />
           <span className="small dim">no account needed</span>
@@ -1391,6 +1391,41 @@ export function SettingsPage() {
           <a href={withBase('/settings/experiments')}>scanned barcode</a> needs turning into a title – a hit names
           the film or series outright, instead of a shop listing that has to be cleaned up and guessed at. Mostly
           US releases, and it will not know every disc.
+        </div>
+        <div className="card-b" style={{ paddingTop: 0 }}>
+          <div className="field stack">
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={s.thediscdb?.episodeMapping !== false}
+              disabled={s.thediscdb?.enabled === false}
+              onChange={(e) => setS({ ...s, thediscdb: { ...s.thediscdb, episodeMapping: e.target.checked } })}
+            />{' '}
+            Use it to say which title is which episode
+          </label>
+          <div className="help">
+            The disc in the drive is matched to one of theirs by the playlists it holds and how long each one runs,
+            so a box set's disc 2 cannot be taken for its disc 1 even though both hold the same playlist numbers.
+            Only an exact match is used. This is the first thing asked, ahead of{' '}
+            <a href="https://moonlightlaboratory.github.io/rexarr/rexdb/" target="_blank" rel="noreferrer">RexDB</a>:
+            TheDiscDB's entries are read off the disc by somebody who had it in a drive, where RexDB's are
+            corrections sent back afterwards. A disc neither knows falls through to the ordered guess, said to be
+            one, as before.
+          </div>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={s.thediscdb?.offerToContribute !== false}
+              disabled={s.thediscdb?.enabled === false || s.thediscdb?.episodeMapping === false}
+              onChange={(e) => setS({ ...s, thediscdb: { ...s.thediscdb, offerToContribute: e.target.checked } })}
+            />{' '}
+            Offer to add a disc it does not have
+          </label>
+          <div className="help">
+            A link on the Discs page, nothing more – <strong>nothing is sent anywhere</strong>. TheDiscDB is filled in
+            by hand from a disc you hold, so the link opens their instructions and you decide whether to bother.
+          </div>
+          </div>
         </div>
       </div>
 

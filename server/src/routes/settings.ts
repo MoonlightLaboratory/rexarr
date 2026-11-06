@@ -120,6 +120,7 @@ export const settingsSchema = z.object({
     autoEject: z.boolean(),
     keepRaw: z.boolean(),
     autoImport: z.boolean().default(true),
+    groupBoxSets: z.boolean().default(true),
     addMissing: z.boolean().default(true),
     addMonitored: z.boolean().default(false),
     addTargets: z.object({ series: z.object({ root: z.string().optional(), profileId: z.number().int().optional() }).optional(), anime: z.object({ root: z.string().optional(), profileId: z.number().int().optional() }).optional(), movie: z.object({ root: z.string().optional(), profileId: z.number().int().optional() }).optional(), animeMovie: z.object({ root: z.string().optional(), profileId: z.number().int().optional() }).optional() }).optional(),
@@ -130,6 +131,9 @@ export const settingsSchema = z.object({
       .object({ enabled: z.boolean(), ripperPath: z.string(), readOffset: z.number().int().min(-5000).max(5000), musicbrainz: z.boolean(), detectMqa: z.boolean(), compressionLevel: z.number().int().min(0).max(8), deliverToLidarr: z.boolean() })
       .default({ enabled: true, ripperPath: '', readOffset: 0, musicbrainz: true, detectMqa: true, compressionLevel: 8, deliverToLidarr: true }),
   }),
+  fileMetadata: z
+    .object({ title: z.enum(['clean', 'none']).default('clean'), comment: z.boolean().default(true) })
+    .default({ title: 'clean', comment: true }),
   radarr: conn,
   sonarr: conn,
   prowlarr: conn,
@@ -139,7 +143,9 @@ export const settingsSchema = z.object({
     .object({ enabled: z.boolean(), url: z.string(), apiKey: z.string(), downloadsPath: z.string().default(''), maxQueueLength: z.number().int().min(0).max(10000).default(50), searchTimeoutSeconds: z.number().int().min(5).max(60).default(15) })
     .default({ enabled: false, url: 'http://localhost:5030', apiKey: '', downloadsPath: '', maxQueueLength: 50, searchTimeoutSeconds: 15 }),
   musicbrainz: z.object({ enabled: z.boolean() }).default({ enabled: true }),
-  thediscdb: z.object({ enabled: z.boolean() }).default({ enabled: true }),
+  thediscdb: z
+    .object({ enabled: z.boolean(), episodeMapping: z.boolean().default(true), offerToContribute: z.boolean().default(true) })
+    .default({ enabled: true, episodeMapping: true, offerToContribute: true }),
   omdb: z.object({ enabled: z.boolean().default(false), apiKey: z.string().max(80).default('') }).default({ enabled: false, apiKey: '' }),
   rexdb: z
     .object({

@@ -194,12 +194,55 @@ A trailing bare number is left in the title rather than read as a disc — `NARU
 is as often a sequel as a volume. `D1`, `DISC_1`, `PART_2`, `VOL_01` and `S2_P1` are all read as the disc and
 season they are.
 
+### TheDiscDB
+
+A disc does not say which of its titles is which episode, and the obvious arithmetic is wrong as soon as a set is
+7 + 7 + 5 + 5 rather than four equal discs. So before guessing, Rexarr asks somebody who has had the disc in a
+drive.
+
+[TheDiscDB](https://thediscdb.com) is a community catalogue of physical releases, and for a disc somebody has
+scanned it records what each title on it is:
+
+```
+Source file name: 00800.mpls
+Type: Episode
+Season: 1
+Episode: 1
+```
+
+which is the question exactly. It is keyed by playlist, and so is Rexarr's own idea of a title, so the two line
+up without translation.
+
+**The disc is matched on its shape, not its label** — the playlists it holds and how long each one runs. This is
+the part that has to be right: the discs of one box set are pressed from the same template and carry the very
+same playlist numbers, so on names alone disc 2 would be read as disc 1 and the episodes numbered wrongly with
+nothing to say so. Four fifths of the titles have to line up, both ways, within five seconds each. Anything less
+is not this disc, and Rexarr says nothing rather than something wrong.
+
+Only an exact match is applied, and the Discs page links to the entry it used. Whatever you set by hand still
+wins.
+
+Looking a disc up **sends nothing anywhere**: public files are read from their data repository and cached.
+**Settings → Connections → TheDiscDB** turns the whole thing off, or just the episode mapping — the barcode
+lookup is the same setting's other half.
+
+#### A disc it does not have
+
+TheDiscDB is filled in by hand by people holding the disc, so it will not know every one, and the Discs page says
+when it did not: the numbers you see came from RexDB or from a guess instead. **Offer to add a disc it does not
+have** puts a link to their contribution instructions there. It is a link and nothing more — nothing is sent, and
+nothing is submitted on your behalf. Turn it off and the page stays quiet about it.
+
 ### RexDB
 
-Before any of that, Rexarr asks [RexDB](https://moonlightlaboratory.github.io/rexarr/rexdb/) — a shared, public
-database of which episode is on which part of which disc. A disc is recognised by its **fingerprint**: the volume
-label and the lengths of its titles, which are known the moment a scan ends, so nothing has to be scanned or
-typed. An exact match is applied and the page says the numbers came from RexDB rather than from a guess.
+Where TheDiscDB does not have the disc, Rexarr asks
+[RexDB](https://moonlightlaboratory.github.io/rexarr/rexdb/) — a shared, public database of which episode is on
+which part of which disc. The two are not the same thing: TheDiscDB's entries describe a disc somebody read,
+RexDB's are corrections people sent back after Rexarr got one wrong.
+
+A disc is recognised by its **fingerprint**: the volume label and the lengths of its titles, which are known the
+moment a scan ends, so nothing has to be scanned or typed. An exact match is applied and the page says the
+numbers came from RexDB rather than from a guess.
 
 Anything less than exact is offered rather than applied. A drive that reads a duration a second out, or reports
 the label differently, produces a different fingerprint for the same disc; where the structure still lines up
@@ -234,7 +277,7 @@ hands you the entry and a GitHub link, and you post it. That needs nothing deplo
 public one, or your own — is what makes a corrected disc go on its own. The Worker holds the GitHub token so
 Rexarr never carries a credential that could write to the database.
 
-Where RexDB has never seen the disc, Rexarr falls back to what it can work out:
+Where neither database has seen the disc, Rexarr falls back to what it can work out:
 
 Where disc 2 and later **start** cannot be read off the disc, and Sonarr cannot help once a season is complete —
 every episode has a file either way. Rexarr carries on from the earlier discs of the same set when it has ripped

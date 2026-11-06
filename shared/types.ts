@@ -5,6 +5,10 @@ export type Container = 'mkv' | 'mp4' | 'webm' | 'mov' | 'flac' | 'mp3' | 'opus'
 /** Audio-only containers used by music profiles (encoded with fre:ac). */
 export const MUSIC_CONTAINERS = ['flac', 'mp3', 'opus', 'ogg', 'wv', 'ape'] as const;
 
+/** TheDiscDB, in one place: the server reads it, the client links to it. */
+export const THEDISCDB_SITE = 'https://thediscdb.com';
+export const THEDISCDB_CONTRIBUTE = 'https://thediscdb.com/contribute';
+
 export type VideoEncoder =
   | 'copy'
   | 'libx264'
@@ -563,6 +567,19 @@ export interface PathMapping {
   app?: 'all' | 'radarr' | 'sonarr' | 'lidarr' | 'slskd';
 }
 
+/** TheDiscDB (thediscdb.com): a community catalogue of what is on each physical disc. */
+export interface TheDiscDbSettings {
+  enabled: boolean;
+  /**
+   * Use it to say which title is which episode. The disc in the drive is matched to one of theirs by the
+   * playlists it holds and how long each runs, and only an exact match is used. On by default: it is a read
+   * mapping rather than a guess, which is the one thing Rexarr cannot work out on its own.
+   */
+  episodeMapping: boolean;
+  /** Offer a link to contribute the disc when TheDiscDB does not have it. */
+  offerToContribute: boolean;
+}
+
 /** What goes inside the file, as opposed to on it. */
 export interface FileMetadataSettings {
   /**
@@ -948,7 +965,7 @@ export interface Settings {
   /** MusicBrainz / Cover Art Archive lookups (CDs, music metadata). */
   musicbrainz: { enabled: boolean };
   /** TheDiscDB: barcodes, disc contents and the ids that go with a physical release. */
-  thediscdb: { enabled: boolean };
+  thediscdb: TheDiscDbSettings;
   /** OMDb: what a film or series is, when Radarr and Sonarr do not know it. */
   omdb: OmdbSettings;
   /** RexDB: which episode is on which disc, from the shared database. */
@@ -1761,7 +1778,11 @@ export interface RipMedia {
    */
   episodeStartGuessed?: boolean;
   /** Where the episode numbers came from, so the page can say rather than imply. */
-  episodeSource?: 'rexdb' | 'rexdb-suggested' | 'guess' | 'manual';
+  episodeSource?: 'thediscdb' | 'rexdb' | 'rexdb-suggested' | 'guess' | 'manual';
+  /** The TheDiscDB disc behind them, when that is where they came from. */
+  thediscdb?: { folder: string; release: string; disc: string; url: string };
+  /** TheDiscDB was asked and did not have this disc, so contributing it is worth offering. */
+  thediscdbMissing?: boolean;
   /** The RexDB entry behind them, when that is where they came from. */
   rexdb?: { fingerprint: string; status: string; confirmations?: number; disc_name: string };
   /** Anime: name files with absolute episode numbers (Show - 005) instead of S01E05. */

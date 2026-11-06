@@ -44,9 +44,9 @@ Everything on these pages is also available as JSON: `GET /api/settings`, `PUT /
 | Rip farm | on / off, approval, how many encodes to keep here | `agents.*`; see [Rip farm](../guide/rip-farm.md) |
 | Local media | extra folders, scan interval, folder kinds | see [Local media](../guide/local-media.md) |
 | MusicBrainz | on / off | CD and album lookups, Cover Art Archive |
-| TheDiscDB | on / off | barcodes and disc contents for physical releases |
+| TheDiscDB | on / off, episode mapping, offer to contribute | `thediscdb.*`; which title is which episode, matched on the disc's shape, and barcodes for physical releases |
 | OMDb | on / off, API key | `omdb.*`; genre, year and kind for titles the \*arr apps do not have |
-| RexDB | on / off, index URL, when to contribute | `rexdb.*`; which episode is on which disc, from the shared database |
+| RexDB | on / off, index URL, when to contribute | `rexdb.*`; which episode is on which disc, from the shared database — asked when TheDiscDB does not have the disc |
 | CDDB / freedb | on / off, server | audio CD track titles when MusicBrainz has none |
 | Notifications | any number of targets | see below |
 
