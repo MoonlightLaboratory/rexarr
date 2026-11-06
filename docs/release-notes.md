@@ -5,6 +5,10 @@ packages. The notes for each version:
 
 | Version | What is in it |
 | --- | --- |
+| [0.1.10.0](release-notes/0.1.10.0.md) | TheDiscDB episode mapping, a setup window, Bazarr, a command line, crop detection, UHD and non-English disc checks |
+| [0.1.9.2](release-notes/0.1.9.2.md) | Fixes: duplicate failed rips, drive identification, notification events |
+| [0.1.9.1](release-notes/0.1.9.1.md) | Box sets: disc children with episode ranges, swapping through a set, batch progress |
+| [0.1.9.0](release-notes/0.1.9.0.md) | RexDB, drives MakeMKV cannot see, bitrate in the command preview, better disc-label matching |
 | [0.1.8.0](release-notes/0.1.8.0.md) | Smart profiles, CDDB for audio CDs, TheDiscDB barcodes, and a run of audio CD fixes |
 | [0.1.7.2](release-notes/0.1.7.2.md) | Notifications for encodes, discs and updates, and a pass over the interface |
 | [0.1.7.1](release-notes/0.1.7.1.md) | NAS templates for Unraid, ZimaOS, TrueNAS, DSM and OMV, the CasaOS store listing, Docker Hub |
